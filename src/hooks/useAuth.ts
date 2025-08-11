@@ -19,11 +19,15 @@ export const useAuth = () => {
   useEffect(() => {
     let mounted = true;
 
-    const getInitialSession = async () => {
+  const getInitialSession = async () => {
       try {
+        console.log('Getting initial session...');
         const { data: { session }, error } = await supabase.auth.getSession();
         
-        if (!mounted) return;
+        if (!mounted) {
+          console.log('Component unmounted, returning early');
+          return;
+        }
         
         if (error) {
           console.error('Error getting session:', error);
@@ -31,11 +35,14 @@ export const useAuth = () => {
           return;
         }
 
+        console.log('Session found:', !!session?.user);
         setUser(session?.user ?? null);
         
         if (session?.user) {
+          console.log('Fetching profile for user:', session.user.id);
           await fetchProfile(session.user.id);
         } else {
+          console.log('No session, setting loading false');
           setLoading(false);
         }
       } catch (error) {
@@ -51,6 +58,7 @@ export const useAuth = () => {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('Auth state changed:', event, !!session?.user);
         if (!mounted) return;
         
         setUser(session?.user ?? null);
@@ -71,20 +79,27 @@ export const useAuth = () => {
 
   const fetchProfile = async (userId: string) => {
     try {
+      console.log('Fetching profile for userId:', userId);
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('user_id', userId)
         .maybeSingle();
 
+      console.log('Profile fetch result:', { data, error });
+
       if (error && error.code !== 'PGRST116') {
         console.error('Error fetching profile:', error);
+        // Even with error, we should stop loading
+        setProfile(null);
       } else {
         setProfile(data);
       }
     } catch (error) {
       console.error('Error fetching profile:', error);
+      setProfile(null);
     } finally {
+      console.log('Setting loading to false');
       setLoading(false);
     }
   };
