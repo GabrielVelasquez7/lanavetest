@@ -151,14 +151,20 @@ export const PointOfSaleForm = () => {
             <Input
               type="text"
               placeholder="0,00"
-              onChange={(e) => {
-                const value = e.target.value.replace(/[^\d,]/g, '');
-                const numValue = parseFloat(value.replace(',', '.')) || 0;
+              defaultValue={currentAmount > 0 ? formatCurrency(currentAmount, 'VES').replace('Bs ', '') : ''}
+              onBlur={(e) => {
+                const cleanValue = e.target.value.replace(/[^\d,]/g, '');
+                const numValue = parseFloat(cleanValue.replace(',', '.')) || 0;
                 form.setValue('amount_bs', numValue);
                 e.target.value = numValue > 0 ? numValue.toLocaleString('es-VE', {
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2,
                 }) : '';
+              }}
+              onChange={(e) => {
+                const cleanValue = e.target.value.replace(/[^\d,]/g, '');
+                const numValue = parseFloat(cleanValue.replace(',', '.')) || 0;
+                form.setValue('amount_bs', numValue);
               }}
             />
           </div>

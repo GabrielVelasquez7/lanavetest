@@ -82,30 +82,26 @@ export const BulkTransactionsForm = () => {
     fetchLotteryOptions();
   }, [toast, replace]);
 
-  const formatNumber = (value: string): string => {
-    // Remove all non-digit characters except decimal point and comma
-    const cleanValue = value.replace(/[^\d.,]/g, '');
-    
-    // Handle empty or invalid input
-    if (!cleanValue || cleanValue === '.' || cleanValue === ',') return '';
-    
-    // Replace comma with dot for parsing
-    const normalizedValue = cleanValue.replace(',', '.');
-    const num = parseFloat(normalizedValue);
-    
-    if (isNaN(num)) return '';
-    
-    // Format with thousands separator and 2 decimals
-    return num.toLocaleString('es-VE', {
+  const formatNumberForDisplay = (value: number): string => {
+    if (value === 0) return '';
+    return value.toLocaleString('es-VE', {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     });
   };
 
+  const parseInputValue = (value: string): number => {
+    if (!value || value.trim() === '') return 0;
+    // Remove any non-digit characters except comma and dot
+    const cleanValue = value.replace(/[^\d.,]/g, '');
+    // Replace comma with dot for parsing
+    const normalizedValue = cleanValue.replace(',', '.');
+    const num = parseFloat(normalizedValue);
+    return isNaN(num) ? 0 : num;
+  };
+
   const handleNumberInput = (index: number, field: string, value: string) => {
-    // Clean the value and convert to number
-    const cleanValue = value.replace(/[^\d.,]/g, '').replace(/\./g, '').replace(',', '.');
-    const numValue = parseFloat(cleanValue) || 0;
+    const numValue = parseInputValue(value);
     form.setValue(`systems.${index}.${field}` as any, numValue);
   };
 
@@ -259,14 +255,14 @@ export const BulkTransactionsForm = () => {
               <Input
                 type="text"
                 placeholder="0,00"
-                defaultValue=""
+                key={`sales_bs_${field.id}`}
+                onBlur={(e) => {
+                  const value = parseInputValue(e.target.value);
+                  form.setValue(`systems.${index}.sales_bs`, value);
+                  e.target.value = formatNumberForDisplay(value);
+                }}
                 onChange={(e) => {
-                  const inputValue = e.target.value;
-                  const formatted = formatNumber(inputValue);
-                  if (formatted !== inputValue) {
-                    e.target.value = formatted;
-                  }
-                  handleNumberInput(index, 'sales_bs', inputValue);
+                  handleNumberInput(index, 'sales_bs', e.target.value);
                 }}
                 className="text-center"
               />
@@ -274,14 +270,14 @@ export const BulkTransactionsForm = () => {
               <Input
                 type="text"
                 placeholder="0.00"
-                defaultValue=""
+                key={`sales_usd_${field.id}`}
+                onBlur={(e) => {
+                  const value = parseInputValue(e.target.value);
+                  form.setValue(`systems.${index}.sales_usd`, value);
+                  e.target.value = formatNumberForDisplay(value);
+                }}
                 onChange={(e) => {
-                  const inputValue = e.target.value;
-                  const formatted = formatNumber(inputValue);
-                  if (formatted !== inputValue) {
-                    e.target.value = formatted;
-                  }
-                  handleNumberInput(index, 'sales_usd', inputValue);
+                  handleNumberInput(index, 'sales_usd', e.target.value);
                 }}
                 className="text-center"
               />
@@ -289,14 +285,14 @@ export const BulkTransactionsForm = () => {
               <Input
                 type="text"
                 placeholder="0,00"
-                defaultValue=""
+                key={`prizes_bs_${field.id}`}
+                onBlur={(e) => {
+                  const value = parseInputValue(e.target.value);
+                  form.setValue(`systems.${index}.prizes_bs`, value);
+                  e.target.value = formatNumberForDisplay(value);
+                }}
                 onChange={(e) => {
-                  const inputValue = e.target.value;
-                  const formatted = formatNumber(inputValue);
-                  if (formatted !== inputValue) {
-                    e.target.value = formatted;
-                  }
-                  handleNumberInput(index, 'prizes_bs', inputValue);
+                  handleNumberInput(index, 'prizes_bs', e.target.value);
                 }}
                 className="text-center"
               />
@@ -304,14 +300,14 @@ export const BulkTransactionsForm = () => {
               <Input
                 type="text"
                 placeholder="0.00"
-                defaultValue=""
+                key={`prizes_usd_${field.id}`}
+                onBlur={(e) => {
+                  const value = parseInputValue(e.target.value);
+                  form.setValue(`systems.${index}.prizes_usd`, value);
+                  e.target.value = formatNumberForDisplay(value);
+                }}
                 onChange={(e) => {
-                  const inputValue = e.target.value;
-                  const formatted = formatNumber(inputValue);
-                  if (formatted !== inputValue) {
-                    e.target.value = formatted;
-                  }
-                  handleNumberInput(index, 'prizes_usd', inputValue);
+                  handleNumberInput(index, 'prizes_usd', e.target.value);
                 }}
                 className="text-center"
               />
