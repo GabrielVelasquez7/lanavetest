@@ -10,10 +10,12 @@ import { ExpensesForm } from './ExpensesForm';
 import { DailySummary } from './DailySummary';
 import { MobilePaymentsForm } from './MobilePaymentsForm';
 import { PointOfSaleForm } from './PointOfSaleForm';
+import { BulkTransactionsForm } from './BulkTransactionsForm';
+import { SystemCuadresView } from './SystemCuadresView';
 
 export const TaquilleraDashboard = () => {
   const { profile, signOut } = useAuth();
-  const [activeTab, setActiveTab] = useState('ventas');
+  const [activeTab, setActiveTab] = useState('transacciones');
 
   const handleSignOut = async () => {
     await signOut();
@@ -38,14 +40,10 @@ export const TaquilleraDashboard = () => {
 
       <main className="container mx-auto p-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6">
-            <TabsTrigger value="ventas" className="flex items-center gap-2">
+          <TabsList className="grid w-full grid-cols-7">
+            <TabsTrigger value="transacciones" className="flex items-center gap-2">
               <DollarSign className="h-4 w-4" />
-              Ventas
-            </TabsTrigger>
-            <TabsTrigger value="premios" className="flex items-center gap-2">
-              <Gift className="h-4 w-4" />
-              Premios
+              Ventas/Premios
             </TabsTrigger>
             <TabsTrigger value="gastos" className="flex items-center gap-2">
               <Receipt className="h-4 w-4" />
@@ -59,36 +57,26 @@ export const TaquilleraDashboard = () => {
               <CreditCard className="h-4 w-4" />
               Punto Venta
             </TabsTrigger>
-            <TabsTrigger value="resumen" className="flex items-center gap-2">
+            <TabsTrigger value="cuadre-sistemas" className="flex items-center gap-2">
               <Calculator className="h-4 w-4" />
-              Cuadre
+              Por Sistema
+            </TabsTrigger>
+            <TabsTrigger value="cuadre-general" className="flex items-center gap-2">
+              <Calculator className="h-4 w-4" />
+              Cuadre General
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="ventas" className="space-y-6">
+          <TabsContent value="transacciones" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Registro de Ventas</CardTitle>
+                <CardTitle>Registro de Ventas y Premios</CardTitle>
                 <CardDescription>
-                  Registra las ventas de cada sistema de lotería
+                  Registra ventas y premios de todos los sistemas de una vez
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <SalesForm />
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="premios" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Registro de Premios</CardTitle>
-                <CardDescription>
-                  Registra los premios pagados por sistema
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <PrizesForm />
+                <BulkTransactionsForm />
               </CardContent>
             </Card>
           </TabsContent>
@@ -125,12 +113,26 @@ export const TaquilleraDashboard = () => {
             <PointOfSaleForm />
           </TabsContent>
 
-          <TabsContent value="resumen" className="space-y-6">
+          <TabsContent value="cuadre-sistemas" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Cuadre Diario</CardTitle>
+                <CardTitle>Cuadre por Sistema</CardTitle>
                 <CardDescription>
-                  Cuadre de ventas vs premios y resumen general
+                  Detalle del cuadre de cada sistema de lotería
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <SystemCuadresView />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="cuadre-general" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Cuadre General</CardTitle>
+                <CardDescription>
+                  Cuadre total y resumen financiero del día
                 </CardDescription>
               </CardHeader>
               <CardContent>
