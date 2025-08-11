@@ -13,63 +13,69 @@ export interface UserProfile {
 
 export const useAuth = () => {
   const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<any>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let mounted = true;
 
-  const getInitialSession = async () => {
-      try {
-        console.log('Getting initial session...');
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
-        if (!mounted) {
-          console.log('Component unmounted, returning early');
-          return;
-        }
-        
-        if (error) {
-          console.error('Error getting session:', error);
-          setLoading(false);
-          return;
-        }
-
-        console.log('Session found:', !!session?.user);
-        setUser(session?.user ?? null);
-        
-        if (session?.user) {
-          console.log('Fetching profile for user:', session.user.id);
-          await fetchProfile(session.user.id);
-        } else {
-          console.log('No session, setting loading false');
-          setLoading(false);
-        }
-      } catch (error) {
-        console.error('Error in getInitialSession:', error);
-        if (mounted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    getInitialSession();
-
-    // Listen for auth changes
+    // Set up auth listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('Auth state changed:', event, !!session?.user);
+      (event, session) => {
         if (!mounted) return;
         
         setUser(session?.user ?? null);
+        setSession(session);
+        
         if (session?.user) {
-          await fetchProfile(session.user.id);
+          // Use setTimeout to prevent blocking the auth state change
+          setTimeout(() => {
+            if (mounted) {
+              fetchProfile(session.user.id);
+            }
+          }, 0);
         } else {
           setProfile(null);
           setLoading(false);
         }
       }
     );
+
+    // Check for existing session with timeout
+    const checkSession = async () => {
+      try {
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Session check timeout')), 5000)
+        );
+        
+        const sessionPromise = supabase.auth.getSession();
+        
+        const { data: { session } } = await Promise.race([sessionPromise, timeoutPromise]) as any;
+        
+        if (mounted) {
+          setUser(session?.user ?? null);
+          setSession(session);
+          
+          if (session?.user) {
+            setTimeout(() => {
+              if (mounted) {
+                fetchProfile(session.user.id);
+              }
+            }, 0);
+          } else {
+            setLoading(false);
+          }
+        }
+      } catch (error) {
+        console.error('Session check failed:', error);
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    checkSession();
 
     return () => {
       mounted = false;
@@ -132,6 +138,7 @@ export const useAuth = () => {
 
   return {
     user,
+    session,
     profile,
     loading,
     signIn,
