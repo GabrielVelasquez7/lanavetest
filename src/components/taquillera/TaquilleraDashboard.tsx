@@ -2,110 +2,115 @@ import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { LogOut, Plus } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
+import { Calculator, DollarSign, Gift, LogOut, Receipt } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
 import { SalesForm } from './SalesForm';
 import { PrizesForm } from './PrizesForm';
 import { ExpensesForm } from './ExpensesForm';
 import { DailySummary } from './DailySummary';
 
 export const TaquilleraDashboard = () => {
-  const { signOut, user } = useAuth();
-  const [activeTab, setActiveTab] = useState('sales');
+  const { profile, signOut } = useAuth();
+  const [activeTab, setActiveTab] = useState('ventas');
 
   const handleSignOut = async () => {
     await signOut();
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-card">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">Sistema de Loterías</h1>
-              <p className="text-muted-foreground">Panel Taquillera</p>
-            </div>
-            <div className="flex items-center gap-4">
-              <span className="text-sm text-muted-foreground">
-                Bienvenido, {user?.email}
-              </span>
-              <Button variant="outline" onClick={handleSignOut}>
-                <LogOut className="w-4 h-4 mr-2" />
-                Cerrar Sesión
-              </Button>
-            </div>
+    <div className="min-h-screen bg-muted/30">
+      <header className="bg-card border-b px-6 py-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Sistema de Cuadres</h1>
+            <p className="text-muted-foreground">
+              Bienvenida, {profile?.full_name} - {profile?.role}
+            </p>
           </div>
+          <Button variant="outline" onClick={handleSignOut}>
+            <LogOut className="h-4 w-4 mr-2" />
+            Salir
+          </Button>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-6">
-        <div className="grid gap-6">
-          {/* Daily Summary */}
-          <DailySummary />
+      <main className="container mx-auto p-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="ventas" className="flex items-center gap-2">
+              <DollarSign className="h-4 w-4" />
+              Ventas
+            </TabsTrigger>
+            <TabsTrigger value="premios" className="flex items-center gap-2">
+              <Gift className="h-4 w-4" />
+              Premios
+            </TabsTrigger>
+            <TabsTrigger value="gastos" className="flex items-center gap-2">
+              <Receipt className="h-4 w-4" />
+              Gastos
+            </TabsTrigger>
+            <TabsTrigger value="resumen" className="flex items-center gap-2">
+              <Calculator className="h-4 w-4" />
+              Resumen
+            </TabsTrigger>
+          </TabsList>
 
-          {/* Main Tabs */}
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="sales">Ventas</TabsTrigger>
-              <TabsTrigger value="prizes">Premios</TabsTrigger>
-              <TabsTrigger value="expenses">Gastos</TabsTrigger>
-            </TabsList>
+          <TabsContent value="ventas" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Registro de Ventas</CardTitle>
+                <CardDescription>
+                  Registra las ventas de cada sistema de lotería
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <SalesForm />
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-            <TabsContent value="sales" className="mt-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Plus className="w-5 h-5" />
-                    Registrar Ventas
-                  </CardTitle>
-                  <CardDescription>
-                    Ingresa las ventas por sistema de lotería
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <SalesForm />
-                </CardContent>
-              </Card>
-            </TabsContent>
+          <TabsContent value="premios" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Registro de Premios</CardTitle>
+                <CardDescription>
+                  Registra los premios pagados por sistema
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <PrizesForm />
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-            <TabsContent value="prizes" className="mt-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Plus className="w-5 h-5" />
-                    Registrar Premios
-                  </CardTitle>
-                  <CardDescription>
-                    Ingresa los premios pagados por sistema
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <PrizesForm />
-                </CardContent>
-              </Card>
-            </TabsContent>
+          <TabsContent value="gastos" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Registro de Gastos</CardTitle>
+                <CardDescription>
+                  Registra gastos operativos y deudas
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ExpensesForm />
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-            <TabsContent value="expenses" className="mt-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Plus className="w-5 h-5" />
-                    Registrar Gastos
-                  </CardTitle>
-                  <CardDescription>
-                    Ingresa gastos operativos y otros
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ExpensesForm />
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
-        </div>
+          <TabsContent value="resumen" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Resumen Diario</CardTitle>
+                <CardDescription>
+                  Resumen de todas las transacciones del día
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <DailySummary />
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   );

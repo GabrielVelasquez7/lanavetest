@@ -1,24 +1,28 @@
-import { useEffect, useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { DollarSign, Trophy, Receipt } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
+import { formatCurrency } from '@/lib/utils';
 
-interface DailySummaryData {
-  totalSales: number;
-  totalPrizes: number;
-  totalExpenses: number;
-  netAmount: number;
+interface SummaryData {
+  totalSales: { bs: number; usd: number };
+  totalPrizes: { bs: number; usd: number };
+  totalExpenses: { bs: number; usd: number };
+  totalMobilePayments: { bs: number; usd: number };
+  transactionCount: number;
 }
 
 export const DailySummary = () => {
-  const { user } = useAuth();
-  const [summary, setSummary] = useState<DailySummaryData>({
-    totalSales: 0,
-    totalPrizes: 0,
-    totalExpenses: 0,
-    netAmount: 0,
+  const [summary, setSummary] = useState<SummaryData>({
+    totalSales: { bs: 0, usd: 0 },
+    totalPrizes: { bs: 0, usd: 0 },
+    totalExpenses: { bs: 0, usd: 0 },
+    totalMobilePayments: { bs: 0, usd: 0 },
+    transactionCount: 0,
   });
+  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
 
   useEffect(() => {
     if (user) {
@@ -29,105 +33,197 @@ export const DailySummary = () => {
   const fetchDailySummary = async () => {
     if (!user) return;
 
-    const today = new Date().toISOString().split('T')[0];
+    try {
+      const today = new Date().toISOString().split('T')[0];
 
-    // Get today's sales
-    const { data: salesData } = await supabase
-      .from('sales_transactions')
-      .select('amount')
-      .eq('user_id', user.id)
-      .gte('created_at', `${today}T00:00:00`)
-      .lt('created_at', `${today}T23:59:59`);
+      // Get today's session
+      const { data: session } = await supabase
+        .from('daily_sessions')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('session_date', today)
+        .single();
 
-    // Get today's prizes
-    const { data: prizesData } = await supabase
-      .from('prize_transactions')
-      .select('amount')
-      .eq('user_id', user.id)
-      .gte('created_at', `${today}T00:00:00`)
-      .lt('created_at', `${today}T23:59:59`);
+      if (!session) {
+        setLoading(false);
+        return;
+      }
 
-    // Get today's expenses
-    const { data: expensesData } = await supabase
-      .from('expenses')
-      .select('amount')
-      .eq('user_id', user.id)
-      .gte('created_at', `${today}T00:00:00`)
-      .lt('created_at', `${today}T23:59:59`);
+      // Get sales summary
+      const { data: salesData } = await supabase
+        .from('sales_transactions')
+        .select('amount_bs, amount_usd, mobile_payment_bs, mobile_payment_usd')
+        .eq('session_id', session.id);
 
-    const totalSales = salesData?.reduce((sum, item) => sum + item.amount, 0) || 0;
-    const totalPrizes = prizesData?.reduce((sum, item) => sum + item.amount, 0) || 0;
-    const totalExpenses = expensesData?.reduce((sum, item) => sum + item.amount, 0) || 0;
-    const netAmount = totalSales - totalPrizes - totalExpenses;
+      // Get prizes summary
+      const { data: prizesData } = await supabase
+        .from('prize_transactions')
+        .select('amount_bs, amount_usd')
+        .eq('session_id', session.id);
 
-    setSummary({
-      totalSales,
-      totalPrizes,
-      totalExpenses,
-      netAmount,
-    });
+      // Get expenses summary
+      const { data: expensesData } = await supabase
+        .from('expenses')
+        .select('amount_bs, amount_usd')
+        .eq('session_id', session.id);
+
+      // Calculate totals
+      const totalSales = salesData?.reduce(
+        (acc, item) => ({
+          bs: acc.bs + Number(item.amount_bs || 0),
+          usd: acc.usd + Number(item.amount_usd || 0),
+        }),
+        { bs: 0, usd: 0 }
+      ) || { bs: 0, usd: 0 };
+
+      const totalMobilePayments = salesData?.reduce(
+        (acc, item) => ({
+          bs: acc.bs + Number(item.mobile_payment_bs || 0),
+          usd: acc.usd + Number(item.mobile_payment_usd || 0),
+        }),
+        { bs: 0, usd: 0 }
+      ) || { bs: 0, usd: 0 };
+
+      const totalPrizes = prizesData?.reduce(
+        (acc, item) => ({
+          bs: acc.bs + Number(item.amount_bs || 0),
+          usd: acc.usd + Number(item.amount_usd || 0),
+        }),
+        { bs: 0, usd: 0 }
+      ) || { bs: 0, usd: 0 };
+
+      const totalExpenses = expensesData?.reduce(
+        (acc, item) => ({
+          bs: acc.bs + Number(item.amount_bs || 0),
+          usd: acc.usd + Number(item.amount_usd || 0),
+        }),
+        { bs: 0, usd: 0 }
+      ) || { bs: 0, usd: 0 };
+
+      setSummary({
+        totalSales,
+        totalPrizes,
+        totalExpenses,
+        totalMobilePayments,
+        transactionCount:
+          (salesData?.length || 0) +
+          (prizesData?.length || 0) +
+          (expensesData?.length || 0),
+      });
+    } catch (error) {
+      console.error('Error fetching summary:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('es-DO', {
-      style: 'currency',
-      currency: 'DOP',
-    }).format(amount);
+  if (loading) {
+    return <div>Cargando resumen...</div>;
+  }
+
+  const netResult = {
+    bs: summary.totalSales.bs - summary.totalPrizes.bs - summary.totalExpenses.bs,
+    usd: summary.totalSales.usd - summary.totalPrizes.usd - summary.totalExpenses.usd,
   };
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Ventas del Día</CardTitle>
-          <DollarSign className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-green-600">
-            {formatCurrency(summary.totalSales)}
-          </div>
-          <p className="text-xs text-muted-foreground">Total en ventas</p>
-        </CardContent>
-      </Card>
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-muted-foreground">
+              Total Ventas
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-1">
+              <p className="text-2xl font-bold">
+                {formatCurrency(summary.totalSales.bs, 'VES')}
+              </p>
+              <p className="text-lg text-muted-foreground">
+                {formatCurrency(summary.totalSales.usd, 'USD')}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-muted-foreground">
+              Total Premios
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-1">
+              <p className="text-2xl font-bold text-destructive">
+                {formatCurrency(summary.totalPrizes.bs, 'VES')}
+              </p>
+              <p className="text-lg text-muted-foreground">
+                {formatCurrency(summary.totalPrizes.usd, 'USD')}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-muted-foreground">
+              Total Gastos
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-1">
+              <p className="text-2xl font-bold text-destructive">
+                {formatCurrency(summary.totalExpenses.bs, 'VES')}
+              </p>
+              <p className="text-lg text-muted-foreground">
+                {formatCurrency(summary.totalExpenses.usd, 'USD')}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-muted-foreground">
+              Resultado Neto
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-1">
+              <p className={`text-2xl font-bold ${netResult.bs >= 0 ? 'text-success' : 'text-destructive'}`}>
+                {formatCurrency(netResult.bs, 'VES')}
+              </p>
+              <p className={`text-lg ${netResult.usd >= 0 ? 'text-success' : 'text-destructive'}`}>
+                {formatCurrency(netResult.usd, 'USD')}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Premios Pagados</CardTitle>
-          <Trophy className="h-4 w-4 text-muted-foreground" />
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            Pago Móvil del Día
+            <Badge variant="secondary">{summary.transactionCount} transacciones</Badge>
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold text-red-600">
-            {formatCurrency(summary.totalPrizes)}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Pago Móvil Bs</p>
+              <p className="text-xl font-semibold">
+                {formatCurrency(summary.totalMobilePayments.bs, 'VES')}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Pago Móvil USD</p>
+              <p className="text-xl font-semibold">
+                {formatCurrency(summary.totalMobilePayments.usd, 'USD')}
+              </p>
+            </div>
           </div>
-          <p className="text-xs text-muted-foreground">Total en premios</p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Gastos</CardTitle>
-          <Receipt className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-orange-600">
-            {formatCurrency(summary.totalExpenses)}
-          </div>
-          <p className="text-xs text-muted-foreground">Total en gastos</p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Balance Neto</CardTitle>
-          <DollarSign className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className={`text-2xl font-bold ${summary.netAmount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-            {formatCurrency(summary.netAmount)}
-          </div>
-          <p className="text-xs text-muted-foreground">
-            {summary.netAmount >= 0 ? 'Ganancia' : 'Pérdida'}
-          </p>
         </CardContent>
       </Card>
     </div>

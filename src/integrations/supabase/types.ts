@@ -14,16 +14,243 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      daily_sessions: {
+        Row: {
+          created_at: string
+          id: string
+          is_closed: boolean
+          notes: string | null
+          session_date: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_closed?: boolean
+          notes?: string | null
+          session_date: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_closed?: boolean
+          notes?: string | null
+          session_date?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      expenses: {
+        Row: {
+          amount_bs: number
+          amount_usd: number
+          category: Database["public"]["Enums"]["expense_category"]
+          created_at: string
+          description: string
+          id: string
+          session_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount_bs?: number
+          amount_usd?: number
+          category: Database["public"]["Enums"]["expense_category"]
+          created_at?: string
+          description: string
+          id?: string
+          session_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount_bs?: number
+          amount_usd?: number
+          category?: Database["public"]["Enums"]["expense_category"]
+          created_at?: string
+          description?: string
+          id?: string
+          session_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expenses_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "daily_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lottery_systems: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+        }
+        Relationships: []
+      }
+      prize_transactions: {
+        Row: {
+          amount_bs: number
+          amount_usd: number
+          created_at: string
+          id: string
+          lottery_system_id: string
+          session_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount_bs?: number
+          amount_usd?: number
+          created_at?: string
+          id?: string
+          lottery_system_id: string
+          session_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount_bs?: number
+          amount_usd?: number
+          created_at?: string
+          id?: string
+          lottery_system_id?: string
+          session_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prize_transactions_lottery_system_id_fkey"
+            columns: ["lottery_system_id"]
+            isOneToOne: false
+            referencedRelation: "lottery_systems"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prize_transactions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "daily_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          agency_name: string | null
+          created_at: string
+          full_name: string
+          id: string
+          is_active: boolean
+          role: Database["public"]["Enums"]["user_role"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          agency_name?: string | null
+          created_at?: string
+          full_name: string
+          id?: string
+          is_active?: boolean
+          role?: Database["public"]["Enums"]["user_role"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          agency_name?: string | null
+          created_at?: string
+          full_name?: string
+          id?: string
+          is_active?: boolean
+          role?: Database["public"]["Enums"]["user_role"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      sales_transactions: {
+        Row: {
+          amount_bs: number
+          amount_usd: number
+          created_at: string
+          id: string
+          lottery_system_id: string
+          mobile_payment_bs: number
+          mobile_payment_usd: number
+          session_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount_bs?: number
+          amount_usd?: number
+          created_at?: string
+          id?: string
+          lottery_system_id: string
+          mobile_payment_bs?: number
+          mobile_payment_usd?: number
+          session_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount_bs?: number
+          amount_usd?: number
+          created_at?: string
+          id?: string
+          lottery_system_id?: string
+          mobile_payment_bs?: number
+          mobile_payment_usd?: number
+          session_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_transactions_lottery_system_id_fkey"
+            columns: ["lottery_system_id"]
+            isOneToOne: false
+            referencedRelation: "lottery_systems"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_transactions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "daily_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_user_role: {
+        Args: { user_id: string }
+        Returns: Database["public"]["Enums"]["user_role"]
+      }
     }
     Enums: {
-      [_ in never]: never
+      expense_category: "deuda" | "gasto_operativo" | "otros"
+      user_role: "taquillera" | "supervisor" | "administrador"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +377,9 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      expense_category: ["deuda", "gasto_operativo", "otros"],
+      user_role: ["taquillera", "supervisor", "administrador"],
+    },
   },
 } as const
