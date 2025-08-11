@@ -197,16 +197,8 @@ export const BulkTransactionsForm = ({ onSuccess }: BulkTransactionsFormProps) =
         description: `Registradas ${salesData.length} ventas y ${prizesData.length} premios correctamente`,
       });
 
-      // Reset form
-      const resetData = lotteryOptions.map(system => ({
-        lottery_system_id: system.id,
-        lottery_system_name: system.name,
-        sales_bs: 0,
-        sales_usd: 0,
-        prizes_bs: 0,
-        prizes_usd: 0,
-      }));
-      replace(resetData);
+      // NO resetear el formulario para mantener los datos visibles
+      // El usuario puede ver el cuadre después de registrar
 
       // Trigger refresh in parent component
       onSuccess?.();
