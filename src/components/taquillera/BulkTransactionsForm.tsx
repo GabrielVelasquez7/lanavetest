@@ -32,7 +32,11 @@ interface LotterySystem {
   code: string;
 }
 
-export const BulkTransactionsForm = () => {
+interface BulkTransactionsFormProps {
+  onSuccess?: () => void;
+}
+
+export const BulkTransactionsForm = ({ onSuccess }: BulkTransactionsFormProps) => {
   const [lotteryOptions, setLotteryOptions] = useState<LotterySystem[]>([]);
   const [loading, setLoading] = useState(false);
   const { user } = useAuth();
@@ -203,6 +207,9 @@ export const BulkTransactionsForm = () => {
         prizes_usd: 0,
       }));
       replace(resetData);
+
+      // Trigger refresh in parent component
+      onSuccess?.();
 
     } catch (error: any) {
       toast({

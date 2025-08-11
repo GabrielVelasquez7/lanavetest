@@ -5,6 +5,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { formatCurrency } from '@/lib/utils';
 
+interface DailySummaryProps {
+  refreshKey?: number;
+}
+
 interface SummaryData {
   totalSales: { bs: number; usd: number };
   totalPrizes: { bs: number; usd: number };
@@ -14,7 +18,7 @@ interface SummaryData {
   transactionCount: number;
 }
 
-export const DailySummary = () => {
+export const DailySummary = ({ refreshKey = 0 }: DailySummaryProps) => {
   const [summary, setSummary] = useState<SummaryData>({
     totalSales: { bs: 0, usd: 0 },
     totalPrizes: { bs: 0, usd: 0 },
@@ -30,7 +34,7 @@ export const DailySummary = () => {
     if (user) {
       fetchDailySummary();
     }
-  }, [user]);
+  }, [user, refreshKey]);
 
   const fetchDailySummary = async () => {
     if (!user) return;
@@ -253,10 +257,11 @@ export const DailySummary = () => {
         </Card>
       </div>
 
+      {/* Resumen en Bolívares */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            Resumen del Día
+            Resumen del Día (Bs)
             <Badge variant="secondary">{summary.transactionCount} transacciones</Badge>
           </CardTitle>
         </CardHeader>
@@ -270,6 +275,26 @@ export const DailySummary = () => {
                 summary.totalSales.bs + summary.totalMobilePayments + summary.totalPointOfSale,
                 'VES'
               )}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Resumen en Dólares */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            Resumen del Día (USD)
+            <Badge variant="outline">{summary.transactionCount} transacciones</Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center">
+            <p className="text-sm text-muted-foreground mb-2">
+              Total en dólares (Solo Ventas USD)
+            </p>
+            <p className="text-3xl font-bold text-primary">
+              {formatCurrency(summary.totalSales.usd, 'USD')}
             </p>
           </div>
         </CardContent>

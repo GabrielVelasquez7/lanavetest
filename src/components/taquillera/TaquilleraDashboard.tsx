@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useDataRefresh } from '@/hooks/useDataRefresh';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,6 +17,7 @@ import { SystemCuadresView } from './SystemCuadresView';
 export const TaquilleraDashboard = () => {
   const { profile, signOut } = useAuth();
   const [activeTab, setActiveTab] = useState('transacciones');
+  const { refreshKey, triggerRefresh } = useDataRefresh();
 
   const handleSignOut = async () => {
     await signOut();
@@ -23,15 +25,15 @@ export const TaquilleraDashboard = () => {
 
   return (
     <div className="min-h-screen bg-muted/30">
-      <header className="bg-card border-b px-6 py-4">
+      <header className="bg-primary border-b px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Sistema de Cuadres</h1>
-            <p className="text-muted-foreground">
+            <h1 className="text-2xl font-bold text-primary-foreground">Sistema de Cuadres</h1>
+            <p className="text-primary-foreground/80">
               Bienvenida, {profile?.full_name} - {profile?.role}
             </p>
           </div>
-          <Button variant="outline" onClick={handleSignOut}>
+          <Button variant="secondary" onClick={handleSignOut}>
             <LogOut className="h-4 w-4 mr-2" />
             Salir
           </Button>
@@ -76,7 +78,7 @@ export const TaquilleraDashboard = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <BulkTransactionsForm />
+                <BulkTransactionsForm onSuccess={triggerRefresh} />
               </CardContent>
             </Card>
           </TabsContent>
@@ -136,7 +138,7 @@ export const TaquilleraDashboard = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <DailySummary />
+                <DailySummary refreshKey={refreshKey} />
               </CardContent>
             </Card>
           </TabsContent>
