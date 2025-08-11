@@ -149,10 +149,17 @@ export const PointOfSaleForm = () => {
           <div className="space-y-2">
             <Label htmlFor="amount_bs">Monto Total (Bs)</Label>
             <Input
-              type="number"
-              step="0.01"
+              type="text"
               placeholder="0,00"
-              {...form.register('amount_bs', { valueAsNumber: true })}
+              onChange={(e) => {
+                const value = e.target.value.replace(/[^\d,]/g, '');
+                const numValue = parseFloat(value.replace(',', '.')) || 0;
+                form.setValue('amount_bs', numValue);
+                e.target.value = numValue > 0 ? numValue.toLocaleString('es-VE', {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                }) : '';
+              }}
             />
           </div>
 

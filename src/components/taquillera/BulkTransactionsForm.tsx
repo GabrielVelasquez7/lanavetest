@@ -83,8 +83,12 @@ export const BulkTransactionsForm = () => {
   }, [toast, replace]);
 
   const formatNumber = (value: string): string => {
-    // Remove all non-digit characters except decimal point
+    // Remove all non-digit characters except decimal point and comma
     const cleanValue = value.replace(/[^\d.,]/g, '');
+    
+    // Handle empty or invalid input
+    if (!cleanValue || cleanValue === '.' || cleanValue === ',') return '';
+    
     // Replace comma with dot for parsing
     const normalizedValue = cleanValue.replace(',', '.');
     const num = parseFloat(normalizedValue);
@@ -99,7 +103,8 @@ export const BulkTransactionsForm = () => {
   };
 
   const handleNumberInput = (index: number, field: string, value: string) => {
-    const cleanValue = value.replace(/[^\d.,]/g, '').replace(',', '.');
+    // Clean the value and convert to number
+    const cleanValue = value.replace(/[^\d.,]/g, '').replace(/\./g, '').replace(',', '.');
     const numValue = parseFloat(cleanValue) || 0;
     form.setValue(`systems.${index}.${field}` as any, numValue);
   };
@@ -254,10 +259,14 @@ export const BulkTransactionsForm = () => {
               <Input
                 type="text"
                 placeholder="0,00"
+                defaultValue=""
                 onChange={(e) => {
-                  const formatted = formatNumber(e.target.value);
-                  e.target.value = formatted;
-                  handleNumberInput(index, 'sales_bs', e.target.value);
+                  const inputValue = e.target.value;
+                  const formatted = formatNumber(inputValue);
+                  if (formatted !== inputValue) {
+                    e.target.value = formatted;
+                  }
+                  handleNumberInput(index, 'sales_bs', inputValue);
                 }}
                 className="text-center"
               />
@@ -265,10 +274,14 @@ export const BulkTransactionsForm = () => {
               <Input
                 type="text"
                 placeholder="0.00"
+                defaultValue=""
                 onChange={(e) => {
-                  const formatted = formatNumber(e.target.value);
-                  e.target.value = formatted;
-                  handleNumberInput(index, 'sales_usd', e.target.value);
+                  const inputValue = e.target.value;
+                  const formatted = formatNumber(inputValue);
+                  if (formatted !== inputValue) {
+                    e.target.value = formatted;
+                  }
+                  handleNumberInput(index, 'sales_usd', inputValue);
                 }}
                 className="text-center"
               />
@@ -276,10 +289,14 @@ export const BulkTransactionsForm = () => {
               <Input
                 type="text"
                 placeholder="0,00"
+                defaultValue=""
                 onChange={(e) => {
-                  const formatted = formatNumber(e.target.value);
-                  e.target.value = formatted;
-                  handleNumberInput(index, 'prizes_bs', e.target.value);
+                  const inputValue = e.target.value;
+                  const formatted = formatNumber(inputValue);
+                  if (formatted !== inputValue) {
+                    e.target.value = formatted;
+                  }
+                  handleNumberInput(index, 'prizes_bs', inputValue);
                 }}
                 className="text-center"
               />
@@ -287,10 +304,14 @@ export const BulkTransactionsForm = () => {
               <Input
                 type="text"
                 placeholder="0.00"
+                defaultValue=""
                 onChange={(e) => {
-                  const formatted = formatNumber(e.target.value);
-                  e.target.value = formatted;
-                  handleNumberInput(index, 'prizes_usd', e.target.value);
+                  const inputValue = e.target.value;
+                  const formatted = formatNumber(inputValue);
+                  if (formatted !== inputValue) {
+                    e.target.value = formatted;
+                  }
+                  handleNumberInput(index, 'prizes_usd', inputValue);
                 }}
                 className="text-center"
               />
