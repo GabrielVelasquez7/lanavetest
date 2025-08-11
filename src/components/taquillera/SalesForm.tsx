@@ -16,8 +16,6 @@ const salesSchema = z.object({
   lottery_system_id: z.string().min(1, 'Selecciona un sistema'),
   amount_bs: z.number().min(0, 'Monto debe ser positivo'),
   amount_usd: z.number().min(0, 'Monto debe ser positivo'),
-  mobile_payment_bs: z.number().min(0, 'Monto debe ser positivo'),
-  mobile_payment_usd: z.number().min(0, 'Monto debe ser positivo'),
 });
 
 type SalesForm = z.infer<typeof salesSchema>;
@@ -39,8 +37,6 @@ export const SalesForm = () => {
     defaultValues: {
       amount_bs: 0,
       amount_usd: 0,
-      mobile_payment_bs: 0,
-      mobile_payment_usd: 0,
     },
   });
 
@@ -106,8 +102,6 @@ export const SalesForm = () => {
           lottery_system_id: data.lottery_system_id,
           amount_bs: data.amount_bs,
           amount_usd: data.amount_usd,
-          mobile_payment_bs: data.mobile_payment_bs,
-          mobile_payment_usd: data.mobile_payment_usd,
         });
 
       if (error) throw error;
@@ -152,7 +146,7 @@ export const SalesForm = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">Ventas Bs</CardTitle>
@@ -161,7 +155,7 @@ export const SalesForm = () => {
             <Input
               type="number"
               step="0.01"
-              placeholder="0.00"
+              placeholder="0,00"
               {...form.register('amount_bs', { valueAsNumber: true })}
             />
           </CardContent>
@@ -177,34 +171,6 @@ export const SalesForm = () => {
               step="0.01"
               placeholder="0.00"
               {...form.register('amount_usd', { valueAsNumber: true })}
-            />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Pago Móvil Bs</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Input
-              type="number"
-              step="0.01"
-              placeholder="0.00"
-              {...form.register('mobile_payment_bs', { valueAsNumber: true })}
-            />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Pago Móvil USD</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Input
-              type="number"
-              step="0.01"
-              placeholder="0.00"
-              {...form.register('mobile_payment_usd', { valueAsNumber: true })}
             />
           </CardContent>
         </Card>

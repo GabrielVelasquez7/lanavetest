@@ -2,12 +2,14 @@ import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Calculator, DollarSign, Gift, LogOut, Receipt } from 'lucide-react';
+import { Calculator, DollarSign, Gift, LogOut, Receipt, Smartphone, CreditCard } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { SalesForm } from './SalesForm';
 import { PrizesForm } from './PrizesForm';
 import { ExpensesForm } from './ExpensesForm';
 import { DailySummary } from './DailySummary';
+import { MobilePaymentsForm } from './MobilePaymentsForm';
+import { PointOfSaleForm } from './PointOfSaleForm';
 
 export const TaquilleraDashboard = () => {
   const { profile, signOut } = useAuth();
@@ -36,7 +38,7 @@ export const TaquilleraDashboard = () => {
 
       <main className="container mx-auto p-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="ventas" className="flex items-center gap-2">
               <DollarSign className="h-4 w-4" />
               Ventas
@@ -49,9 +51,17 @@ export const TaquilleraDashboard = () => {
               <Receipt className="h-4 w-4" />
               Gastos
             </TabsTrigger>
+            <TabsTrigger value="pago-movil" className="flex items-center gap-2">
+              <Smartphone className="h-4 w-4" />
+              Pago Móvil
+            </TabsTrigger>
+            <TabsTrigger value="punto-venta" className="flex items-center gap-2">
+              <CreditCard className="h-4 w-4" />
+              Punto Venta
+            </TabsTrigger>
             <TabsTrigger value="resumen" className="flex items-center gap-2">
               <Calculator className="h-4 w-4" />
-              Resumen
+              Cuadre
             </TabsTrigger>
           </TabsList>
 
@@ -97,12 +107,30 @@ export const TaquilleraDashboard = () => {
             </Card>
           </TabsContent>
 
+          <TabsContent value="pago-movil" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Pagos Móviles</CardTitle>
+                <CardDescription>
+                  Registra los pagos móviles recibidos en Bs
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <MobilePaymentsForm />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="punto-venta" className="space-y-6">
+            <PointOfSaleForm />
+          </TabsContent>
+
           <TabsContent value="resumen" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Resumen Diario</CardTitle>
+                <CardTitle>Cuadre Diario</CardTitle>
                 <CardDescription>
-                  Resumen de todas las transacciones del día
+                  Cuadre de ventas vs premios y resumen general
                 </CardDescription>
               </CardHeader>
               <CardContent>

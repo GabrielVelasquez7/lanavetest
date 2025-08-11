@@ -109,6 +109,76 @@ export type Database = {
         }
         Relationships: []
       }
+      mobile_payments: {
+        Row: {
+          amount_bs: number
+          created_at: string
+          description: string | null
+          id: string
+          reference_number: string
+          session_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount_bs?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          reference_number: string
+          session_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount_bs?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          reference_number?: string
+          session_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mobile_payments_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "daily_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      point_of_sale: {
+        Row: {
+          amount_bs: number
+          created_at: string
+          id: string
+          session_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount_bs?: number
+          created_at?: string
+          id?: string
+          session_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount_bs?: number
+          created_at?: string
+          id?: string
+          session_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "point_of_sale_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: true
+            referencedRelation: "daily_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       prize_transactions: {
         Row: {
           amount_bs: number
@@ -194,8 +264,6 @@ export type Database = {
           created_at: string
           id: string
           lottery_system_id: string
-          mobile_payment_bs: number
-          mobile_payment_usd: number
           session_id: string
           updated_at: string
         }
@@ -205,8 +273,6 @@ export type Database = {
           created_at?: string
           id?: string
           lottery_system_id: string
-          mobile_payment_bs?: number
-          mobile_payment_usd?: number
           session_id: string
           updated_at?: string
         }
@@ -216,8 +282,6 @@ export type Database = {
           created_at?: string
           id?: string
           lottery_system_id?: string
-          mobile_payment_bs?: number
-          mobile_payment_usd?: number
           session_id?: string
           updated_at?: string
         }
