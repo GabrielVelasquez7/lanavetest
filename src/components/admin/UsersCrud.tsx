@@ -34,8 +34,6 @@ export const UsersCrud = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProfile, setEditingProfile] = useState<Profile | null>(null);
   const [formData, setFormData] = useState({
-    email: '',
-    password: '',
     full_name: '',
     role: 'taquillera' as 'admin' | 'taquillera' | 'supervisor' | 'administrador',
     agency_id: 'none',
@@ -118,22 +116,13 @@ export const UsersCrud = () => {
           description: "Usuario actualizado correctamente",
         });
       } else {
-        // Create new user
-        if (!formData.email || !formData.password) {
-          toast({
-            title: "Error",
-            description: "Email y contraseña son obligatorios",
-            variant: "destructive",
-          });
-          return;
-        }
-
-        // For now, show info about backend requirement
+        // Create new user - this would require backend user creation
         toast({
           title: "Información",
-          description: `Usuario: ${formData.email}, Password: ${formData.password}. Se requiere función del backend para crear usuarios reales.`,
+          description: "La creación de usuarios requiere configuración adicional del backend",
           variant: "default",
         });
+        return;
       }
       
       fetchProfiles();
@@ -150,8 +139,6 @@ export const UsersCrud = () => {
   const handleEdit = (profile: Profile) => {
     setEditingProfile(profile);
     setFormData({
-      email: '', // Don't show email for edit mode
-      password: '',
       full_name: profile.full_name,
       role: profile.role,
       agency_id: profile.agency_id || 'none',
@@ -162,8 +149,6 @@ export const UsersCrud = () => {
 
   const resetForm = () => {
     setFormData({
-      email: '',
-      password: '',
       full_name: '',
       role: 'taquillera',
       agency_id: 'none',
@@ -190,39 +175,13 @@ export const UsersCrud = () => {
                 <span className="sm:hidden">Crear</span>
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px] mx-4">
+            <DialogContent className="sm:max-w-[425px] w-[95vw] max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>
                   {editingProfile ? 'Editar Usuario' : 'Crear Usuario'}
                 </DialogTitle>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
-                {!editingProfile && (
-                  <>
-                    <div>
-                      <Label htmlFor="email">Email *</Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        value={formData.email}
-                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                        required={!editingProfile}
-                        placeholder="usuario@ejemplo.com"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="password">Contraseña Temporal *</Label>
-                      <Input
-                        id="password"
-                        type="password"
-                        value={formData.password}
-                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                        required={!editingProfile}
-                        placeholder="Mínimo 6 caracteres"
-                      />
-                    </div>
-                  </>
-                )}
                 <div>
                   <Label htmlFor="full_name">Nombre Completo *</Label>
                   <Input
@@ -234,7 +193,7 @@ export const UsersCrud = () => {
                 </div>
                 <div>
                   <Label htmlFor="role">Rol *</Label>
-                  <Select 
+                  <Select
                     value={formData.role} 
                     onValueChange={(value: 'admin' | 'taquillera' | 'supervisor' | 'administrador') => 
                       setFormData({ ...formData, role: value })
