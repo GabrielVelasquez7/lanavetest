@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CalendarDays, Users } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { formatCurrency } from '@/lib/utils';
@@ -10,6 +11,7 @@ interface CuadreByDay {
   session_date: string;
   user_name: string;
   agency_name: string | null;
+  agency_id: string | null;
   total_sales_bs: number;
   total_sales_usd: number;
   total_prizes_bs: number;
@@ -22,25 +24,26 @@ interface CuadreByDay {
   pos_bs: number;
 }
 
-interface SystemTotals {
-  system_name: string;
-  total_sales_bs: number;
-  total_sales_usd: number;
-  total_prizes_bs: number;
-  total_prizes_usd: number;
-  cuadre_bs: number;
-  cuadre_usd: number;
+interface Agency {
+  id: string;
+  name: string;
 }
 
 export const AdminCuadresView = () => {
   const [dailyCuadres, setDailyCuadres] = useState<CuadreByDay[]>([]);
-  const [systemTotals, setSystemTotals] = useState<SystemTotals[]>([]);
+  const [allCuadres, setAllCuadres] = useState<CuadreByDay[]>([]);
+  const [agencies, setAgencies] = useState<Agency[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedAgency, setSelectedAgency] = useState<string>('all');
 
   useEffect(() => {
     fetchAdminCuadres();
   }, [selectedDate]);
+
+  useEffect(() => {
+    filterCuadresByAgency();
+  }, [selectedAgency, allCuadres]);
 
   const fetchAdminCuadres = async () => {
     try {
@@ -54,7 +57,7 @@ export const AdminCuadresView = () => {
 
       if (!sessionsData || sessionsData.length === 0) {
         setDailyCuadres([]);
-        setSystemTotals([]);
+        setAllCuadres([]);
         setLoading(false);
         return;
       }
@@ -69,9 +72,20 @@ export const AdminCuadresView = () => {
           user_id,
           full_name,
           agency_id,
-          agencies!inner(name)
+          agencies!inner(id, name)
         `)
         .in('user_id', userIds);
+
+      // Get all agencies for the dropdown
+      const { data: agenciesData } = await supabase
+        .from('agencies')
+        .select('id, name')
+        .eq('is_active', true)
+        .order('name');
+
+      if (agenciesData) {
+        setAgencies(agenciesData);
+      }
 
       // Get all transactions for these sessions
       const [salesResult, prizesResult, expensesResult, mobileResult, posResult] = await Promise.all([
@@ -101,12 +115,6 @@ export const AdminCuadresView = () => {
           .in('session_id', sessionIds)
       ]);
 
-      // Get lottery systems for system totals
-      const { data: systemsData } = await supabase
-        .from('lottery_systems')
-        .select('id, name')
-        .eq('is_active', true);
-
       // Calculate cuadres by session
       const cuadres: CuadreByDay[] = sessionsData.map(session => {
         const userProfile = profilesData?.find(p => p.user_id === session.user_id);
@@ -129,6 +137,7 @@ export const AdminCuadresView = () => {
           session_date: session.session_date,
           user_name: userProfile?.full_name || 'Usuario desconocido',
           agency_name: userProfile?.agencies?.name || null,
+          agency_id: userProfile?.agency_id || null,
           total_sales_bs,
           total_sales_usd,
           total_prizes_bs,
@@ -142,33 +151,19 @@ export const AdminCuadresView = () => {
         };
       });
 
-      // Calculate system totals
-      const totals: SystemTotals[] = systemsData?.map(system => {
-        const systemSales = salesResult.data?.filter(s => s.lottery_system_id === system.id) || [];
-        const systemPrizes = prizesResult.data?.filter(p => p.lottery_system_id === system.id) || [];
-
-        const total_sales_bs = systemSales.reduce((sum, s) => sum + Number(s.amount_bs || 0), 0);
-        const total_sales_usd = systemSales.reduce((sum, s) => sum + Number(s.amount_usd || 0), 0);
-        const total_prizes_bs = systemPrizes.reduce((sum, p) => sum + Number(p.amount_bs || 0), 0);
-        const total_prizes_usd = systemPrizes.reduce((sum, p) => sum + Number(p.amount_usd || 0), 0);
-
-        return {
-          system_name: system.name,
-          total_sales_bs,
-          total_sales_usd,
-          total_prizes_bs,
-          total_prizes_usd,
-          cuadre_bs: total_sales_bs - total_prizes_bs,
-          cuadre_usd: total_sales_usd - total_prizes_usd,
-        };
-      }).filter(system => system.total_sales_bs > 0 || system.total_sales_usd > 0) || [];
-
-      setDailyCuadres(cuadres);
-      setSystemTotals(totals);
+      setAllCuadres(cuadres);
     } catch (error) {
       console.error('Error fetching admin cuadres:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const filterCuadresByAgency = () => {
+    if (selectedAgency === 'all') {
+      setDailyCuadres(allCuadres);
+    } else {
+      setDailyCuadres(allCuadres.filter(cuadre => cuadre.agency_id === selectedAgency));
     }
   };
 
@@ -190,21 +185,42 @@ export const AdminCuadresView = () => {
 
   return (
     <div className="space-y-6">
-      {/* Date Selector */}
+      {/* Date and Agency Selector */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <CalendarDays className="h-5 w-5" />
-            Seleccionar Fecha
+            Filtros
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <input
-            type="date"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            className="px-3 py-2 border rounded-md"
-          />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Fecha</label>
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="w-full px-3 py-2 border rounded-md bg-background"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Agencia</label>
+              <Select value={selectedAgency} onValueChange={setSelectedAgency}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Seleccionar agencia" />
+                </SelectTrigger>
+                <SelectContent className="bg-background border shadow-lg z-50">
+                  <SelectItem value="all">Todas las agencias</SelectItem>
+                  {agencies.map((agency) => (
+                    <SelectItem key={agency.id} value={agency.id}>
+                      {agency.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
@@ -246,62 +262,6 @@ export const AdminCuadresView = () => {
         </CardContent>
       </Card>
 
-      {/* System Totals */}
-      {systemTotals.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Cuadres por Sistema</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4">
-              {systemTotals.map((system, index) => (
-                <div key={index} className="grid grid-cols-2 md:grid-cols-6 gap-4 text-center p-4 bg-muted/50 rounded-lg">
-                  <div className="md:col-span-6 font-semibold text-left mb-2 md:mb-0">
-                    {system.system_name}
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Ventas Bs</p>
-                    <p className="font-semibold text-success">
-                      {formatCurrency(system.total_sales_bs, 'VES')}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Ventas USD</p>
-                    <p className="font-semibold text-success">
-                      {formatCurrency(system.total_sales_usd, 'USD')}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Premios Bs</p>
-                    <p className="font-semibold text-destructive">
-                      {formatCurrency(system.total_prizes_bs, 'VES')}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Premios USD</p>
-                    <p className="font-semibold text-destructive">
-                      {formatCurrency(system.total_prizes_usd, 'USD')}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Cuadre Bs</p>
-                    <p className={`font-bold ${system.cuadre_bs >= 0 ? 'text-success' : 'text-destructive'}`}>
-                      {formatCurrency(system.cuadre_bs, 'VES')}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Cuadre USD</p>
-                    <p className={`font-bold ${system.cuadre_usd >= 0 ? 'text-success' : 'text-destructive'}`}>
-                      {formatCurrency(system.cuadre_usd, 'USD')}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Individual Sessions */}
       <Card>
         <CardHeader>
@@ -322,7 +282,7 @@ export const AdminCuadresView = () => {
                   <CardContent className="pt-4">
                     <div className="flex justify-between items-center mb-4">
                       <div>
-                        <h4 className="font-semibold">{cuadre.user_name}</h4>
+                        <h4 className="font-semibold text-lg">{cuadre.user_name}</h4>
                         <p className="text-sm text-muted-foreground">
                           {cuadre.agency_name || 'Sin agencia'}
                         </p>
