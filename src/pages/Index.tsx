@@ -21,7 +21,7 @@ const Index = () => {
   }
 
   // Render admin dashboard for admin users
-  if (profile.role === 'admin') {
+  if (profile.role === 'administrador') {
     return <AdminDashboard />;
   }
 

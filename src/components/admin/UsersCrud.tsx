@@ -15,7 +15,7 @@ interface Profile {
   id: string;
   user_id: string;
   full_name: string;
-  role: 'admin' | 'taquillera' | 'supervisor' | 'administrador';
+  role: 'taquillero' | 'encargado' | 'administrador';
   agency_id: string | null;
   agency_name?: string;
   is_active: boolean;
@@ -34,8 +34,10 @@ export const UsersCrud = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProfile, setEditingProfile] = useState<Profile | null>(null);
   const [formData, setFormData] = useState({
+    email: '',
+    password: '',
     full_name: '',
-    role: 'taquillera' as 'admin' | 'taquillera' | 'supervisor' | 'administrador',
+    role: 'taquillero' as 'taquillero' | 'encargado' | 'administrador',
     agency_id: 'none',
     is_active: true
   });
@@ -116,13 +118,32 @@ export const UsersCrud = () => {
           description: "Usuario actualizado correctamente",
         });
       } else {
-        // Create new user - this would require backend user creation
-        toast({
-          title: "Información",
-          description: "La creación de usuarios requiere configuración adicional del backend",
-          variant: "default",
+        // Create new user
+        if (!formData.email || !formData.password || !formData.full_name) {
+          toast({
+            title: "Error",
+            description: "Email, contraseña y nombre son obligatorios",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        const { data, error } = await supabase.functions.invoke('create-user', {
+          body: {
+            email: formData.email,
+            password: formData.password,
+            full_name: formData.full_name,
+            role: formData.role,
+            agency_id: formData.agency_id === 'none' ? null : formData.agency_id
+          }
         });
-        return;
+
+        if (error) throw error;
+        
+        toast({
+          title: "Éxito",
+          description: "Usuario creado correctamente",
+        });
       }
       
       fetchProfiles();
@@ -139,6 +160,8 @@ export const UsersCrud = () => {
   const handleEdit = (profile: Profile) => {
     setEditingProfile(profile);
     setFormData({
+      email: '', // Don't show email for edit mode
+      password: '',
       full_name: profile.full_name,
       role: profile.role,
       agency_id: profile.agency_id || 'none',
@@ -149,8 +172,10 @@ export const UsersCrud = () => {
 
   const resetForm = () => {
     setFormData({
+      email: '',
+      password: '',
       full_name: '',
-      role: 'taquillera',
+      role: 'taquillero',
       agency_id: 'none',
       is_active: true
     });
@@ -182,6 +207,32 @@ export const UsersCrud = () => {
                 </DialogTitle>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
+                {!editingProfile && (
+                  <>
+                    <div>
+                      <Label htmlFor="email">Email *</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        value={formData.email}
+                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                        required={!editingProfile}
+                        placeholder="usuario@ejemplo.com"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="password">Contraseña *</Label>
+                      <Input
+                        id="password"
+                        type="password"
+                        value={formData.password}
+                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                        required={!editingProfile}
+                        placeholder="Mínimo 6 caracteres"
+                      />
+                    </div>
+                  </>
+                )}
                 <div>
                   <Label htmlFor="full_name">Nombre Completo *</Label>
                   <Input
@@ -193,9 +244,9 @@ export const UsersCrud = () => {
                 </div>
                 <div>
                   <Label htmlFor="role">Rol *</Label>
-                  <Select
+                  <Select 
                     value={formData.role} 
-                    onValueChange={(value: 'admin' | 'taquillera' | 'supervisor' | 'administrador') => 
+                    onValueChange={(value: 'taquillero' | 'encargado' | 'administrador') => 
                       setFormData({ ...formData, role: value })
                     }
                   >
@@ -203,10 +254,9 @@ export const UsersCrud = () => {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="taquillera">Taquillera</SelectItem>
-                      <SelectItem value="supervisor">Supervisor</SelectItem>
+                      <SelectItem value="taquillero">Taquillero</SelectItem>
+                      <SelectItem value="encargado">Encargado</SelectItem>
                       <SelectItem value="administrador">Administrador</SelectItem>
-                      <SelectItem value="admin">Admin</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -277,15 +327,14 @@ export const UsersCrud = () => {
                     </TableCell>
                     <TableCell>
                       <span className={`px-2 py-1 rounded-full text-xs whitespace-nowrap ${
-                        profile.role === 'admin' 
+                        profile.role === 'administrador' 
                           ? 'bg-primary/10 text-primary' 
-                          : profile.role === 'administrador' || profile.role === 'supervisor'
+                          : profile.role === 'encargado'
                           ? 'bg-purple-500/10 text-purple-600'
                           : 'bg-muted text-muted-foreground'
                       }`}>
-                        {profile.role === 'admin' ? 'Admin' : 
-                         profile.role === 'administrador' ? 'Administrador' :
-                         profile.role === 'supervisor' ? 'Supervisor' : 'Taquillera'}
+                        {profile.role === 'administrador' ? 'Administrador' : 
+                         profile.role === 'encargado' ? 'Encargado' : 'Taquillero'}
                       </span>
                     </TableCell>
                     <TableCell className="hidden sm:table-cell">

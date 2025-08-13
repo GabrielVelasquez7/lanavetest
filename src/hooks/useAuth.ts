@@ -6,7 +6,7 @@ export interface UserProfile {
   id: string;
   user_id: string;
   full_name: string;
-  role: 'taquillera' | 'supervisor' | 'administrador' | 'admin';
+  role: 'taquillero' | 'encargado' | 'administrador';
   agency_name?: string;
   is_active: boolean;
 }
