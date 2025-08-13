@@ -314,7 +314,7 @@ export type Database = {
     }
     Enums: {
       expense_category: "deuda" | "gasto_operativo" | "otros"
-      user_role: "taquillera" | "supervisor" | "administrador"
+      user_role: "taquillera" | "supervisor" | "administrador" | "admin"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -443,7 +443,7 @@ export const Constants = {
   public: {
     Enums: {
       expense_category: ["deuda", "gasto_operativo", "otros"],
-      user_role: ["taquillera", "supervisor", "administrador"],
+      user_role: ["taquillera", "supervisor", "administrador", "admin"],
     },
   },
 } as const
