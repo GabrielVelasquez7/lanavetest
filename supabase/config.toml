@@ -1,1 +1,31 @@
 project_id = "pmmjomdrkcnmdakytlen"
+
+[auth]
+enabled = true
+site_url = "https://bdd3ec42-db8e-4092-9bdf-a0870d4f520c.lovableproject.com"
+additional_redirect_urls = ["https://localhost:8080"]
+jwt_expiry = 3600
+refresh_token_rotation_enabled = true
+security_update_password_require_reauthentication = true
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = false
+
+[auth.sms]
+enable_signup = false
+enable_confirmations = false
+template = "Your code is {{ .Code }}"
+
+[functions.create-user]
+verify_jwt = true
+
+[db]
+pooler_enabled = false
+migrations_path = "./migrations"
+
+[edge_runtime]
+enabled = true
+inspector_port = 8083
+policy = "per_worker"
