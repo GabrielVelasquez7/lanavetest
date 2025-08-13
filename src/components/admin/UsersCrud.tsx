@@ -99,7 +99,7 @@ export const UsersCrud = () => {
         const updateData = {
           full_name: formData.full_name,
           role: formData.role,
-          agency_id: formData.agency_id || null,
+          agency_id: formData.agency_id === 'none' ? null : formData.agency_id || null,
           is_active: formData.is_active
         };
 
@@ -132,7 +132,7 @@ export const UsersCrud = () => {
     setFormData({
       full_name: profile.full_name,
       role: profile.role,
-      agency_id: profile.agency_id || '',
+      agency_id: profile.agency_id || 'none',
       is_active: profile.is_active
     });
     setIsDialogOpen(true);
@@ -142,7 +142,7 @@ export const UsersCrud = () => {
     setFormData({
       full_name: '',
       role: 'taquillera',
-      agency_id: '',
+      agency_id: 'none',
       is_active: true
     });
     setEditingProfile(null);
@@ -208,7 +208,7 @@ export const UsersCrud = () => {
                       <SelectValue placeholder="Seleccionar agencia" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Sin agencia</SelectItem>
+                      <SelectItem value="none">Sin agencia</SelectItem>
                       {agencies.map((agency) => (
                         <SelectItem key={agency.id} value={agency.id}>
                           {agency.name}
