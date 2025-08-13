@@ -46,12 +46,11 @@ export const AdminCuadresView = () => {
     try {
       setLoading(true);
 
-      // Get sessions for the selected date (only closed sessions have complete data)
+      // Get sessions for the selected date (both open and closed sessions)
       const { data: sessionsData } = await supabase
         .from('daily_sessions')
-        .select('id, session_date, user_id')
-        .eq('session_date', selectedDate)
-        .eq('is_closed', true);
+        .select('id, session_date, user_id, is_closed')
+        .eq('session_date', selectedDate);
 
       if (!sessionsData || sessionsData.length === 0) {
         setDailyCuadres([]);
