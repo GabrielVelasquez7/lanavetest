@@ -43,7 +43,10 @@ export function AdminSidebar({ currentView, onViewChange }: AdminSidebarProps) {
         </h2>
       </div>
 
-      <SidebarTrigger className="m-2 self-end" />
+      {/* Trigger del sidebar visible solo en desktop */}
+      <div className="hidden lg:block">
+        <SidebarTrigger className="m-2 self-end" />
+      </div>
 
       <SidebarContent>
         <SidebarGroup>

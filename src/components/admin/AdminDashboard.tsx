@@ -1,10 +1,12 @@
-import { SidebarProvider } from "@/components/ui/sidebar";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AdminSidebar } from "./AdminSidebar";
 import { AgenciesCrud } from "./AgenciesCrud";
 import { UsersCrud } from "./UsersCrud";
 import { SystemsCrud } from "./SystemsCrud";
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
+import { Menu } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 type AdminView = 'agencies' | 'users' | 'systems' | 'dashboard';
 
@@ -54,8 +56,17 @@ export const AdminDashboard = () => {
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
+        {/* Header móvil con trigger del sidebar */}
+        <div className="fixed top-0 left-0 right-0 z-50 h-12 bg-background border-b flex items-center px-4 lg:hidden">
+          <SidebarTrigger className="mr-3">
+            <Menu className="h-5 w-5" />
+          </SidebarTrigger>
+          <h1 className="text-lg font-semibold text-foreground">Panel Admin</h1>
+        </div>
+
         <AdminSidebar currentView={currentView} onViewChange={setCurrentView} />
-        <main className="flex-1 bg-gradient-subtle">
+        
+        <main className="flex-1 bg-gradient-subtle pt-12 lg:pt-0">
           {renderContent()}
         </main>
       </div>
