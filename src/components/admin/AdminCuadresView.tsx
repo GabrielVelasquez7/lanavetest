@@ -46,12 +46,12 @@ export const AdminCuadresView = () => {
     try {
       setLoading(true);
 
-      // Get sessions for the selected date
+      // Get sessions for the selected date (only closed sessions have complete data)
       const { data: sessionsData } = await supabase
         .from('daily_sessions')
         .select('id, session_date, user_id')
         .eq('session_date', selectedDate)
-        .eq('is_closed', false);
+        .eq('is_closed', true);
 
       if (!sessionsData || sessionsData.length === 0) {
         setDailyCuadres([]);
@@ -63,13 +63,14 @@ export const AdminCuadresView = () => {
       const sessionIds = sessionsData.map(s => s.id);
       const userIds = [...new Set(sessionsData.map(s => s.user_id))];
 
-      // Get user profiles
+      // Get user profiles with agency information
       const { data: profilesData } = await supabase
         .from('profiles')
         .select(`
           user_id,
           full_name,
-          agencies(name)
+          agency_id,
+          agencies!inner(name)
         `)
         .in('user_id', userIds);
 
@@ -307,7 +308,7 @@ export const AdminCuadresView = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Users className="h-5 w-5" />
-            Cuadres por Usuario
+            Cuadres por Agencia
           </CardTitle>
         </CardHeader>
         <CardContent>
