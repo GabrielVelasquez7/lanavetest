@@ -13,10 +13,12 @@ serve(async (req) => {
   }
 
   try {
+    console.log('=== CREATE USER FUNCTION START ===')
+    
     // Create Supabase client with service role key for admin operations
     const supabaseAdmin = createClient(
       'https://pmmjomdrkcnmdakytlen.supabase.co',
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBtbWpvbWRya2NubWRha3l0bGVuIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NDkzODE1MywiZXhwIjoyMDcwNTE0MTUzfQ.2kmJ7evdUjnD8NGCzEqMdbMAsAMRr6nyn7g1XgAdVVU',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBtbWpvbWRya2NubWRha3l0bGVuIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NDkzODE1MywiZXhwIjoyMDcwNTE0MTUzfQ.2kmJ7evdUjnD8NGCzEqMdbMAsAMRr6nyn7g1XgAdVVU',
       {
         auth: {
           autoRefreshToken: false,
@@ -25,12 +27,20 @@ serve(async (req) => {
       }
     )
 
-    const { email, password, full_name, role, agency_id } = await req.json()
+    const requestData = await req.json()
+    const { email, password, full_name, role, agency_id } = requestData
 
-    console.log('Creating user with data:', { email, full_name, role, agency_id })
+    console.log('Request data received:', { 
+      email, 
+      full_name, 
+      role, 
+      agency_id,
+      hasPassword: !!password 
+    })
 
     // Validate required fields
     if (!email || !password || !full_name || !role) {
+      console.error('Missing required fields')
       return new Response(
         JSON.stringify({ error: 'Email, password, full_name, and role are required' }),
         { 
@@ -43,6 +53,7 @@ serve(async (req) => {
     // Validate role
     const validRoles = ['taquillero', 'encargado', 'administrador']
     if (!validRoles.includes(role)) {
+      console.error('Invalid role:', role)
       return new Response(
         JSON.stringify({ error: 'Invalid role. Must be taquillero, encargado, or administrador' }),
         { 
@@ -52,6 +63,8 @@ serve(async (req) => {
       )
     }
 
+    console.log('Creating user in auth.users...')
+    
     // Create user in auth.users table
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email,
@@ -59,15 +72,31 @@ serve(async (req) => {
       user_metadata: { 
         full_name,
         role,
-        agency_id: agency_id || null
+        agency_id: agency_id && agency_id !== 'none' ? agency_id : null
       },
       email_confirm: true // Auto-confirm email
     })
 
     if (authError) {
-      console.error('Auth error:', authError)
+      console.error('Auth error details:', {
+        message: authError.message,
+        status: authError.status,
+        code: authError.code,
+        details: authError
+      })
+      
+      // More specific error messages
+      let errorMessage = authError.message
+      if (authError.message?.includes('User already registered')) {
+        errorMessage = 'Este email ya está registrado'
+      } else if (authError.message?.includes('Password')) {
+        errorMessage = 'La contraseña debe tener al menos 6 caracteres'
+      } else if (authError.message?.includes('Email')) {
+        errorMessage = 'Email inválido'
+      }
+      
       return new Response(
-        JSON.stringify({ error: authError.message }),
+        JSON.stringify({ error: errorMessage }),
         { 
           status: 400, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -75,29 +104,7 @@ serve(async (req) => {
       )
     }
 
-    console.log('User created in auth:', authData.user?.id)
-
-    // Wait a moment for the trigger to create the profile
-    await new Promise(resolve => setTimeout(resolve, 100))
-
-    // Update the profile with the additional data (role and agency_id)
-    const { error: profileError } = await supabaseAdmin
-      .from('profiles')
-      .update({
-        role: role,
-        agency_id: agency_id || null,
-        full_name: full_name
-      })
-      .eq('user_id', authData.user.id)
-
-    if (profileError) {
-      console.error('Profile update error:', profileError)
-      // User was created but profile update failed
-      // We could delete the user here, but let's just log the error
-      console.log('Profile update failed, but user was created successfully')
-    }
-
-    console.log('User and profile created successfully')
+    console.log('User created successfully:', authData.user?.id)
 
     return new Response(
       JSON.stringify({ 
@@ -115,9 +122,12 @@ serve(async (req) => {
     )
 
   } catch (error) {
-    console.error('Error in create-user function:', error)
+    console.error('Unexpected error in create-user function:', error)
     return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
+      JSON.stringify({ 
+        error: 'Error interno del servidor',
+        details: error.message 
+      }),
       { 
         status: 500, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
