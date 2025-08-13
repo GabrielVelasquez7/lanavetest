@@ -1,4 +1,4 @@
-import { Building2, Users, Settings, Home, LogOut } from "lucide-react";
+import { Building2, Users, Settings, Home, LogOut, Calculator } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -13,13 +13,14 @@ import {
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/hooks/useAuth";
 
-type AdminView = 'agencies' | 'users' | 'systems' | 'dashboard';
+type AdminView = 'agencies' | 'users' | 'systems' | 'cuadres' | 'dashboard';
 
 const menuItems = [
   { title: "Dashboard", key: "dashboard" as AdminView, icon: Home },
   { title: "Agencias", key: "agencies" as AdminView, icon: Building2 },
   { title: "Usuarios", key: "users" as AdminView, icon: Users },
   { title: "Sistemas", key: "systems" as AdminView, icon: Settings },
+  { title: "Cuadres", key: "cuadres" as AdminView, icon: Calculator },
 ];
 
 interface AdminSidebarProps {
