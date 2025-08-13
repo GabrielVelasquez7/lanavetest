@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      agencies: {
+        Row: {
+          address: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       daily_sessions: {
         Row: {
           created_at: string
@@ -226,6 +256,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          agency_id: string | null
           agency_name: string | null
           created_at: string
           full_name: string
@@ -236,6 +267,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          agency_id?: string | null
           agency_name?: string | null
           created_at?: string
           full_name: string
@@ -246,6 +278,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          agency_id?: string | null
           agency_name?: string | null
           created_at?: string
           full_name?: string
@@ -255,7 +288,15 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sales_transactions: {
         Row: {
