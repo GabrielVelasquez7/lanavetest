@@ -96,6 +96,7 @@ export const UsersCrud = () => {
     
     try {
       if (editingProfile) {
+        // Update existing user
         const updateData = {
           full_name: formData.full_name,
           role: formData.role,
@@ -114,6 +115,14 @@ export const UsersCrud = () => {
           title: "Éxito",
           description: "Usuario actualizado correctamente",
         });
+      } else {
+        // Create new user - this would require backend user creation
+        toast({
+          title: "Información",
+          description: "La creación de usuarios requiere configuración adicional del backend",
+          variant: "default",
+        });
+        return;
       }
       
       fetchProfiles();
@@ -155,19 +164,22 @@ export const UsersCrud = () => {
 
   return (
     <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-foreground">Gestión de Usuarios</h1>
-        {editingProfile && (
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+        <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Gestión de Usuarios</h1>
+        <div className="flex gap-2">
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-              <Button onClick={() => resetForm()}>
-                <Edit className="mr-2 h-4 w-4" />
-                Editar Usuario
+              <Button onClick={() => setIsDialogOpen(true)}>
+                <Plus className="mr-2 h-4 w-4" />
+                <span className="hidden sm:inline">Crear Usuario</span>
+                <span className="sm:hidden">Crear</span>
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="sm:max-w-[425px] mx-4">
               <DialogHeader>
-                <DialogTitle>Editar Usuario</DialogTitle>
+                <DialogTitle>
+                  {editingProfile ? 'Editar Usuario' : 'Crear Usuario'}
+                </DialogTitle>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
@@ -229,69 +241,82 @@ export const UsersCrud = () => {
                   <Button type="button" variant="outline" onClick={resetForm}>
                     Cancelar
                   </Button>
-                  <Button type="submit">Actualizar</Button>
+                  <Button type="submit">
+                    {editingProfile ? 'Actualizar' : 'Crear'}
+                  </Button>
                 </div>
               </form>
             </DialogContent>
           </Dialog>
-        )}
+        </div>
       </div>
 
       <Card>
         <CardHeader>
           <CardTitle>Lista de Usuarios</CardTitle>
         </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nombre</TableHead>
-                <TableHead>Rol</TableHead>
-                <TableHead>Agencia</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead>Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {profiles.map((profile) => (
-                <TableRow key={profile.id}>
-                  <TableCell className="font-medium">{profile.full_name}</TableCell>
-                  <TableCell>
-                    <span className={`px-2 py-1 rounded-full text-xs ${
-                      profile.role === 'admin' 
-                        ? 'bg-blue-100 text-blue-800' 
-                        : profile.role === 'administrador' || profile.role === 'supervisor'
-                        ? 'bg-purple-100 text-purple-800'
-                        : 'bg-gray-100 text-gray-800'
-                    }`}>
-                      {profile.role === 'admin' ? 'Admin' : 
-                       profile.role === 'administrador' ? 'Administrador' :
-                       profile.role === 'supervisor' ? 'Supervisor' : 'Taquillera'}
-                    </span>
-                  </TableCell>
-                  <TableCell>{profile.agency_name || '-'}</TableCell>
-                  <TableCell>
-                    <span className={`px-2 py-1 rounded-full text-xs ${
-                      profile.is_active 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-red-100 text-red-800'
-                    }`}>
-                      {profile.is_active ? 'Activo' : 'Inactivo'}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleEdit(profile)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                  </TableCell>
+        <CardContent className="p-3 sm:p-6">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="min-w-[120px]">Nombre</TableHead>
+                  <TableHead className="min-w-[100px]">Rol</TableHead>
+                  <TableHead className="min-w-[100px] hidden sm:table-cell">Agencia</TableHead>
+                  <TableHead className="min-w-[80px]">Estado</TableHead>
+                  <TableHead className="min-w-[80px]">Acciones</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {profiles.map((profile) => (
+                  <TableRow key={profile.id}>
+                    <TableCell className="font-medium">
+                      <div className="max-w-[120px] truncate">
+                        {profile.full_name}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <span className={`px-2 py-1 rounded-full text-xs whitespace-nowrap ${
+                        profile.role === 'admin' 
+                          ? 'bg-primary/10 text-primary' 
+                          : profile.role === 'administrador' || profile.role === 'supervisor'
+                          ? 'bg-purple-500/10 text-purple-600'
+                          : 'bg-muted text-muted-foreground'
+                      }`}>
+                        {profile.role === 'admin' ? 'Admin' : 
+                         profile.role === 'administrador' ? 'Administrador' :
+                         profile.role === 'supervisor' ? 'Supervisor' : 'Taquillera'}
+                      </span>
+                    </TableCell>
+                    <TableCell className="hidden sm:table-cell">
+                      <div className="max-w-[100px] truncate">
+                        {profile.agency_name || '-'}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <span className={`px-2 py-1 rounded-full text-xs whitespace-nowrap ${
+                        profile.is_active 
+                          ? 'bg-green-500/10 text-green-600' 
+                          : 'bg-red-500/10 text-red-600'
+                      }`}>
+                        {profile.is_active ? 'Activo' : 'Inactivo'}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEdit(profile)}
+                        className="h-8 w-8 p-0"
+                      >
+                        <Edit className="h-3 w-3" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
     </div>
