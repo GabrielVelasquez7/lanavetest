@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Crear Usuario Prueba</title>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <h1>Creando usuario...</h1>
+    <div id="result"></div>
+    
+    <script>
+        const supabase = window.supabase.createClient(
+            'https://pmmjomdrkcnmdakytlen.supabase.co',
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBtbWpvbWRya2NubWRha3l0bGVuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ5MzgxNTMsImV4cCI6MjA3MDUxNDE1M30.Ggxtm7FakwzzzpBCtGD_YfO2X8yEe5pbFl0DhW_ol7w'
+        );
+
+        async function createUser() {
+            try {
+                console.log('Creando usuario...');
+                const { data, error } = await supabase.functions.invoke('create-user', {
+                    body: {
+                        email: 'agenciaprueba@gmail.com',
+                        password: 'TempPass123!',
+                        full_name: 'Usuario Prueba Taquillero',
+                        role: 'taquillero',
+                        agency_id: '4e331754-2ca9-44c6-8a9f-c9888a9ccf10'
+                    }
+                });
+
+                if (error) {
+                    console.error('Error:', error);
+                    document.getElementById('result').innerHTML = 
+                        '<div style="color: red;">Error: ' + JSON.stringify(error) + '</div>';
+                } else {
+                    console.log('Usuario creado:', data);
+                    document.getElementById('result').innerHTML = 
+                        '<div style="color: green;">✅ Usuario creado exitosamente!<br>' +
+                        'Email: agenciaprueba@gmail.com<br>' +
+                        'Contraseña: TempPass123!</div>';
+                }
+            } catch (error) {
+                console.error('Exception:', error);
+                document.getElementById('result').innerHTML = 
+                    '<div style="color: red;">Error: ' + error.message + '</div>';
+            }
+        }
+
+        // Ejecutar cuando la página carga
+        createUser();
+    </script>
+</body>
+</html>
