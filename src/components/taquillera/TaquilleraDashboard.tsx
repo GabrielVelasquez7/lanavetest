@@ -7,7 +7,7 @@ import { Calculator, DollarSign, Gift, LogOut, Receipt, Smartphone, CreditCard }
 import { useAuth } from '@/hooks/useAuth';
 import { GastosManager } from './GastosManager';
 import { DailySummary } from './DailySummary';
-import { MobilePaymentsForm } from './MobilePaymentsForm';
+import { PagoMovilManager } from './PagoMovilManager';
 import { PointOfSaleForm } from './PointOfSaleForm';
 import { SystemCuadresView } from './SystemCuadresView';
 import { VentasPremiosManager } from './VentasPremiosManager';
@@ -76,17 +76,7 @@ export const TaquilleraDashboard = () => {
           </TabsContent>
 
           <TabsContent value="pago-movil" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Pagos Móviles</CardTitle>
-                <CardDescription>
-                  Registra los pagos móviles recibidos en Bs
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <MobilePaymentsForm />
-              </CardContent>
-            </Card>
+            <PagoMovilManager onSuccess={triggerRefresh} />
           </TabsContent>
 
           <TabsContent value="punto-venta" className="space-y-6">
