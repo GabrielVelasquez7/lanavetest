@@ -37,9 +37,13 @@ interface LotterySystem {
 
 interface VentasPremiosManagerProps {
   onSuccess?: () => void;
+  dateRange?: {
+    from: Date;
+    to: Date;
+  };
 }
 
-export const VentasPremiosManager = ({ onSuccess }: VentasPremiosManagerProps) => {
+export const VentasPremiosManager = ({ onSuccess, dateRange }: VentasPremiosManagerProps) => {
   const [activeTab, setActiveTab] = useState('bolivares');
   const [lotteryOptions, setLotteryOptions] = useState<LotterySystem[]>([]);
   const [loading, setLoading] = useState(false);

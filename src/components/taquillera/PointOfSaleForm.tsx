@@ -17,7 +17,14 @@ const posSchema = z.object({
 
 type POSForm = z.infer<typeof posSchema>;
 
-export const PointOfSaleForm = () => {
+interface PointOfSaleFormProps {
+  dateRange?: {
+    from: Date;
+    to: Date;
+  };
+}
+
+export const PointOfSaleForm = ({ dateRange }: PointOfSaleFormProps) => {
   const [loading, setLoading] = useState(false);
   const [currentAmount, setCurrentAmount] = useState<number>(0);
   const [hasEntry, setHasEntry] = useState(false);

@@ -1,15 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { formatCurrency, cn } from '@/lib/utils';
-import { format, startOfWeek, endOfWeek, subDays, addDays, isToday, isSameDay } from 'date-fns';
-import { es } from 'date-fns/locale';
-import { CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import { formatCurrency } from '@/lib/utils';
+import { format } from 'date-fns';
 
 interface SystemCuadre {
   system_id: string;
@@ -27,14 +22,13 @@ type DateRange = {
   to: Date;
 };
 
-export const SystemCuadresView = () => {
+interface SystemCuadresViewProps {
+  dateRange: DateRange;
+}
+
+export const SystemCuadresView = ({ dateRange }: SystemCuadresViewProps) => {
   const [systemCuadres, setSystemCuadres] = useState<SystemCuadre[]>([]);
   const [loading, setLoading] = useState(true);
-  const [dateRange, setDateRange] = useState<DateRange>({
-    from: new Date(),
-    to: new Date(),
-  });
-  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -125,31 +119,6 @@ export const SystemCuadresView = () => {
     }
   };
 
-  const setToday = () => {
-    const today = new Date();
-    setDateRange({ from: today, to: today });
-  };
-
-  const setThisWeek = () => {
-    const now = new Date();
-    setDateRange({
-      from: startOfWeek(now, { weekStartsOn: 1 }),
-      to: endOfWeek(now, { weekStartsOn: 1 }),
-    });
-  };
-
-  const navigateDay = (direction: 'prev' | 'next') => {
-    const days = direction === 'prev' ? -1 : 1;
-    setDateRange({
-      from: addDays(dateRange.from, days),
-      to: addDays(dateRange.to, days),
-    });
-  };
-
-  const isSingleDay = isSameDay(dateRange.from, dateRange.to);
-  const isCurrentWeek = isSameDay(dateRange.from, startOfWeek(new Date(), { weekStartsOn: 1 })) &&
-                        isSameDay(dateRange.to, endOfWeek(new Date(), { weekStartsOn: 1 }));
-
   if (loading) {
     return <div>Cargando cuadres por sistema...</div>;
   }
@@ -176,96 +145,6 @@ export const SystemCuadresView = () => {
 
   return (
     <div className="space-y-6">
-      {/* Date Filter Controls */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <span>Filtro de Fechas</span>
-            <div className="flex gap-2">
-              <Button
-                variant={isToday(dateRange.from) && isSingleDay ? "default" : "outline"}
-                size="sm"
-                onClick={setToday}
-              >
-                Hoy
-              </Button>
-              <Button
-                variant={isCurrentWeek && !isSingleDay ? "default" : "outline"}
-                size="sm"
-                onClick={setThisWeek}
-              >
-                Esta Semana
-              </Button>
-            </div>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              {isSingleDay && (
-                <>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => navigateDay('prev')}
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => navigateDay('next')}
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </>
-              )}
-              <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "justify-start text-left font-normal min-w-[280px]",
-                      !dateRange && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {isSingleDay
-                      ? format(dateRange.from, "dd 'de' MMMM, yyyy", { locale: es })
-                      : `${format(dateRange.from, "dd MMM", { locale: es })} - ${format(dateRange.to, "dd MMM yyyy", { locale: es })}`
-                    }
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    initialFocus
-                    mode="range"
-                    defaultMonth={dateRange?.from}
-                    selected={{ from: dateRange.from, to: dateRange.to }}
-                    onSelect={(range) => {
-                      if (range?.from) {
-                        setDateRange({
-                          from: range.from,
-                          to: range.to || range.from,
-                        });
-                        if (range.to || !range.from) {
-                          setIsCalendarOpen(false);
-                        }
-                      }
-                    }}
-                    numberOfMonths={2}
-                    className="pointer-events-auto"
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-            <Badge variant="secondary">
-              {isSingleDay ? '1 día' : `${Math.ceil((dateRange.to.getTime() - dateRange.from.getTime()) / (1000 * 60 * 60 * 24)) + 1} días`}
-            </Badge>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Summary Header */}
       <Card className="border-primary/20">
         <CardHeader>

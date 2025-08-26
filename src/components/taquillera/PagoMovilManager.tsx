@@ -8,9 +8,13 @@ import { PagoMovilHistorial } from './PagoMovilHistorial';
 
 interface PagoMovilManagerProps {
   onSuccess?: () => void;
+  dateRange?: {
+    from: Date;
+    to: Date;
+  };
 }
 
-export const PagoMovilManager = ({ onSuccess }: PagoMovilManagerProps) => {
+export const PagoMovilManager = ({ onSuccess, dateRange }: PagoMovilManagerProps) => {
   const [activeTab, setActiveTab] = useState('recibidos');
   const [refreshHistorial, setRefreshHistorial] = useState(0);
 

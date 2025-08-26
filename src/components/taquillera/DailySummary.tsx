@@ -7,6 +7,10 @@ import { formatCurrency } from '@/lib/utils';
 
 interface DailySummaryProps {
   refreshKey?: number;
+  dateRange?: {
+    from: Date;
+    to: Date;
+  };
 }
 
 interface SummaryData {
@@ -18,7 +22,7 @@ interface SummaryData {
   transactionCount: number;
 }
 
-export const DailySummary = ({ refreshKey = 0 }: DailySummaryProps) => {
+export const DailySummary = ({ refreshKey = 0, dateRange }: DailySummaryProps) => {
   const [summary, setSummary] = useState<SummaryData>({
     totalSales: { bs: 0, usd: 0 },
     totalPrizes: { bs: 0, usd: 0 },

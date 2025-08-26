@@ -8,9 +8,13 @@ import { GastosHistorial } from './GastosHistorial';
 
 interface GastosManagerProps {
   onSuccess?: () => void;
+  dateRange?: {
+    from: Date;
+    to: Date;
+  };
 }
 
-export const GastosManager = ({ onSuccess }: GastosManagerProps) => {
+export const GastosManager = ({ onSuccess, dateRange }: GastosManagerProps) => {
   const [activeTab, setActiveTab] = useState('gastos-operativos');
   const [refreshHistorial, setRefreshHistorial] = useState(0);
 
