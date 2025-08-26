@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Calculator, DollarSign, Gift, LogOut, Receipt, Smartphone, CreditCard } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { ExpensesForm } from './ExpensesForm';
+import { GastosManager } from './GastosManager';
 import { DailySummary } from './DailySummary';
 import { MobilePaymentsForm } from './MobilePaymentsForm';
 import { PointOfSaleForm } from './PointOfSaleForm';
@@ -72,17 +72,7 @@ export const TaquilleraDashboard = () => {
           </TabsContent>
 
           <TabsContent value="gastos" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Registro de Gastos</CardTitle>
-                <CardDescription>
-                  Registra gastos operativos y deudas
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ExpensesForm />
-              </CardContent>
-            </Card>
+            <GastosManager onSuccess={triggerRefresh} />
           </TabsContent>
 
           <TabsContent value="pago-movil" className="space-y-6">

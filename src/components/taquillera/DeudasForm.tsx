@@ -10,32 +10,37 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { Textarea } from '@/components/ui/textarea';
+import { CreditCard } from 'lucide-react';
 
-const expenseSchema = z.object({
-  category: z.enum(['deuda', 'gasto_operativo', 'otros']),
+const deudaSchema = z.object({
+  category: z.literal('deuda'),
   description: z.string().min(1, 'Descripción es requerida'),
   amount_bs: z.number().min(0, 'Monto debe ser positivo'),
   amount_usd: z.number().min(0, 'Monto debe ser positivo'),
 });
 
-type ExpenseForm = z.infer<typeof expenseSchema>;
+type DeudaForm = z.infer<typeof deudaSchema>;
 
-export const ExpensesForm = () => {
+interface DeudasFormProps {
+  onSuccess?: () => void;
+}
+
+export const DeudasForm = ({ onSuccess }: DeudasFormProps) => {
   const [loading, setLoading] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
 
-  const form = useForm<ExpenseForm>({
-    resolver: zodResolver(expenseSchema),
+  const form = useForm<DeudaForm>({
+    resolver: zodResolver(deudaSchema),
     defaultValues: {
+      category: 'deuda',
       amount_bs: 0,
       amount_usd: 0,
       description: '',
     },
   });
 
-  const onSubmit = async (data: ExpenseForm) => {
+  const onSubmit = async (data: DeudaForm) => {
     if (!user) return;
 
     setLoading(true);
@@ -48,9 +53,9 @@ export const ExpensesForm = () => {
         .select('id')
         .eq('user_id', user.id)
         .eq('session_date', today)
-        .single();
+        .maybeSingle();
 
-      if (sessionError && sessionError.code === 'PGRST116') {
+      if (!session) {
         // Session doesn't exist, create it
         const { data: newSession, error: createError } = await supabase
           .from('daily_sessions')
@@ -63,11 +68,9 @@ export const ExpensesForm = () => {
 
         if (createError) throw createError;
         session = newSession;
-      } else if (sessionError) {
-        throw sessionError;
       }
 
-      // Now insert the expense
+      // Now insert the debt
       const { error } = await supabase
         .from('expenses')
         .insert({
@@ -82,14 +85,22 @@ export const ExpensesForm = () => {
 
       toast({
         title: 'Éxito',
-        description: 'Gasto registrado correctamente',
+        description: 'Deuda registrada correctamente',
       });
 
-      form.reset();
+      // Reset only description and amounts, keep category
+      form.reset({
+        category: 'deuda',
+        description: '',
+        amount_bs: 0,
+        amount_usd: 0,
+      });
+      
+      onSuccess?.();
     } catch (error: any) {
       toast({
         title: 'Error',
-        description: error.message || 'Error al registrar el gasto',
+        description: error.message || 'Error al registrar la deuda',
         variant: 'destructive',
       });
     } finally {
@@ -97,28 +108,26 @@ export const ExpensesForm = () => {
     }
   };
 
-  const categoryLabels = {
-    deuda: 'Deuda',
-    gasto_operativo: 'Gasto Operativo',
-    otros: 'Otros',
-  };
+  const deudaTypes = [
+    { value: 'proveedor', label: 'Proveedor' },
+    { value: 'prestamo', label: 'Préstamo' },
+    { value: 'credito', label: 'Crédito' },
+    { value: 'otros', label: 'Otros' },
+  ];
 
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-2">
-          <Label htmlFor="category">Categoría</Label>
-          <Select
-            value={form.watch('category')}
-            onValueChange={(value) => form.setValue('category', value as any)}
-          >
+          <Label htmlFor="debt-type">Tipo de Deuda</Label>
+          <Select>
             <SelectTrigger>
-              <SelectValue placeholder="Selecciona una categoría" />
+              <SelectValue placeholder="Selecciona el tipo" />
             </SelectTrigger>
             <SelectContent>
-              {Object.entries(categoryLabels).map(([value, label]) => (
-                <SelectItem key={value} value={value}>
-                  {label}
+              {deudaTypes.map((type) => (
+                <SelectItem key={type.value} value={type.value}>
+                  {type.label}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -128,7 +137,7 @@ export const ExpensesForm = () => {
         <div className="space-y-2">
           <Label htmlFor="description">Descripción</Label>
           <Input
-            placeholder="Describe el gasto..."
+            placeholder="Describe la deuda..."
             {...form.register('description')}
           />
         </div>
@@ -165,7 +174,8 @@ export const ExpensesForm = () => {
       </div>
 
       <Button type="submit" disabled={loading} className="w-full">
-        {loading ? 'Registrando...' : 'Registrar Gasto'}
+        <CreditCard className="h-4 w-4 mr-2" />
+        {loading ? 'Registrando...' : 'Agregar Deuda'}
       </Button>
     </form>
   );
