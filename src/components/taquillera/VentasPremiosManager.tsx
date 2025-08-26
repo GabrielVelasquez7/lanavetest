@@ -11,6 +11,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { VentasPremiosBolivares } from './VentasPremiosBolivares';
 import { VentasPremiosDolares } from './VentasPremiosDolares';
 import { Edit } from 'lucide-react';
+import { format } from 'date-fns';
 import { formatCurrency } from '@/lib/utils';
 
 const systemEntrySchema = z.object({
@@ -84,8 +85,8 @@ export const VentasPremiosManager = ({ onSuccess, dateRange }: VentasPremiosMana
           prizes_usd: 0,
         }));
 
-        // Cargar datos existentes del día actual
-        await loadTodayData(systemsData);
+        // Cargar datos existentes del rango de fechas
+        await loadDateRangeData(systemsData);
 
       } catch (error: any) {
         toast({
@@ -97,64 +98,77 @@ export const VentasPremiosManager = ({ onSuccess, dateRange }: VentasPremiosMana
     };
 
     fetchData();
-  }, [user, toast]);
+  }, [user, toast, dateRange]);
 
-  const loadTodayData = async (defaultSystems: SystemEntry[]) => {
-    if (!user) return;
+  const loadDateRangeData = async (defaultSystems: SystemEntry[]) => {
+    if (!user || !dateRange) return;
 
-    const today = new Date().toISOString().split('T')[0];
+    const fromDate = format(dateRange.from, 'yyyy-MM-dd');
+    const toDate = format(dateRange.to, 'yyyy-MM-dd');
     
     try {
-      // Buscar sesión del día actual
-      const { data: session } = await supabase
+      // Buscar sesiones en el rango de fechas
+      const { data: sessions } = await supabase
         .from('daily_sessions')
         .select('id')
         .eq('user_id', user.id)
-        .eq('session_date', today)
-        .single();
+        .gte('session_date', fromDate)
+        .lte('session_date', toDate);
 
-      if (session) {
-        setCurrentSessionId(session.id);
+      if (sessions && sessions.length > 0) {
+        const sessionIds = sessions.map(s => s.id);
         
-        // Cargar transacciones existentes
+        // Cargar transacciones existentes de todas las sesiones
         const [salesResult, prizesResult] = await Promise.all([
           supabase
             .from('sales_transactions')
             .select('lottery_system_id, amount_bs, amount_usd')
-            .eq('session_id', session.id),
+            .in('session_id', sessionIds),
           supabase
             .from('prize_transactions')
             .select('lottery_system_id, amount_bs, amount_usd')
-            .eq('session_id', session.id)
+            .in('session_id', sessionIds)
         ]);
 
         // Combinar datos existentes con sistemas por defecto
         const systemsWithData = defaultSystems.map(system => {
-          const salesData = salesResult.data?.find(s => s.lottery_system_id === system.lottery_system_id);
-          const prizesData = prizesResult.data?.find(p => p.lottery_system_id === system.lottery_system_id);
+          const salesData = salesResult.data?.filter(s => s.lottery_system_id === system.lottery_system_id) || [];
+          const prizesData = prizesResult.data?.filter(p => p.lottery_system_id === system.lottery_system_id) || [];
 
           return {
             ...system,
-            sales_bs: Number(salesData?.amount_bs || 0),
-            sales_usd: Number(salesData?.amount_usd || 0),
-            prizes_bs: Number(prizesData?.amount_bs || 0),
-            prizes_usd: Number(prizesData?.amount_usd || 0),
+            sales_bs: salesData.reduce((sum, s) => sum + Number(s.amount_bs || 0), 0),
+            sales_usd: salesData.reduce((sum, s) => sum + Number(s.amount_usd || 0), 0),
+            prizes_bs: prizesData.reduce((sum, p) => sum + Number(p.amount_bs || 0), 0),
+            prizes_usd: prizesData.reduce((sum, p) => sum + Number(p.amount_usd || 0), 0),
           };
         });
 
         form.setValue('systems', systemsWithData);
         
-        // Si hay datos, activar modo edición
+        // Si hay datos, activar modo edición solo si es un solo día
+        const isSingleDay = fromDate === toDate;
         const hasData = systemsWithData.some(s => 
           s.sales_bs > 0 || s.sales_usd > 0 || s.prizes_bs > 0 || s.prizes_usd > 0
         );
-        setEditMode(hasData);
+        setEditMode(hasData && isSingleDay);
+        
+        // Establecer session ID solo si es un día único y tiene sesión
+        if (isSingleDay && sessions.length === 1) {
+          setCurrentSessionId(sessions[0].id);
+        } else {
+          setCurrentSessionId(null);
+        }
       } else {
         form.setValue('systems', defaultSystems);
+        setEditMode(false);
+        setCurrentSessionId(null);
       }
     } catch (error) {
-      console.error('Error loading today data:', error);
+      console.error('Error loading date range data:', error);
       form.setValue('systems', defaultSystems);
+      setEditMode(false);
+      setCurrentSessionId(null);
     }
   };
 
@@ -172,11 +186,23 @@ export const VentasPremiosManager = ({ onSuccess, dateRange }: VentasPremiosMana
   }, [form]);
 
   const onSubmit = async (data: VentasPremiosForm) => {
-    if (!user) return;
+    if (!user || !dateRange) return;
+
+    // Solo permitir guardar si es un solo día
+    const fromDate = format(dateRange.from, 'yyyy-MM-dd');
+    const toDate = format(dateRange.to, 'yyyy-MM-dd');
+    
+    if (fromDate !== toDate) {
+      toast({
+        title: 'Error',
+        description: 'Solo puedes guardar cambios para un día específico. Selecciona una fecha única.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     setLoading(true);
     try {
-      const today = new Date().toISOString().split('T')[0];
       let sessionId = currentSessionId;
 
       // Crear sesión si no existe
@@ -185,7 +211,7 @@ export const VentasPremiosManager = ({ onSuccess, dateRange }: VentasPremiosMana
           .from('daily_sessions')
           .insert({
             user_id: user.id,
-            session_date: today,
+            session_date: fromDate,
           })
           .select('id')
           .single();

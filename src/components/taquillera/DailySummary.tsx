@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { formatCurrency } from '@/lib/utils';
+import { format } from 'date-fns';
 
 interface DailySummaryProps {
   refreshKey?: number;
@@ -35,63 +36,67 @@ export const DailySummary = ({ refreshKey = 0, dateRange }: DailySummaryProps) =
   const { user } = useAuth();
 
   useEffect(() => {
-    if (user) {
+    if (user && dateRange) {
       fetchDailySummary();
     }
-  }, [user, refreshKey]);
+  }, [user, refreshKey, dateRange]);
 
   const fetchDailySummary = async () => {
-    if (!user) return;
+    if (!user || !dateRange) return;
 
     try {
-      const today = new Date().toISOString().split('T')[0];
+      const fromDate = format(dateRange.from, 'yyyy-MM-dd');
+      const toDate = format(dateRange.to, 'yyyy-MM-dd');
 
-      // Get today's session
-      const { data: session } = await supabase
+      // Get sessions in date range
+      const { data: sessions } = await supabase
         .from('daily_sessions')
         .select('id')
         .eq('user_id', user.id)
-        .eq('session_date', today)
-        .single();
+        .gte('session_date', fromDate)
+        .lte('session_date', toDate);
 
-      if (!session) {
+      if (!sessions || sessions.length === 0) {
+        setSummary({
+          totalSales: { bs: 0, usd: 0 },
+          totalPrizes: { bs: 0, usd: 0 },
+          totalExpenses: { bs: 0, usd: 0 },
+          totalMobilePayments: 0,
+          totalPointOfSale: 0,
+          transactionCount: 0,
+        });
         setLoading(false);
         return;
       }
 
-      // Get sales summary
-      const { data: salesData } = await supabase
-        .from('sales_transactions')
-        .select('amount_bs, amount_usd')
-        .eq('session_id', session.id);
+      const sessionIds = sessions.map(s => s.id);
 
-      // Get prizes summary
-      const { data: prizesData } = await supabase
-        .from('prize_transactions')
-        .select('amount_bs, amount_usd')
-        .eq('session_id', session.id);
-
-      // Get expenses summary
-      const { data: expensesData } = await supabase
-        .from('expenses')
-        .select('amount_bs, amount_usd')
-        .eq('session_id', session.id);
-
-      // Get mobile payments summary
-      const { data: mobilePaymentsData } = await supabase
-        .from('mobile_payments')
-        .select('amount_bs')
-        .eq('session_id', session.id);
-
-      // Get point of sale data
-      const { data: posData } = await supabase
-        .from('point_of_sale')
-        .select('amount_bs')
-        .eq('session_id', session.id)
-        .single();
+      // Fetch all related data in parallel for all sessions
+      const [salesData, prizesData, expensesData, mobilePaymentsData, posData] = await Promise.all([
+        supabase
+          .from('sales_transactions')
+          .select('amount_bs, amount_usd')
+          .in('session_id', sessionIds),
+        supabase
+          .from('prize_transactions')
+          .select('amount_bs, amount_usd')
+          .in('session_id', sessionIds),
+        supabase
+          .from('expenses')
+          .select('amount_bs, amount_usd')
+          .in('session_id', sessionIds),
+        supabase
+          .from('mobile_payments')
+          .select('amount_bs')
+          .in('session_id', sessionIds),
+        supabase
+          .from('point_of_sale')
+          .select('amount_bs')
+          .in('session_id', sessionIds)
+      ]);
 
       // Calculate totals
-      const totalSales = salesData?.reduce(
+      const totalSales = salesData.data?.reduce(
         (acc, item) => ({
           bs: acc.bs + Number(item.amount_bs || 0),
           usd: acc.usd + Number(item.amount_usd || 0),
@@ -99,7 +104,7 @@ export const DailySummary = ({ refreshKey = 0, dateRange }: DailySummaryProps) =
         { bs: 0, usd: 0 }
       ) || { bs: 0, usd: 0 };
 
-      const totalPrizes = prizesData?.reduce(
+      const totalPrizes = prizesData.data?.reduce(
         (acc, item) => ({
           bs: acc.bs + Number(item.amount_bs || 0),
           usd: acc.usd + Number(item.amount_usd || 0),
@@ -107,7 +112,7 @@ export const DailySummary = ({ refreshKey = 0, dateRange }: DailySummaryProps) =
         { bs: 0, usd: 0 }
       ) || { bs: 0, usd: 0 };
 
-      const totalExpenses = expensesData?.reduce(
+      const totalExpenses = expensesData.data?.reduce(
         (acc, item) => ({
           bs: acc.bs + Number(item.amount_bs || 0),
           usd: acc.usd + Number(item.amount_usd || 0),
@@ -115,12 +120,15 @@ export const DailySummary = ({ refreshKey = 0, dateRange }: DailySummaryProps) =
         { bs: 0, usd: 0 }
       ) || { bs: 0, usd: 0 };
 
-      const totalMobilePayments = mobilePaymentsData?.reduce(
+      const totalMobilePayments = mobilePaymentsData.data?.reduce(
         (sum, item) => sum + Number(item.amount_bs || 0),
         0
       ) || 0;
 
-      const totalPointOfSale = Number(posData?.amount_bs || 0);
+      const totalPointOfSale = posData.data?.reduce(
+        (sum, item) => sum + Number(item.amount_bs || 0),
+        0
+      ) || 0;
 
       setSummary({
         totalSales,
@@ -129,11 +137,11 @@ export const DailySummary = ({ refreshKey = 0, dateRange }: DailySummaryProps) =
         totalMobilePayments,
         totalPointOfSale,
         transactionCount:
-          (salesData?.length || 0) +
-          (prizesData?.length || 0) +
-          (expensesData?.length || 0) +
-          (mobilePaymentsData?.length || 0) +
-          (posData ? 1 : 0),
+          (salesData.data?.length || 0) +
+          (prizesData.data?.length || 0) +
+          (expensesData.data?.length || 0) +
+          (mobilePaymentsData.data?.length || 0) +
+          (posData.data?.length || 0),
       });
     } catch (error) {
       console.error('Error fetching summary:', error);
@@ -265,7 +273,7 @@ export const DailySummary = ({ refreshKey = 0, dateRange }: DailySummaryProps) =
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            Resumen del Día (Bs)
+            Resumen del Período (Bs)
             <Badge variant="secondary">{summary.transactionCount} transacciones</Badge>
           </CardTitle>
         </CardHeader>
@@ -288,7 +296,7 @@ export const DailySummary = ({ refreshKey = 0, dateRange }: DailySummaryProps) =
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            Resumen del Día (USD)
+            Resumen del Período (USD)
             <Badge variant="outline">{summary.transactionCount} transacciones</Badge>
           </CardTitle>
         </CardHeader>
