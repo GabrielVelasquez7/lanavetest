@@ -9,8 +9,8 @@ refresh_token_rotation_enabled = true
 security_update_password_require_reauthentication = true
 # Security Fix: Enable leaked password protection
 enable_leaked_password_protection = true
-# Security Fix: Optimize OTP expiry (reduced from default to 600 seconds = 10 minutes)
-otp_expiry = 600
+# Security Fix: Optimize OTP expiry (reduced to 300 seconds = 5 minutes for better security)
+otp_expiry = 300
 
 [auth.email]
 enable_signup = true
