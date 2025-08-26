@@ -5,14 +5,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Calculator, DollarSign, Gift, LogOut, Receipt, Smartphone, CreditCard } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { SalesForm } from './SalesForm';
-import { PrizesForm } from './PrizesForm';
 import { ExpensesForm } from './ExpensesForm';
 import { DailySummary } from './DailySummary';
 import { MobilePaymentsForm } from './MobilePaymentsForm';
 import { PointOfSaleForm } from './PointOfSaleForm';
-import { BulkTransactionsForm } from './BulkTransactionsForm';
 import { SystemCuadresView } from './SystemCuadresView';
+import { VentasPremiosManager } from './VentasPremiosManager';
 
 export const TaquilleraDashboard = () => {
   const { profile, signOut } = useAuth();
@@ -70,17 +68,7 @@ export const TaquilleraDashboard = () => {
           </TabsList>
 
           <TabsContent value="transacciones" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Registro de Ventas y Premios</CardTitle>
-                <CardDescription>
-                  Registra ventas y premios de todos los sistemas de una vez
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <BulkTransactionsForm onSuccess={triggerRefresh} />
-              </CardContent>
-            </Card>
+            <VentasPremiosManager onSuccess={triggerRefresh} />
           </TabsContent>
 
           <TabsContent value="gastos" className="space-y-6">
