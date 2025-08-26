@@ -1,9 +1,15 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, cn } from '@/lib/utils';
+import { format, startOfWeek, endOfWeek, subDays, addDays, isToday, isSameDay } from 'date-fns';
+import { es } from 'date-fns/locale';
+import { CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface SystemCuadre {
   system_id: string;
@@ -16,35 +22,49 @@ interface SystemCuadre {
   cuadre_usd: number;
 }
 
+type DateRange = {
+  from: Date;
+  to: Date;
+};
+
 export const SystemCuadresView = () => {
   const [systemCuadres, setSystemCuadres] = useState<SystemCuadre[]>([]);
   const [loading, setLoading] = useState(true);
+  const [dateRange, setDateRange] = useState<DateRange>({
+    from: new Date(),
+    to: new Date(),
+  });
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const { user } = useAuth();
 
   useEffect(() => {
     if (user) {
       fetchSystemCuadres();
     }
-  }, [user]);
+  }, [user, dateRange]);
 
   const fetchSystemCuadres = async () => {
     if (!user) return;
 
     try {
-      const today = new Date().toISOString().split('T')[0];
+      const fromDate = format(dateRange.from, 'yyyy-MM-dd');
+      const toDate = format(dateRange.to, 'yyyy-MM-dd');
 
-      // Get today's session
-      const { data: session } = await supabase
+      // Get sessions in date range
+      const { data: sessions } = await supabase
         .from('daily_sessions')
-        .select('id')
+        .select('id, session_date')
         .eq('user_id', user.id)
-        .eq('session_date', today)
-        .single();
+        .gte('session_date', fromDate)
+        .lte('session_date', toDate);
 
-      if (!session) {
+      if (!sessions || sessions.length === 0) {
+        setSystemCuadres([]);
         setLoading(false);
         return;
       }
+
+      const sessionIds = sessions.map(s => s.id);
 
       // Get all lottery systems
       const { data: systems } = await supabase
@@ -58,17 +78,17 @@ export const SystemCuadresView = () => {
         return;
       }
 
-      // Get sales by system
+      // Get sales by system for all sessions in range
       const { data: salesData } = await supabase
         .from('sales_transactions')
         .select('lottery_system_id, amount_bs, amount_usd')
-        .eq('session_id', session.id);
+        .in('session_id', sessionIds);
 
-      // Get prizes by system
+      // Get prizes by system for all sessions in range
       const { data: prizesData } = await supabase
         .from('prize_transactions')
         .select('lottery_system_id, amount_bs, amount_usd')
-        .eq('session_id', session.id);
+        .in('session_id', sessionIds);
 
       // Calculate cuadres by system
       const cuadres: SystemCuadre[] = systems.map(system => {
@@ -105,6 +125,31 @@ export const SystemCuadresView = () => {
     }
   };
 
+  const setToday = () => {
+    const today = new Date();
+    setDateRange({ from: today, to: today });
+  };
+
+  const setThisWeek = () => {
+    const now = new Date();
+    setDateRange({
+      from: startOfWeek(now, { weekStartsOn: 1 }),
+      to: endOfWeek(now, { weekStartsOn: 1 }),
+    });
+  };
+
+  const navigateDay = (direction: 'prev' | 'next') => {
+    const days = direction === 'prev' ? -1 : 1;
+    setDateRange({
+      from: addDays(dateRange.from, days),
+      to: addDays(dateRange.to, days),
+    });
+  };
+
+  const isSingleDay = isSameDay(dateRange.from, dateRange.to);
+  const isCurrentWeek = isSameDay(dateRange.from, startOfWeek(new Date(), { weekStartsOn: 1 })) &&
+                        isSameDay(dateRange.to, endOfWeek(new Date(), { weekStartsOn: 1 }));
+
   if (loading) {
     return <div>Cargando cuadres por sistema...</div>;
   }
@@ -131,6 +176,96 @@ export const SystemCuadresView = () => {
 
   return (
     <div className="space-y-6">
+      {/* Date Filter Controls */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <span>Filtro de Fechas</span>
+            <div className="flex gap-2">
+              <Button
+                variant={isToday(dateRange.from) && isSingleDay ? "default" : "outline"}
+                size="sm"
+                onClick={setToday}
+              >
+                Hoy
+              </Button>
+              <Button
+                variant={isCurrentWeek && !isSingleDay ? "default" : "outline"}
+                size="sm"
+                onClick={setThisWeek}
+              >
+                Esta Semana
+              </Button>
+            </div>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              {isSingleDay && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigateDay('prev')}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigateDay('next')}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </>
+              )}
+              <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "justify-start text-left font-normal min-w-[280px]",
+                      !dateRange && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {isSingleDay
+                      ? format(dateRange.from, "dd 'de' MMMM, yyyy", { locale: es })
+                      : `${format(dateRange.from, "dd MMM", { locale: es })} - ${format(dateRange.to, "dd MMM yyyy", { locale: es })}`
+                    }
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    initialFocus
+                    mode="range"
+                    defaultMonth={dateRange?.from}
+                    selected={{ from: dateRange.from, to: dateRange.to }}
+                    onSelect={(range) => {
+                      if (range?.from) {
+                        setDateRange({
+                          from: range.from,
+                          to: range.to || range.from,
+                        });
+                        if (range.to || !range.from) {
+                          setIsCalendarOpen(false);
+                        }
+                      }
+                    }}
+                    numberOfMonths={2}
+                    className="pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <Badge variant="secondary">
+              {isSingleDay ? '1 día' : `${Math.ceil((dateRange.to.getTime() - dateRange.from.getTime()) / (1000 * 60 * 60 * 24)) + 1} días`}
+            </Badge>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Summary Header */}
       <Card className="border-primary/20">
         <CardHeader>

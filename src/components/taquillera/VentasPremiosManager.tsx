@@ -10,8 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { VentasPremiosBolivares } from './VentasPremiosBolivares';
 import { VentasPremiosDolares } from './VentasPremiosDolares';
-import { CuadreHistorial } from './CuadreHistorial';
-import { Calendar, History, Edit } from 'lucide-react';
+import { Edit } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 
 const systemEntrySchema = z.object({
@@ -277,18 +276,8 @@ export const VentasPremiosManager = ({ onSuccess }: VentasPremiosManagerProps) =
       {/* Resumen de totales */}
       <Card className="bg-muted/50">
         <CardHeader>
-          <CardTitle className="flex items-center justify-between">
+          <CardTitle className="flex items-center">
             <span>Resumen del Cuadre {editMode && <Edit className="h-4 w-4 ml-2" />}</span>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setActiveTab('historial')}
-              >
-                <History className="h-4 w-4 mr-2" />
-                Historial
-              </Button>
-            </div>
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -339,13 +328,9 @@ export const VentasPremiosManager = ({ onSuccess }: VentasPremiosManagerProps) =
 
       {/* Tabs para diferentes secciones */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="bolivares">Ventas/Premios Bs</TabsTrigger>
           <TabsTrigger value="dolares">Ventas/Premios USD</TabsTrigger>
-          <TabsTrigger value="historial">
-            <History className="h-4 w-4 mr-2" />
-            Historial
-          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="bolivares" className="space-y-4">
@@ -361,25 +346,19 @@ export const VentasPremiosManager = ({ onSuccess }: VentasPremiosManagerProps) =
             lotteryOptions={lotteryOptions}
           />
         </TabsContent>
-
-        <TabsContent value="historial" className="space-y-4">
-          <CuadreHistorial />
-        </TabsContent>
       </Tabs>
 
       {/* Botón de guardar */}
-      {activeTab !== 'historial' && (
-        <div className="flex justify-center">
-          <Button 
-            onClick={form.handleSubmit(onSubmit)} 
-            disabled={loading} 
-            size="lg"
-            className="min-w-[200px]"
-          >
-            {loading ? 'Procesando...' : editMode ? 'Actualizar Cuadre' : 'Registrar Cuadre'}
-          </Button>
-        </div>
-      )}
+      <div className="flex justify-center">
+        <Button 
+          onClick={form.handleSubmit(onSubmit)} 
+          disabled={loading} 
+          size="lg"
+          className="min-w-[200px]"
+        >
+          {loading ? 'Procesando...' : editMode ? 'Actualizar Cuadre' : 'Registrar Cuadre'}
+        </Button>
+      </div>
     </div>
   );
 };
