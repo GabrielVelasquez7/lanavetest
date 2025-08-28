@@ -90,6 +90,10 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
         .lte('session_date', toDate);
         
       console.log('Sessions found:', sessions);
+      
+      if (sessionsError) {
+        console.error('Sessions fetch error:', sessionsError);
+      }
 
       if (!sessions || sessions.length === 0) {
         setCuadre({
@@ -116,8 +120,14 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
         sessionData = sessions[0];
       }
 
-      // Fetch all data in parallel
       console.log('Fetching data for session IDs:', sessionIds);
+      
+      // Test direct query for mobile payments
+      const testMobileQuery = await supabase
+        .from('mobile_payments')
+        .select('*')
+        .eq('session_id', '591820bd-dec4-44c8-97e7-6cd62a6473af');
+      console.log('Direct mobile payments test:', testMobileQuery);
       
       const [
         salesData, 
@@ -154,6 +164,11 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
       console.log('- Expenses:', expensesData);
       console.log('- Mobile Payments:', mobilePaymentsData);
       console.log('- Point of Sale:', posData);
+      
+      // Check for errors in data fetching
+      if (expensesData.error) console.error('Expenses error:', expensesData.error);
+      if (mobilePaymentsData.error) console.error('Mobile payments error:', mobilePaymentsData.error);
+      if (posData.error) console.error('POS error:', posData.error);
 
       // Calculate totals
       const totalSales = salesData.data?.reduce(
