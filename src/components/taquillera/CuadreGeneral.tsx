@@ -81,6 +81,8 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
       const fromDate = format(dateRange.from, 'yyyy-MM-dd');
       const toDate = format(dateRange.to, 'yyyy-MM-dd');
 
+      console.log('🔍 CUADRE DEBUG - Fechas:', { fromDate, toDate, dateRange });
+
       // Get sessions in date range - using user.id (auth user ID)
       const { data: sessions, error: sessionsError } = await supabase
         .from('daily_sessions')
@@ -89,9 +91,12 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
         .gte('session_date', fromDate)
         .lte('session_date', toDate);
 
+      console.log('🔍 CUADRE DEBUG - Sessions query:', { sessions, sessionsError, userId: user.id });
+
       if (sessionsError) throw sessionsError;
 
       if (!sessions || sessions.length === 0) {
+        console.log('🔍 CUADRE DEBUG - No sessions found, setting empty cuadre');
         setCuadre({
           totalSales: { bs: 0, usd: 0 },
           totalPrizes: { bs: 0, usd: 0 },
@@ -109,6 +114,7 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
       }
 
       const sessionIds = sessions.map(s => s.id);
+      console.log('🔍 CUADRE DEBUG - Session IDs to query:', sessionIds);
       
       // For single day, get session data
       let sessionData = null;
@@ -145,6 +151,14 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
           .select('amount_bs')
           .in('session_id', sessionIds)
       ]);
+
+      console.log('🔍 CUADRE DEBUG - Query results:', {
+        salesData: { data: salesData.data, error: salesData.error },
+        prizesData: { data: prizesData.data, error: prizesData.error },
+        expensesData: { data: expensesData.data, error: expensesData.error },
+        mobilePaymentsData: { data: mobilePaymentsData.data, error: mobilePaymentsData.error },
+        posData: { data: posData.data, error: posData.error }
+      });
 
       // Check for errors
       if (salesData.error) throw salesData.error;
