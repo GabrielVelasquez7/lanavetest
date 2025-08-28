@@ -55,14 +55,40 @@ export const TaquilleraDashboard = () => {
 
   const navigateDay = (direction: 'prev' | 'next') => {
     const days = direction === 'prev' ? -1 : 1;
+    const newFromDate = addDays(dateRange.from, days);
+    const newToDate = addDays(dateRange.to, days);
+    
+    // Evitar navegar a fechas futuras
+    if (direction === 'next' && newToDate > new Date()) {
+      toast({
+        title: 'Fecha no válida',
+        description: 'No puedes seleccionar fechas futuras',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
     setDateRange({
-      from: addDays(dateRange.from, days),
-      to: addDays(dateRange.to, days),
+      from: newFromDate,
+      to: newToDate,
     });
   };
 
   const validateDateRange = (range: DateRange | undefined): boolean => {
     if (!range?.from || !range?.to) return false;
+    
+    const today = new Date();
+    today.setHours(23, 59, 59, 999); // Fin del día actual
+    
+    // Verificar que no se seleccionen fechas futuras
+    if (range.from > today || range.to > today) {
+      toast({
+        title: 'Fecha no válida',
+        description: 'No puedes seleccionar fechas futuras',
+        variant: 'destructive',
+      });
+      return false;
+    }
     
     const daysDiff = differenceInDays(range.to, range.from);
     const maxDays = 9; // 1 semana + 2 días extra
@@ -167,6 +193,11 @@ export const TaquilleraDashboard = () => {
                       mode="range"
                       defaultMonth={dateRange?.from}
                       selected={{ from: dateRange.from, to: dateRange.to }}
+                      disabled={(date) => {
+                        const today = new Date();
+                        today.setHours(23, 59, 59, 999);
+                        return date > today;
+                      }}
                       onSelect={(range) => {
                         if (range?.from) {
                           const newRange = {
