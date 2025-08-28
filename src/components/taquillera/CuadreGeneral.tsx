@@ -78,14 +78,18 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
     try {
       const fromDate = format(dateRange.from, 'yyyy-MM-dd');
       const toDate = format(dateRange.to, 'yyyy-MM-dd');
+      
+      console.log('Fetching cuadre data for date range:', fromDate, 'to', toDate);
 
       // Get sessions in date range
-      const { data: sessions } = await supabase
+      const { data: sessions, error: sessionsError } = await supabase
         .from('daily_sessions')
         .select('id, cash_available_bs, daily_closure_confirmed, closure_notes')
         .eq('user_id', user.id)
         .gte('session_date', fromDate)
         .lte('session_date', toDate);
+        
+      console.log('Sessions found:', sessions);
 
       if (!sessions || sessions.length === 0) {
         setCuadre({
@@ -113,6 +117,8 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
       }
 
       // Fetch all data in parallel
+      console.log('Fetching data for session IDs:', sessionIds);
+      
       const [
         salesData, 
         prizesData, 
@@ -141,6 +147,13 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
           .select('amount_bs')
           .in('session_id', sessionIds)
       ]);
+      
+      console.log('Fetched data results:');
+      console.log('- Sales:', salesData);
+      console.log('- Prizes:', prizesData);
+      console.log('- Expenses:', expensesData);
+      console.log('- Mobile Payments:', mobilePaymentsData);
+      console.log('- Point of Sale:', posData);
 
       // Calculate totals
       const totalSales = salesData.data?.reduce(
@@ -201,7 +214,7 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
         0
       ) || 0;
 
-      setCuadre({
+      const finalCuadre = {
         totalSales,
         totalPrizes,
         totalGastos,
@@ -213,7 +226,10 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
         closureConfirmed: sessionData ? sessionData.daily_closure_confirmed || false : false,
         closureNotes: sessionData ? sessionData.closure_notes || '' : '',
         sessionId: sessionData?.id,
-      });
+      };
+      
+      console.log('Final cuadre data:', finalCuadre);
+      setCuadre(finalCuadre);
     } catch (error) {
       console.error('Error fetching cuadre data:', error);
     } finally {
