@@ -80,11 +80,12 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
       const toDate = format(dateRange.to, 'yyyy-MM-dd');
       
       console.log('Fetching cuadre data for date range:', fromDate, 'to', toDate);
+      console.log('Current date range from dashboard:', dateRange);
 
       // Get sessions in date range
       const { data: sessions, error: sessionsError } = await supabase
         .from('daily_sessions')
-        .select('id, cash_available_bs, daily_closure_confirmed, closure_notes')
+        .select('id, cash_available_bs, daily_closure_confirmed, closure_notes, session_date')
         .eq('user_id', user.id)
         .gte('session_date', fromDate)
         .lte('session_date', toDate);

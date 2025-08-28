@@ -244,7 +244,17 @@ export const TaquilleraDashboard = () => {
           </TabsContent>
 
           <TabsContent value="cuadre-general" className="space-y-6">
-            <CuadreGeneral refreshKey={refreshKey} dateRange={dateRange} />
+            <Card>
+              <CardHeader>
+                <CardTitle>Cuadre General</CardTitle>
+                <CardDescription>
+                  Cuadre total y resumen financiero del período seleccionado
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <CuadreGeneral refreshKey={refreshKey} dateRange={dateRange} />
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </main>
