@@ -13,6 +13,7 @@ import { VentasPremiosDolares } from './VentasPremiosDolares';
 import { Edit } from 'lucide-react';
 import { format } from 'date-fns';
 import { formatCurrency } from '@/lib/utils';
+import { formatDateForDB } from '@/lib/dateUtils';
 
 const systemEntrySchema = z.object({
   lottery_system_id: z.string(),
@@ -103,8 +104,10 @@ export const VentasPremiosManager = ({ onSuccess, dateRange }: VentasPremiosMana
   const loadDateRangeData = async (defaultSystems: SystemEntry[]) => {
     if (!user || !dateRange) return;
 
-    const fromDate = format(dateRange.from, 'yyyy-MM-dd');
-    const toDate = format(dateRange.to, 'yyyy-MM-dd');
+    const fromDate = formatDateForDB(dateRange.from);
+    const toDate = formatDateForDB(dateRange.to);
+    
+    console.log('🔍 VENTAS-PREMIOS DEBUG - Fechas:', { fromDate, toDate, dateRange });
     
     try {
       // Buscar sesiones en el rango de fechas
@@ -114,6 +117,8 @@ export const VentasPremiosManager = ({ onSuccess, dateRange }: VentasPremiosMana
         .eq('user_id', user.id)
         .gte('session_date', fromDate)
         .lte('session_date', toDate);
+
+      console.log('🔍 VENTAS-PREMIOS DEBUG - Sessions encontradas:', sessions);
 
       if (sessions && sessions.length > 0) {
         const sessionIds = sessions.map(s => s.id);
@@ -189,8 +194,8 @@ export const VentasPremiosManager = ({ onSuccess, dateRange }: VentasPremiosMana
     if (!user || !dateRange) return;
 
     // Solo permitir guardar si es un solo día
-    const fromDate = format(dateRange.from, 'yyyy-MM-dd');
-    const toDate = format(dateRange.to, 'yyyy-MM-dd');
+    const fromDate = formatDateForDB(dateRange.from);
+    const toDate = formatDateForDB(dateRange.to);
     
     if (fromDate !== toDate) {
       toast({

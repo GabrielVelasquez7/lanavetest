@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { formatDateForDB } from '@/lib/dateUtils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -20,9 +21,13 @@ interface MobilePayment {
 
 interface PagoMovilHistorialProps {
   refreshKey?: number;
+  dateRange?: {
+    from: Date;
+    to: Date;
+  };
 }
 
-export const PagoMovilHistorial = ({ refreshKey }: PagoMovilHistorialProps) => {
+export const PagoMovilHistorial = ({ refreshKey, dateRange }: PagoMovilHistorialProps) => {
   const [payments, setPayments] = useState<MobilePayment[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -31,28 +36,37 @@ export const PagoMovilHistorial = ({ refreshKey }: PagoMovilHistorialProps) => {
   const { toast } = useToast();
 
   const fetchPayments = async () => {
-    if (!user) return;
+    if (!user || !dateRange) return;
 
     try {
-      const today = new Date().toISOString().split('T')[0];
+      const fromDate = formatDateForDB(dateRange.from);
+      const toDate = formatDateForDB(dateRange.to);
       
-      const { data: session } = await supabase
+      console.log('🔍 PAGOS MÓVILES DEBUG - Fechas:', { fromDate, toDate, dateRange });
+      
+      const { data: sessions } = await supabase
         .from('daily_sessions')
         .select('id')
         .eq('user_id', user.id)
-        .eq('session_date', today)
-        .maybeSingle();
+        .gte('session_date', fromDate)
+        .lte('session_date', toDate);
 
-      if (!session) {
+      console.log('🔍 PAGOS MÓVILES DEBUG - Sessions encontradas:', sessions);
+
+      if (!sessions || sessions.length === 0) {
         setPayments([]);
         return;
       }
 
+      const sessionIds = sessions.map(s => s.id);
+
       const { data, error } = await supabase
         .from('mobile_payments')
         .select('*')
-        .eq('session_id', session.id)
+        .in('session_id', sessionIds)
         .order('created_at', { ascending: false });
+
+      console.log('🔍 PAGOS MÓVILES DEBUG - Payments encontrados:', { data, error });
 
       if (error) throw error;
       setPayments(data || []);
@@ -69,8 +83,10 @@ export const PagoMovilHistorial = ({ refreshKey }: PagoMovilHistorialProps) => {
   };
 
   useEffect(() => {
-    fetchPayments();
-  }, [user, refreshKey]);
+    if (user && dateRange) {
+      fetchPayments();
+    }
+  }, [user, refreshKey, dateRange]);
 
   const handleEdit = (payment: MobilePayment) => {
     setEditingId(payment.id);

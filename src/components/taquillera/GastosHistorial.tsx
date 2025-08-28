@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { formatDateForDB } from '@/lib/dateUtils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -20,9 +21,13 @@ interface Expense {
 
 interface GastosHistorialProps {
   refreshKey?: number;
+  dateRange?: {
+    from: Date;
+    to: Date;
+  };
 }
 
-export const GastosHistorial = ({ refreshKey }: GastosHistorialProps) => {
+export const GastosHistorial = ({ refreshKey, dateRange }: GastosHistorialProps) => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -31,28 +36,37 @@ export const GastosHistorial = ({ refreshKey }: GastosHistorialProps) => {
   const { toast } = useToast();
 
   const fetchExpenses = async () => {
-    if (!user) return;
+    if (!user || !dateRange) return;
 
     try {
-      const today = new Date().toISOString().split('T')[0];
+      const fromDate = formatDateForDB(dateRange.from);
+      const toDate = formatDateForDB(dateRange.to);
       
-      const { data: session } = await supabase
+      console.log('🔍 GASTOS DEBUG - Fechas:', { fromDate, toDate, dateRange });
+      
+      const { data: sessions } = await supabase
         .from('daily_sessions')
         .select('id')
         .eq('user_id', user.id)
-        .eq('session_date', today)
-        .maybeSingle();
+        .gte('session_date', fromDate)
+        .lte('session_date', toDate);
 
-      if (!session) {
+      console.log('🔍 GASTOS DEBUG - Sessions encontradas:', sessions);
+
+      if (!sessions || sessions.length === 0) {
         setExpenses([]);
         return;
       }
 
+      const sessionIds = sessions.map(s => s.id);
+
       const { data, error } = await supabase
         .from('expenses')
         .select('*')
-        .eq('session_id', session.id)
+        .in('session_id', sessionIds)
         .order('created_at', { ascending: false });
+
+      console.log('🔍 GASTOS DEBUG - Expenses encontrados:', { data, error });
 
       if (error) throw error;
       setExpenses(data || []);
@@ -69,8 +83,10 @@ export const GastosHistorial = ({ refreshKey }: GastosHistorialProps) => {
   };
 
   useEffect(() => {
-    fetchExpenses();
-  }, [user, refreshKey]);
+    if (user && dateRange) {
+      fetchExpenses();
+    }
+  }, [user, refreshKey, dateRange]);
 
   const handleEdit = (expense: Expense) => {
     setEditingId(expense.id);

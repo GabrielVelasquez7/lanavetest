@@ -75,7 +75,7 @@ export const PagoMovilManager = ({ onSuccess, dateRange }: PagoMovilManagerProps
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <PagoMovilHistorial refreshKey={refreshHistorial} />
+          <PagoMovilHistorial refreshKey={refreshHistorial} dateRange={dateRange} />
         </CardContent>
       </Card>
     </div>

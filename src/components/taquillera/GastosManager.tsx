@@ -75,7 +75,7 @@ export const GastosManager = ({ onSuccess, dateRange }: GastosManagerProps) => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <GastosHistorial refreshKey={refreshHistorial} />
+          <GastosHistorial refreshKey={refreshHistorial} dateRange={dateRange} />
         </CardContent>
       </Card>
     </div>
