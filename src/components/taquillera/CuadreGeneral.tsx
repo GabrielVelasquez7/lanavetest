@@ -76,25 +76,20 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
     if (!user || !dateRange) return;
 
     try {
+      setLoading(true);
+      
       const fromDate = format(dateRange.from, 'yyyy-MM-dd');
       const toDate = format(dateRange.to, 'yyyy-MM-dd');
-      
-      console.log('Fetching cuadre data for date range:', fromDate, 'to', toDate);
-      console.log('Current date range from dashboard:', dateRange);
 
       // Get sessions in date range
       const { data: sessions, error: sessionsError } = await supabase
         .from('daily_sessions')
-        .select('id, cash_available_bs, daily_closure_confirmed, closure_notes, session_date')
+        .select('id, cash_available_bs, daily_closure_confirmed, closure_notes')
         .eq('user_id', user.id)
         .gte('session_date', fromDate)
         .lte('session_date', toDate);
-        
-      console.log('Sessions found:', sessions);
-      
-      if (sessionsError) {
-        console.error('Sessions fetch error:', sessionsError);
-      }
+
+      if (sessionsError) throw sessionsError;
 
       if (!sessions || sessions.length === 0) {
         setCuadre({
@@ -121,15 +116,7 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
         sessionData = sessions[0];
       }
 
-      console.log('Fetching data for session IDs:', sessionIds);
-      
-      // Test direct query for mobile payments
-      const testMobileQuery = await supabase
-        .from('mobile_payments')
-        .select('*')
-        .eq('session_id', '591820bd-dec4-44c8-97e7-6cd62a6473af');
-      console.log('Direct mobile payments test:', testMobileQuery);
-      
+      // Fetch all data in parallel
       const [
         salesData, 
         prizesData, 
@@ -158,18 +145,13 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
           .select('amount_bs')
           .in('session_id', sessionIds)
       ]);
-      
-      console.log('Fetched data results:');
-      console.log('- Sales:', salesData);
-      console.log('- Prizes:', prizesData);
-      console.log('- Expenses:', expensesData);
-      console.log('- Mobile Payments:', mobilePaymentsData);
-      console.log('- Point of Sale:', posData);
-      
-      // Check for errors in data fetching
-      if (expensesData.error) console.error('Expenses error:', expensesData.error);
-      if (mobilePaymentsData.error) console.error('Mobile payments error:', mobilePaymentsData.error);
-      if (posData.error) console.error('POS error:', posData.error);
+
+      // Check for errors
+      if (salesData.error) throw salesData.error;
+      if (prizesData.error) throw prizesData.error;
+      if (expensesData.error) throw expensesData.error;
+      if (mobilePaymentsData.error) throw mobilePaymentsData.error;
+      if (posData.error) throw posData.error;
 
       // Calculate totals
       const totalSales = salesData.data?.reduce(
@@ -244,7 +226,6 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
         sessionId: sessionData?.id,
       };
       
-      console.log('Final cuadre data:', finalCuadre);
       setCuadre(finalCuadre);
     } catch (error) {
       console.error('Error fetching cuadre data:', error);
