@@ -14,6 +14,7 @@ import { PagoMovilManager } from './PagoMovilManager';
 import { PointOfSaleForm } from './PointOfSaleForm';
 import { SystemCuadresView } from './SystemCuadresView';
 import { VentasPremiosManager } from './VentasPremiosManager';
+import { CuadreGeneral } from './CuadreGeneral';
 import { format, startOfWeek, endOfWeek, addDays, isToday, isSameDay, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -195,7 +196,7 @@ export const TaquilleraDashboard = () => {
         </Card>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-7">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="transacciones" className="flex items-center gap-2">
               <DollarSign className="h-4 w-4" />
               Ventas/Premios
@@ -243,17 +244,7 @@ export const TaquilleraDashboard = () => {
           </TabsContent>
 
           <TabsContent value="cuadre-general" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Cuadre General</CardTitle>
-                <CardDescription>
-                  Cuadre total y resumen financiero del período seleccionado
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <DailySummary refreshKey={refreshKey} dateRange={dateRange} />
-              </CardContent>
-            </Card>
+            <CuadreGeneral refreshKey={refreshKey} dateRange={dateRange} />
           </TabsContent>
         </Tabs>
       </main>
