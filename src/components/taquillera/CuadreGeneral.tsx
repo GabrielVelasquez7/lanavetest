@@ -81,7 +81,7 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
       const fromDate = format(dateRange.from, 'yyyy-MM-dd');
       const toDate = format(dateRange.to, 'yyyy-MM-dd');
 
-      // Get sessions in date range
+      // Get sessions in date range - using user.id (auth user ID)
       const { data: sessions, error: sessionsError } = await supabase
         .from('daily_sessions')
         .select('id, cash_available_bs, daily_closure_confirmed, closure_notes')
