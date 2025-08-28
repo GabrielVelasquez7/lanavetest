@@ -13,6 +13,7 @@ import { formatCurrency } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { Calculator, CheckCircle2, XCircle, Save, TrendingUp, TrendingDown } from 'lucide-react';
+import { formatDateForDB } from '@/lib/dateUtils';
 
 interface CuadreGeneralProps {
   refreshKey?: number;
@@ -78,8 +79,8 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
     try {
       setLoading(true);
       
-      const fromDate = format(dateRange.from, 'yyyy-MM-dd');
-      const toDate = format(dateRange.to, 'yyyy-MM-dd');
+      const fromDate = formatDateForDB(dateRange.from);
+      const toDate = formatDateForDB(dateRange.to);
 
       console.log('🔍 CUADRE DEBUG - Fechas:', { fromDate, toDate, dateRange });
 

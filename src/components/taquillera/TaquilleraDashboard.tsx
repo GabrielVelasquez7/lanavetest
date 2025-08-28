@@ -19,6 +19,7 @@ import { format, startOfWeek, endOfWeek, addDays, isToday, isSameDay, difference
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { getVenezuelaDate, toVenezuelaTime, isFutureInVenezuela, formatDateForDB } from '@/lib/dateUtils';
 
 type DateRange = {
   from: Date;
@@ -29,9 +30,12 @@ export const TaquilleraDashboard = () => {
   const { profile, signOut } = useAuth();
   const [activeTab, setActiveTab] = useState('transacciones');
   const { refreshKey, triggerRefresh } = useDataRefresh();
+  
+  // Usar fecha local de Venezuela
+  const today = getVenezuelaDate();
   const [dateRange, setDateRange] = useState<DateRange>({
-    from: new Date(),
-    to: new Date(),
+    from: today,
+    to: today,
   });
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const { toast } = useToast();
@@ -41,12 +45,12 @@ export const TaquilleraDashboard = () => {
   };
 
   const setToday = () => {
-    const today = new Date();
+    const today = getVenezuelaDate();
     setDateRange({ from: today, to: today });
   };
 
   const setThisWeek = () => {
-    const now = new Date();
+    const now = getVenezuelaDate();
     setDateRange({
       from: startOfWeek(now, { weekStartsOn: 1 }),
       to: endOfWeek(now, { weekStartsOn: 1 }),
@@ -58,8 +62,8 @@ export const TaquilleraDashboard = () => {
     const newFromDate = addDays(dateRange.from, days);
     const newToDate = addDays(dateRange.to, days);
     
-    // Evitar navegar a fechas futuras
-    if (direction === 'next' && newToDate > new Date()) {
+    // Evitar navegar a fechas futuras según zona horaria de Venezuela
+    if (direction === 'next' && isFutureInVenezuela(newToDate)) {
       toast({
         title: 'Fecha no válida',
         description: 'No puedes seleccionar fechas futuras',
@@ -77,11 +81,8 @@ export const TaquilleraDashboard = () => {
   const validateDateRange = (range: DateRange | undefined): boolean => {
     if (!range?.from || !range?.to) return false;
     
-    const today = new Date();
-    today.setHours(23, 59, 59, 999); // Fin del día actual
-    
-    // Verificar que no se seleccionen fechas futuras
-    if (range.from > today || range.to > today) {
+    // Verificar que no se seleccionen fechas futuras según zona horaria de Venezuela
+    if (isFutureInVenezuela(range.from) || isFutureInVenezuela(range.to)) {
       toast({
         title: 'Fecha no válida',
         description: 'No puedes seleccionar fechas futuras',
@@ -106,8 +107,9 @@ export const TaquilleraDashboard = () => {
   };
 
   const isSingleDay = isSameDay(dateRange.from, dateRange.to);
-  const isCurrentWeek = isSameDay(dateRange.from, startOfWeek(new Date(), { weekStartsOn: 1 })) &&
-                        isSameDay(dateRange.to, endOfWeek(new Date(), { weekStartsOn: 1 }));
+  const todayVenezuela = getVenezuelaDate();
+  const isCurrentWeek = isSameDay(dateRange.from, startOfWeek(todayVenezuela, { weekStartsOn: 1 })) &&
+                        isSameDay(dateRange.to, endOfWeek(todayVenezuela, { weekStartsOn: 1 }));
 
   return (
     <div className="min-h-screen bg-muted/30">
@@ -194,9 +196,7 @@ export const TaquilleraDashboard = () => {
                       defaultMonth={dateRange?.from}
                       selected={{ from: dateRange.from, to: dateRange.to }}
                       disabled={(date) => {
-                        const today = new Date();
-                        today.setHours(23, 59, 59, 999);
-                        return date > today;
+                        return isFutureInVenezuela(date);
                       }}
                       onSelect={(range) => {
                         if (range?.from) {

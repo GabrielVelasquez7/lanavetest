@@ -1,3 +1,4 @@
+import { getTodayVenezuela } from '@/lib/dateUtils';
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -46,7 +47,7 @@ export const PointOfSaleForm = ({ dateRange }: PointOfSaleFormProps) => {
     if (!user) return;
 
     try {
-      const today = new Date().toISOString().split('T')[0];
+      const today = getTodayVenezuela();
       
       // Get today's session
       const { data: session } = await supabase
@@ -80,7 +81,7 @@ export const PointOfSaleForm = ({ dateRange }: PointOfSaleFormProps) => {
     setLoading(true);
     try {
       // First, ensure we have a daily session for today
-      const today = new Date().toISOString().split('T')[0];
+      const today = getTodayVenezuela();
       
       let { data: session, error: sessionError } = await supabase
         .from('daily_sessions')

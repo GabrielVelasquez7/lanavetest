@@ -1,3 +1,4 @@
+import { getTodayVenezuela } from '@/lib/dateUtils';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -69,7 +70,7 @@ export const PagoMovilPagados = ({ onSuccess }: PagoMovilPagadosProps) => {
     setLoading(true);
     try {
       // First, ensure we have a daily session for today
-      const today = new Date().toISOString().split('T')[0];
+      const today = getTodayVenezuela();
       
       let { data: session, error: sessionError } = await supabase
         .from('daily_sessions')
