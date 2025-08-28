@@ -153,16 +153,6 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
       if (mobilePaymentsData.error) throw mobilePaymentsData.error;
       if (posData.error) throw posData.error;
 
-      // DEBUG: Log the raw data to see what's happening
-      console.log('=== DEBUG CUADRE GENERAL ===');
-      console.log('Sessions:', sessions);
-      console.log('Session IDs:', sessionIds);
-      console.log('Sales data:', salesData.data);
-      console.log('Prizes data:', prizesData.data);
-      console.log('Expenses data:', expensesData.data);
-      console.log('Mobile payments data:', mobilePaymentsData.data);
-      console.log('POS data:', posData.data);
-
       // Calculate totals
       const totalSales = salesData.data?.reduce(
         (acc, item) => ({
