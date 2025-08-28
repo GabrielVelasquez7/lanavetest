@@ -417,6 +417,10 @@ export type Database = {
         Args: { password: string }
         Returns: boolean
       }
+      venezuela_now: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
     }
     Enums: {
       expense_category: "deuda" | "gasto_operativo" | "otros"
