@@ -497,7 +497,7 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
               <div className="space-y-3">
                 <h4 className="font-semibold text-sm">Sumatoria:</h4>
                 <div className="space-y-2 text-sm">
@@ -540,22 +540,22 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
                     <span>Cuadre (V-P):</span>
                     <span className="font-medium">{formatCurrency(cuadreVentasPremios.bs, 'VES')}</span>
                   </div>
-                  <Separator />
-                  <div className="flex justify-between font-bold text-lg">
+                  <Separator className="my-3" />
+                  <div className="flex justify-between font-bold text-xl mb-4">
                     <span>Diferencia:</span>
                     <span className={`${isCuadreBalanced ? 'text-success' : 'text-destructive'}`}>
                       {formatCurrency(diferenciaCierre, 'VES')}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2 justify-center mt-2">
+                  <div className="flex items-center gap-2 justify-center mt-4">
                     {isCuadreBalanced ? (
-                      <Badge variant="default" className="flex items-center gap-1">
-                        <CheckCircle2 className="h-3 w-3" />
+                      <Badge variant="default" className="flex items-center gap-2 px-4 py-2 text-base">
+                        <CheckCircle2 className="h-4 w-4" />
                         ¡Cuadre Perfecto!
                       </Badge>
                     ) : (
-                      <Badge variant="destructive" className="flex items-center gap-1">
-                        <XCircle className="h-3 w-3" />
+                      <Badge variant="destructive" className="flex items-center gap-2 px-4 py-2 text-base">
+                        <XCircle className="h-4 w-4" />
                         Diferencia encontrada
                       </Badge>
                     )}
@@ -574,7 +574,7 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
               <div className="space-y-3">
                 <h4 className="font-semibold text-sm">Sumatoria USD:</h4>
                 <div className="space-y-2 text-sm">
@@ -609,26 +609,26 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
                     <span>Cuadre USD (V-P):</span>
                     <span className="font-medium">{formatCurrency(cuadreVentasPremios.usd, 'USD')}</span>
                   </div>
-                  <Separator />
-                  <div className="flex justify-between font-bold text-lg">
+                  <Separator className="my-3" />
+                  <div className="flex justify-between font-bold text-xl mb-4">
                     <span>Diferencia USD:</span>
                     <span className={(cuadre.cashAvailableUsd + cuadre.totalGastos.usd + cuadre.totalDeudas.usd) - cuadreVentasPremios.usd === 0 ? 'text-success' : 'text-accent'}>
                       {formatCurrency((cuadre.cashAvailableUsd + cuadre.totalGastos.usd + cuadre.totalDeudas.usd) - cuadreVentasPremios.usd, 'USD')}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2 justify-center mt-2">
+                  <div className="flex items-center gap-2 justify-center mt-4">
                     {(cuadre.cashAvailableUsd + cuadre.totalGastos.usd + cuadre.totalDeudas.usd) - cuadreVentasPremios.usd === 0 ? (
-                      <Badge variant="default" className="flex items-center gap-1">
-                        <CheckCircle2 className="h-3 w-3" />
+                      <Badge variant="default" className="flex items-center gap-2 px-4 py-2 text-base">
+                        <CheckCircle2 className="h-4 w-4" />
                         ¡Cuadre Perfecto!
                       </Badge>
                     ) : (
-                      <Badge variant="secondary" className="flex items-center gap-1">
+                      <Badge variant="secondary" className="flex items-center gap-2 px-5 py-3 text-lg font-semibold">
                         💰 Excedente USD → Bs
                       </Badge>
                     )}
                   </div>
-                  <p className="text-xs text-muted-foreground text-center">
+                  <p className="text-xs text-muted-foreground text-center mt-3">
                     El excedente en USD se convierte a bolívares según la tasa del día.
                   </p>
                 </div>
