@@ -68,6 +68,10 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
     exchangeRate: 36.00,
   });
   
+  // Temporary string states for input fields
+  const [exchangeRateInput, setExchangeRateInput] = useState<string>('36.00');
+  const [cashAvailableInput, setCashAvailableInput] = useState<string>('0');
+  
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const { user } = useAuth();
@@ -252,6 +256,10 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
       };
       
       setCuadre(finalCuadre);
+      
+      // Update input states
+      setExchangeRateInput(finalCuadre.exchangeRate.toString());
+      setCashAvailableInput(finalCuadre.cashAvailable.toString());
     } catch (error) {
       console.error('Error fetching cuadre data:', error);
     } finally {
@@ -498,8 +506,8 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
         <CardContent>
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-              <div className="space-y-3">
-                <h4 className="font-semibold text-sm">Sumatoria:</h4>
+              <div className="space-y-4">
+                <h4 className="font-semibold text-sm h-5 flex items-center">Sumatoria:</h4>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span>Efectivo del día:</span>
@@ -529,8 +537,8 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
                 </div>
               </div>
               
-              <div className="space-y-3">
-                <h4 className="font-semibold text-sm">Comparación:</h4>
+              <div className="space-y-4">
+                <h4 className="font-semibold text-sm h-5 flex items-center">Comparación:</h4>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span>Sumatoria:</span>
@@ -575,8 +583,8 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
         <CardContent>
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-              <div className="space-y-3">
-                <h4 className="font-semibold text-sm">Sumatoria USD:</h4>
+              <div className="space-y-4">
+                <h4 className="font-semibold text-sm h-5 flex items-center">Sumatoria USD:</h4>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span>Efectivo en dólares:</span>
@@ -598,8 +606,8 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
                 </div>
               </div>
               
-              <div className="space-y-3">
-                <h4 className="font-semibold text-sm">Comparación USD:</h4>
+              <div className="space-y-4">
+                <h4 className="font-semibold text-sm h-5 flex items-center">Comparación USD:</h4>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span>Sumatoria USD:</span>
@@ -661,11 +669,20 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
                     step="0.01"
                     min="0"
                     placeholder="36.00"
-                    value={cuadre.exchangeRate}
-                    onChange={(e) => setCuadre(prev => ({ 
-                      ...prev, 
-                      exchangeRate: parseFloat(e.target.value) || 36.00 
-                    }))}
+                    value={exchangeRateInput}
+                    onChange={(e) => {
+                      setExchangeRateInput(e.target.value);
+                      const rate = parseFloat(e.target.value);
+                      if (!isNaN(rate) && rate > 0) {
+                        setCuadre(prev => ({ ...prev, exchangeRate: rate }));
+                      }
+                    }}
+                    onBlur={(e) => {
+                      if (e.target.value === '' || parseFloat(e.target.value) <= 0) {
+                        setExchangeRateInput('36.00');
+                        setCuadre(prev => ({ ...prev, exchangeRate: 36.00 }));
+                      }
+                    }}
                     className="text-center font-medium"
                   />
                   <p className="text-sm text-muted-foreground">
@@ -683,11 +700,20 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
                   type="number"
                   step="0.01"
                   placeholder="0.00"
-                  value={cuadre.cashAvailable}
-                  onChange={(e) => setCuadre(prev => ({ 
-                    ...prev, 
-                    cashAvailable: parseFloat(e.target.value) || 0 
-                  }))}
+                  value={cashAvailableInput}
+                  onChange={(e) => {
+                    setCashAvailableInput(e.target.value);
+                    const amount = parseFloat(e.target.value);
+                    if (!isNaN(amount) && amount >= 0) {
+                      setCuadre(prev => ({ ...prev, cashAvailable: amount }));
+                    }
+                  }}
+                  onBlur={(e) => {
+                    if (e.target.value === '' || parseFloat(e.target.value) < 0) {
+                      setCashAvailableInput('0');
+                      setCuadre(prev => ({ ...prev, cashAvailable: 0 }));
+                    }
+                  }}
                 />
               </div>
               
