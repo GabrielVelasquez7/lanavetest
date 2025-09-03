@@ -44,6 +44,9 @@ interface CuadreData {
   closureConfirmed: boolean;
   closureNotes: string;
   
+  // Exchange rate
+  exchangeRate: number;
+  
   // Session info
   sessionId?: string;
 }
@@ -60,6 +63,7 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
     cashAvailable: 0,
     closureConfirmed: false,
     closureNotes: '',
+    exchangeRate: 36.00,
   });
   
   const [loading, setLoading] = useState(true);
@@ -87,7 +91,7 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
       // Get sessions in date range - using user.id (auth user ID)
       const { data: sessions, error: sessionsError } = await supabase
         .from('daily_sessions')
-        .select('id, cash_available_bs, daily_closure_confirmed, closure_notes')
+        .select('id, cash_available_bs, daily_closure_confirmed, closure_notes, exchange_rate')
         .eq('user_id', user.id)
         .gte('session_date', fromDate)
         .lte('session_date', toDate);
@@ -109,6 +113,7 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
           cashAvailable: 0,
           closureConfirmed: false,
           closureNotes: '',
+          exchangeRate: 36.00,
         });
         setLoading(false);
         return;
@@ -238,6 +243,7 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
         cashAvailable: sessionData ? Number(sessionData.cash_available_bs || 0) : 0,
         closureConfirmed: sessionData ? sessionData.daily_closure_confirmed || false : false,
         closureNotes: sessionData ? sessionData.closure_notes || '' : '',
+        exchangeRate: sessionData ? Number(sessionData.exchange_rate || 36.00) : 36.00,
         sessionId: sessionData?.id,
       };
       
@@ -267,6 +273,7 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
           cash_available_bs: cuadre.cashAvailable,
           daily_closure_confirmed: cuadre.closureConfirmed,
           closure_notes: cuadre.closureNotes,
+          exchange_rate: cuadre.exchangeRate,
         })
         .eq('id', cuadre.sessionId);
 
@@ -313,7 +320,7 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
     totalBanco + 
     cuadre.totalDeudas.bs + 
     cuadre.totalGastos.bs + 
-    cuadre.totalSales.usd * 36; // Assuming 36 Bs per USD conversion
+    cuadre.totalSales.usd * cuadre.exchangeRate;
 
   const diferenciaCierre = sumatoriaBolivares - cuadreVentasPremios.bs;
   const isCuadreBalanced = Math.abs(diferenciaCierre) < 1; // Allow 1 Bs difference
@@ -507,8 +514,8 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
                     <span className="font-medium">{formatCurrency(cuadre.totalGastos.bs, 'VES')}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>USD → Bs (x36):</span>
-                    <span className="font-medium">{formatCurrency(cuadre.totalSales.usd * 36, 'VES')}</span>
+                    <span>USD → Bs (x{cuadre.exchangeRate.toFixed(2)}):</span>
+                    <span className="font-medium">{formatCurrency(cuadre.totalSales.usd * cuadre.exchangeRate, 'VES')}</span>
                   </div>
                   <Separator />
                   <div className="flex justify-between font-bold">
@@ -563,6 +570,36 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
             <CardTitle className="text-accent">Cierre Diario</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Exchange Rate Section */}
+            <Card className="bg-primary/5 border-primary/20">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  💱 Tasa del Día
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <Label htmlFor="exchange-rate">Tasa de cambio (Bs por USD)</Label>
+                  <Input
+                    id="exchange-rate"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="36.00"
+                    value={cuadre.exchangeRate}
+                    onChange={(e) => setCuadre(prev => ({ 
+                      ...prev, 
+                      exchangeRate: parseFloat(e.target.value) || 36.00 
+                    }))}
+                    className="text-center font-medium"
+                  />
+                  <p className="text-sm text-muted-foreground">
+                    Esta tasa se aplica automáticamente para convertir dólares a bolívares en el cuadre.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="cash-available">Efectivo disponible del día (Bs)</Label>

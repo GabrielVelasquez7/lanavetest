@@ -50,6 +50,7 @@ export type Database = {
           closure_notes: string | null
           created_at: string
           daily_closure_confirmed: boolean | null
+          exchange_rate: number | null
           id: string
           is_closed: boolean
           notes: string | null
@@ -62,6 +63,7 @@ export type Database = {
           closure_notes?: string | null
           created_at?: string
           daily_closure_confirmed?: boolean | null
+          exchange_rate?: number | null
           id?: string
           is_closed?: boolean
           notes?: string | null
@@ -74,6 +76,7 @@ export type Database = {
           closure_notes?: string | null
           created_at?: string
           daily_closure_confirmed?: boolean | null
+          exchange_rate?: number | null
           id?: string
           is_closed?: boolean
           notes?: string | null
