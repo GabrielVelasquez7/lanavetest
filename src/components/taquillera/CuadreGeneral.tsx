@@ -41,6 +41,7 @@ interface CuadreData {
   
   // Daily closure data
   cashAvailable: number;
+  cashAvailableUsd: number;
   closureConfirmed: boolean;
   closureNotes: string;
   
@@ -61,6 +62,7 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
     pagoMovilPagados: 0,
     totalPointOfSale: 0,
     cashAvailable: 0,
+    cashAvailableUsd: 0,
     closureConfirmed: false,
     closureNotes: '',
     exchangeRate: 36.00,
@@ -111,6 +113,7 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
           pagoMovilPagados: 0,
           totalPointOfSale: 0,
           cashAvailable: 0,
+          cashAvailableUsd: 0,
           closureConfirmed: false,
           closureNotes: '',
           exchangeRate: 36.00,
@@ -241,6 +244,7 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
         pagoMovilPagados,
         totalPointOfSale,
         cashAvailable: sessionData ? Number(sessionData.cash_available_bs || 0) : 0,
+        cashAvailableUsd: 0, // Default for now - will be configurable later
         closureConfirmed: sessionData ? sessionData.daily_closure_confirmed || false : false,
         closureNotes: sessionData ? sessionData.closure_notes || '' : '',
         exchangeRate: sessionData ? Number(sessionData.exchange_rate || 36.00) : 36.00,
@@ -563,6 +567,77 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
         </CardContent>
       </Card>
 
+      {/* USD Closure Formula Card */}
+      <Card className="border-2 border-accent/20">
+        <CardHeader>
+          <CardTitle className="text-accent">Fórmula de Cierre en Dólares (USD)</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-3">
+                <h4 className="font-semibold text-sm">Sumatoria USD:</h4>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span>Efectivo en dólares:</span>
+                    <span className="font-medium">{formatCurrency(cuadre.cashAvailableUsd, 'USD')}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Gastos en USD:</span>
+                    <span className="font-medium">{formatCurrency(cuadre.totalGastos.usd, 'USD')}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Deudas en USD:</span>
+                    <span className="font-medium">{formatCurrency(cuadre.totalDeudas.usd, 'USD')}</span>
+                  </div>
+                  <Separator />
+                  <div className="flex justify-between font-bold">
+                    <span>Total Sumatoria USD:</span>
+                    <span>{formatCurrency(cuadre.cashAvailableUsd + cuadre.totalGastos.usd + cuadre.totalDeudas.usd, 'USD')}</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="space-y-3">
+                <h4 className="font-semibold text-sm">Comparación USD:</h4>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span>Sumatoria USD:</span>
+                    <span className="font-medium">{formatCurrency(cuadre.cashAvailableUsd + cuadre.totalGastos.usd + cuadre.totalDeudas.usd, 'USD')}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Cuadre USD (V-P):</span>
+                    <span className="font-medium">{formatCurrency(cuadreVentasPremios.usd, 'USD')}</span>
+                  </div>
+                  <Separator />
+                  <div className="flex justify-between font-bold text-lg">
+                    <span>Diferencia USD:</span>
+                    <span className={(cuadre.cashAvailableUsd + cuadre.totalGastos.usd + cuadre.totalDeudas.usd) - cuadreVentasPremios.usd === 0 ? 'text-success' : 'text-accent'}>
+                      {formatCurrency((cuadre.cashAvailableUsd + cuadre.totalGastos.usd + cuadre.totalDeudas.usd) - cuadreVentasPremios.usd, 'USD')}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 justify-center mt-2">
+                    {(cuadre.cashAvailableUsd + cuadre.totalGastos.usd + cuadre.totalDeudas.usd) - cuadreVentasPremios.usd === 0 ? (
+                      <Badge variant="default" className="flex items-center gap-1">
+                        <CheckCircle2 className="h-3 w-3" />
+                        ¡Cuadre Perfecto!
+                      </Badge>
+                    ) : (
+                      <Badge variant="secondary" className="flex items-center gap-1">
+                        💰 Excedente USD → Bs
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground text-center">
+                    El excedente en USD se convierte a bolívares según la tasa del día.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Daily Closure Section - Only for single day */}
       {isSingleDay && (
         <Card className="border-2 border-accent/20">
@@ -616,6 +691,23 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
                 />
               </div>
               
+              <div className="space-y-2">
+                <Label htmlFor="cash-available-usd">Efectivo disponible en USD</Label>
+                <Input
+                  id="cash-available-usd"
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={cuadre.cashAvailableUsd}
+                  onChange={(e) => setCuadre(prev => ({ 
+                    ...prev, 
+                    cashAvailableUsd: parseFloat(e.target.value) || 0 
+                  }))}
+                />
+              </div>
+            </div>
+            
+            <div className="flex items-center justify-center">
               <div className="flex items-center space-x-2">
                 <Switch
                   id="closure-confirmed"
