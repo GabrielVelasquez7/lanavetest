@@ -47,6 +47,7 @@ export type Database = {
       daily_sessions: {
         Row: {
           cash_available_bs: number | null
+          cash_available_usd: number | null
           closure_notes: string | null
           created_at: string
           daily_closure_confirmed: boolean | null
@@ -60,6 +61,7 @@ export type Database = {
         }
         Insert: {
           cash_available_bs?: number | null
+          cash_available_usd?: number | null
           closure_notes?: string | null
           created_at?: string
           daily_closure_confirmed?: boolean | null
@@ -73,6 +75,7 @@ export type Database = {
         }
         Update: {
           cash_available_bs?: number | null
+          cash_available_usd?: number | null
           closure_notes?: string | null
           created_at?: string
           daily_closure_confirmed?: boolean | null

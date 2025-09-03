@@ -71,6 +71,7 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
   // Temporary string states for input fields
   const [exchangeRateInput, setExchangeRateInput] = useState<string>('36.00');
   const [cashAvailableInput, setCashAvailableInput] = useState<string>('0');
+  const [cashAvailableUsdInput, setCashAvailableUsdInput] = useState<string>('0');
   
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -97,7 +98,7 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
       // Get sessions in date range - using user.id (auth user ID)
       const { data: sessions, error: sessionsError } = await supabase
         .from('daily_sessions')
-        .select('id, cash_available_bs, daily_closure_confirmed, closure_notes, exchange_rate')
+        .select('id, cash_available_bs, cash_available_usd, daily_closure_confirmed, closure_notes, exchange_rate')
         .eq('user_id', user.id)
         .gte('session_date', fromDate)
         .lte('session_date', toDate);
@@ -248,7 +249,7 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
         pagoMovilPagados,
         totalPointOfSale,
         cashAvailable: sessionData ? Number(sessionData.cash_available_bs || 0) : 0,
-        cashAvailableUsd: 0, // Default for now - will be configurable later
+        cashAvailableUsd: sessionData ? Number(sessionData.cash_available_usd || 0) : 0,
         closureConfirmed: sessionData ? sessionData.daily_closure_confirmed || false : false,
         closureNotes: sessionData ? sessionData.closure_notes || '' : '',
         exchangeRate: sessionData ? Number(sessionData.exchange_rate || 36.00) : 36.00,
@@ -260,6 +261,7 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
       // Update input states
       setExchangeRateInput(finalCuadre.exchangeRate.toString());
       setCashAvailableInput(finalCuadre.cashAvailable.toString());
+      setCashAvailableUsdInput(finalCuadre.cashAvailableUsd.toString());
     } catch (error) {
       console.error('Error fetching cuadre data:', error);
     } finally {
@@ -283,6 +285,7 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
         .from('daily_sessions')
         .update({
           cash_available_bs: cuadre.cashAvailable,
+          cash_available_usd: cuadre.cashAvailableUsd,
           daily_closure_confirmed: cuadre.closureConfirmed,
           closure_notes: cuadre.closureNotes,
           exchange_rate: cuadre.exchangeRate,
@@ -724,11 +727,20 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
                   type="number"
                   step="0.01"
                   placeholder="0.00"
-                  value={cuadre.cashAvailableUsd}
-                  onChange={(e) => setCuadre(prev => ({ 
-                    ...prev, 
-                    cashAvailableUsd: parseFloat(e.target.value) || 0 
-                  }))}
+                  value={cashAvailableUsdInput}
+                  onChange={(e) => {
+                    setCashAvailableUsdInput(e.target.value);
+                    const amount = parseFloat(e.target.value);
+                    if (!isNaN(amount) && amount >= 0) {
+                      setCuadre(prev => ({ ...prev, cashAvailableUsd: amount }));
+                    }
+                  }}
+                  onBlur={(e) => {
+                    if (e.target.value === '' || parseFloat(e.target.value) < 0) {
+                      setCashAvailableUsdInput('0');
+                      setCuadre(prev => ({ ...prev, cashAvailableUsd: 0 }));
+                    }
+                  }}
                 />
               </div>
             </div>
