@@ -73,6 +73,13 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
   const [cashAvailableInput, setCashAvailableInput] = useState<string>('0');
   const [cashAvailableUsdInput, setCashAvailableUsdInput] = useState<string>('0');
   
+  // Track if user has manually edited the fields to prevent overriding them
+  const [fieldsEditedByUser, setFieldsEditedByUser] = useState({
+    exchangeRate: false,
+    cashAvailable: false,
+    cashAvailableUsd: false,
+  });
+  
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const { user } = useAuth();
@@ -258,10 +265,16 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
       
       setCuadre(finalCuadre);
       
-      // Update input states
-      setExchangeRateInput(finalCuadre.exchangeRate.toString());
-      setCashAvailableInput(finalCuadre.cashAvailable.toString());
-      setCashAvailableUsdInput(finalCuadre.cashAvailableUsd.toString());
+      // Update input states only if user hasn't edited them manually
+      if (!fieldsEditedByUser.exchangeRate) {
+        setExchangeRateInput(finalCuadre.exchangeRate.toString());
+      }
+      if (!fieldsEditedByUser.cashAvailable) {
+        setCashAvailableInput(finalCuadre.cashAvailable.toString());
+      }
+      if (!fieldsEditedByUser.cashAvailableUsd) {
+        setCashAvailableUsdInput(finalCuadre.cashAvailableUsd.toString());
+      }
     } catch (error) {
       console.error('Error fetching cuadre data:', error);
     } finally {
@@ -329,13 +342,16 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
   // Calculate bank total (Mobile received + POS - Mobile paid)
   const totalBanco = cuadre.pagoMovilRecibidos + cuadre.totalPointOfSale - cuadre.pagoMovilPagados;
 
+  // Calculate USD excess (difference) for BS formula
+  const excessUsd = (cuadre.cashAvailableUsd + cuadre.totalGastos.usd + cuadre.totalDeudas.usd) - cuadreVentasPremios.usd;
+  
   // Bolivares Closure Formula
   const sumatoriaBolivares = 
     cuadre.cashAvailable + 
     totalBanco + 
     cuadre.totalDeudas.bs + 
     cuadre.totalGastos.bs + 
-    cuadre.totalSales.usd * cuadre.exchangeRate;
+    (excessUsd * cuadre.exchangeRate);
 
   const diferenciaCierre = sumatoriaBolivares - cuadreVentasPremios.bs;
   const isCuadreBalanced = Math.abs(diferenciaCierre) < 1; // Allow 1 Bs difference
@@ -529,8 +545,8 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
                     <span className="font-medium">{formatCurrency(cuadre.totalGastos.bs, 'VES')}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>USD → Bs (x{cuadre.exchangeRate.toFixed(2)}):</span>
-                    <span className="font-medium">{formatCurrency(cuadre.totalSales.usd * cuadre.exchangeRate, 'VES')}</span>
+                    <span>Excedente USD → Bs (x{cuadre.exchangeRate.toFixed(2)}):</span>
+                    <span className="font-medium">{formatCurrency(excessUsd * cuadre.exchangeRate, 'VES')}</span>
                   </div>
                   <Separator />
                   <div className="flex justify-between font-bold">
@@ -675,6 +691,7 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
                     value={exchangeRateInput}
                     onChange={(e) => {
                       setExchangeRateInput(e.target.value);
+                      setFieldsEditedByUser(prev => ({ ...prev, exchangeRate: true }));
                       const rate = parseFloat(e.target.value);
                       if (!isNaN(rate) && rate > 0) {
                         setCuadre(prev => ({ ...prev, exchangeRate: rate }));
@@ -706,6 +723,7 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
                   value={cashAvailableInput}
                   onChange={(e) => {
                     setCashAvailableInput(e.target.value);
+                    setFieldsEditedByUser(prev => ({ ...prev, cashAvailable: true }));
                     const amount = parseFloat(e.target.value);
                     if (!isNaN(amount) && amount >= 0) {
                       setCuadre(prev => ({ ...prev, cashAvailable: amount }));
@@ -730,6 +748,7 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
                   value={cashAvailableUsdInput}
                   onChange={(e) => {
                     setCashAvailableUsdInput(e.target.value);
+                    setFieldsEditedByUser(prev => ({ ...prev, cashAvailableUsd: true }));
                     const amount = parseFloat(e.target.value);
                     if (!isNaN(amount) && amount >= 0) {
                       setCuadre(prev => ({ ...prev, cashAvailableUsd: amount }));
