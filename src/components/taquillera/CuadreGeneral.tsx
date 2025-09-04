@@ -374,104 +374,6 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
         )}
       </div>
 
-      {/* Main Summary Cards - Bolivares vs Dollars */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Bolivares Section */}
-        <Card className="border-l-4 border-l-primary">
-          <CardHeader>
-            <CardTitle className="text-primary">Resumen en Bolívares (VES)</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span>Ventas:</span>
-                  <span className="font-medium text-success">
-                    {formatCurrency(cuadre.totalSales.bs, 'VES')}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Premios:</span>
-                  <span className="font-medium text-destructive">
-                    {formatCurrency(cuadre.totalPrizes.bs, 'VES')}
-                  </span>
-                </div>
-                <Separator />
-                <div className="flex justify-between font-bold">
-                  <span>Cuadre (V-P):</span>
-                  <span className={cuadreVentasPremios.bs >= 0 ? 'text-success' : 'text-destructive'}>
-                    {formatCurrency(cuadreVentasPremios.bs, 'VES')}
-                  </span>
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span>Gastos:</span>
-                  <span className="font-medium text-destructive">
-                    {formatCurrency(cuadre.totalGastos.bs, 'VES')}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Deudas:</span>
-                  <span className="font-medium text-destructive">
-                    {formatCurrency(cuadre.totalDeudas.bs, 'VES')}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Total Banco:</span>
-                  <span className="font-medium text-primary">
-                    {formatCurrency(totalBanco, 'VES')}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Dollars Section */}
-        <Card className="border-l-4 border-l-accent">
-          <CardHeader>
-            <CardTitle className="text-accent">Resumen en Dólares (USD)</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span>Ventas USD:</span>
-                <span className="font-medium text-success">
-                  {formatCurrency(cuadre.totalSales.usd, 'USD')}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span>Premios USD:</span>
-                <span className="font-medium text-destructive">
-                  {formatCurrency(cuadre.totalPrizes.usd, 'USD')}
-                </span>
-              </div>
-              <Separator />
-              <div className="flex justify-between font-bold">
-                <span>Cuadre USD:</span>
-                <span className={cuadreVentasPremios.usd >= 0 ? 'text-success' : 'text-destructive'}>
-                  {formatCurrency(cuadreVentasPremios.usd, 'USD')}
-                </span>
-              </div>
-              <Separator />
-              <div className="flex justify-between">
-                <span>Gastos USD:</span>
-                <span className="font-medium text-destructive">
-                  {formatCurrency(cuadre.totalGastos.usd, 'USD')}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span>Deudas USD:</span>
-                <span className="font-medium text-destructive">
-                  {formatCurrency(cuadre.totalDeudas.usd, 'USD')}
-                </span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
 
       {/* Detailed Breakdown */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -518,7 +420,7 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
       </div>
 
       {/* Closure Formula Card */}
-      <Card className="border-2 border-primary/20">
+      <Card className="border-2 border-primary/20 border-l-4 border-l-primary">
         <CardHeader>
           <CardTitle className="text-primary">Fórmula de Cierre en Bolívares</CardTitle>
         </CardHeader>
@@ -595,7 +497,7 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
       </Card>
 
       {/* USD Closure Formula Card */}
-      <Card className="border-2 border-accent/20">
+      <Card className="border-2 border-accent/20 border-l-4 border-l-accent">
         <CardHeader>
           <CardTitle className="text-accent">Fórmula de Cierre en Dólares (USD)</CardTitle>
         </CardHeader>
