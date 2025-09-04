@@ -422,7 +422,7 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
       {/* Closure Formula Card */}
       <Card className="border-2 border-primary/20 border-l-4 border-l-primary">
         <CardHeader>
-          <CardTitle className="text-primary">Fórmula de Cierre en Bolívares</CardTitle>
+          <CardTitle className="text-primary">Resumen en Bolívares</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
@@ -499,7 +499,7 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
       {/* USD Closure Formula Card */}
       <Card className="border-2 border-accent/20 border-l-4 border-l-accent">
         <CardHeader>
-          <CardTitle className="text-accent">Fórmula de Cierre en Dólares (USD)</CardTitle>
+          <CardTitle className="text-accent">Resumen en Dólares (USD)</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
