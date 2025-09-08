@@ -352,7 +352,7 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
   const totalBanco = cuadre.pagoMovilRecibidos + cuadre.totalPointOfSale - cuadre.pagoMovilPagados;
 
   // Calculate USD excess (difference) for BS formula
-  const excessUsd = (cuadre.cashAvailableUsd + cuadre.totalGastos.usd + cuadre.totalDeudas.usd) - cuadreVentasPremios.usd;
+  const excessUsd = cuadre.cashAvailableUsd - cuadreVentasPremios.usd;
   
   // Bolivares Closure Formula
   const sumatoriaBolivares = 
