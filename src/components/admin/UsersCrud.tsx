@@ -192,9 +192,17 @@ export const UsersCrud = () => {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Gestión de Usuarios</h1>
         <div className="flex gap-2">
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <Dialog open={isDialogOpen} onOpenChange={(open) => {
+            setIsDialogOpen(open);
+            if (!open) {
+              resetForm();
+            }
+          }}>
             <DialogTrigger asChild>
-              <Button onClick={() => setIsDialogOpen(true)}>
+              <Button onClick={() => {
+                resetForm();
+                setIsDialogOpen(true);
+              }}>
                 <Plus className="mr-2 h-4 w-4" />
                 <span className="hidden sm:inline">Crear Usuario</span>
                 <span className="sm:hidden">Crear</span>
