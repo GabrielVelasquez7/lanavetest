@@ -66,6 +66,9 @@ export function AllTaquillerasCuadres() {
   const fetchCuadres = async () => {
     setLoading(true);
     try {
+      const dateStr = format(selectedDate, 'yyyy-MM-dd');
+      console.log('Fetching cuadres for date:', dateStr);
+      
       const { data: sessions, error: sessionsError } = await supabase
         .from('daily_sessions')
         .select(`
@@ -80,10 +83,15 @@ export function AllTaquillerasCuadres() {
           closure_notes,
           user_id
         `)
-        .eq('session_date', format(selectedDate, 'yyyy-MM-dd'))
+        .eq('session_date', dateStr)
         .order('created_at', { ascending: false });
 
-      if (sessionsError) throw sessionsError;
+      console.log('Sessions found:', sessions?.length || 0, sessions);
+
+      if (sessionsError) {
+        console.error('Sessions error:', sessionsError);
+        throw sessionsError;
+      }
 
       // Fetch user profiles separately
       const userIds = [...new Set(sessions?.map(s => s.user_id) || [])];
@@ -96,7 +104,12 @@ export function AllTaquillerasCuadres() {
         `)
         .in('user_id', userIds);
 
-      if (profilesError) throw profilesError;
+      console.log('Profiles found:', profiles?.length || 0, profiles);
+      
+      if (profilesError) {
+        console.error('Profiles error:', profilesError);
+        throw profilesError;
+      }
 
       // Create a map of profiles by user_id
       const profilesMap = profiles?.reduce((acc, profile) => {

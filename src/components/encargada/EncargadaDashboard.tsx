@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calculator, Users, Calendar } from "lucide-react";
-import { DailyCuadreSistemas } from "./DailyCuadreSistemas";
+import { DailyCuadreSistemasOptimized } from "./DailyCuadreSistemasOptimized";
 import { AllTaquillerasCuadres } from "./AllTaquillerasCuadres";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -109,7 +109,7 @@ export function EncargadaDashboard() {
         </TabsList>
 
         <TabsContent value="cuadre-diario" className="space-y-4">
-          <DailyCuadreSistemas profile={profile} />
+          <DailyCuadreSistemasOptimized profile={profile} />
         </TabsContent>
 
         <TabsContent value="supervision" className="space-y-4">
