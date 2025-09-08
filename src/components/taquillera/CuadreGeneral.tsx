@@ -370,32 +370,30 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
 
   return (
     <div className="space-y-6">
+      {/* Title and Status */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold text-primary flex items-center gap-2">
+          <Calculator className="h-6 w-6" />
+          Cuadre General
+        </h2>
+        {cuadre.closureConfirmed && (
+          <Badge variant="default" className="flex items-center gap-1">
+            <CheckCircle2 className="h-3 w-3" />
+            Cuadre Confirmado
+          </Badge>
+        )}
+      </div>
+
       {/* Daily Closure Section - Only for single day */}
       {isSingleDay && (
         <Card className="border-2 border-accent/20">
-          <CardHeader>
-            <CardTitle className="text-primary flex items-center gap-2">
-              <Calculator className="h-6 w-6" />
-              Cuadre General
-            </CardTitle>
-            {cuadre.closureConfirmed && (
-              <Badge variant="default" className="flex items-center gap-1 ml-auto">
-                <CheckCircle2 className="h-3 w-3" />
-                Cuadre Confirmado
-              </Badge>
-            )}
-          </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4 pt-6">
             {/* Exchange Rate Section */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
               <Card className="bg-primary/5 border-primary/20">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    💱 Tasa del Día
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
+                <CardContent className="pt-4">
+                  <div className="text-center space-y-2">
+                    <div className="text-lg">💱</div>
                     <Input
                       id="exchange-rate"
                       type="number"
@@ -420,7 +418,7 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
                       className="text-center font-medium"
                     />
                     <p className="text-xs text-muted-foreground text-center">
-                      Bs por USD
+                      Tasa del día (Bs por USD)
                     </p>
                   </div>
                 </CardContent>
