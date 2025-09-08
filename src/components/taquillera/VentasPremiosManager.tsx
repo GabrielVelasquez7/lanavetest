@@ -283,6 +283,41 @@ export const VentasPremiosManager = ({ onSuccess, dateRange }: VentasPremiosMana
         throw new Error(errors[0].error?.message);
       }
 
+      // Guardar resumen en daily_cuadres_summary
+      const summaryData = {
+        session_id: sessionId,
+        user_id: user.id,
+        session_date: fromDate,
+        total_sales_bs: totals.sales_bs,
+        total_sales_usd: totals.sales_usd,
+        total_prizes_bs: totals.prizes_bs,
+        total_prizes_usd: totals.prizes_usd,
+        cuadre_ventas_premios_bs: totals.sales_bs - totals.prizes_bs,
+        cuadre_ventas_premios_usd: totals.sales_usd - totals.prizes_usd,
+      };
+
+      // Si estamos en modo edición, actualizar el registro existente
+      if (editMode) {
+        const { error: updateSummaryError } = await supabase
+          .from('daily_cuadres_summary')
+          .upsert(summaryData, {
+            onConflict: 'session_id'
+          });
+        
+        if (updateSummaryError) {
+          console.error('Error updating summary:', updateSummaryError);
+        }
+      } else {
+        // Crear nuevo registro de resumen
+        const { error: insertSummaryError } = await supabase
+          .from('daily_cuadres_summary')
+          .insert(summaryData);
+        
+        if (insertSummaryError) {
+          console.error('Error inserting summary:', insertSummaryError);
+        }
+      }
+
       toast({
         title: 'Éxito',
         description: editMode 
