@@ -52,15 +52,29 @@ export type Database = {
           cash_available_usd: number
           closure_notes: string | null
           created_at: string
+          cuadre_ventas_premios_bs: number
+          cuadre_ventas_premios_usd: number
           daily_closure_confirmed: boolean
+          diferencia_cierre: number
+          diferencia_final: number
+          excess_usd: number
           exchange_rate: number
           id: string
           is_closed: boolean
           notes: string | null
+          pago_movil_pagados: number
+          pago_movil_recibidos: number
+          premios_por_pagar: number
           session_date: string
           session_id: string
+          sumatoria_bolivares: number
+          total_banco: number
+          total_deudas_bs: number
+          total_deudas_usd: number
           total_expenses_bs: number
           total_expenses_usd: number
+          total_gastos_bs: number
+          total_gastos_usd: number
           total_mobile_payments_bs: number
           total_pos_bs: number
           total_prizes_bs: number
@@ -77,15 +91,29 @@ export type Database = {
           cash_available_usd?: number
           closure_notes?: string | null
           created_at?: string
+          cuadre_ventas_premios_bs?: number
+          cuadre_ventas_premios_usd?: number
           daily_closure_confirmed?: boolean
+          diferencia_cierre?: number
+          diferencia_final?: number
+          excess_usd?: number
           exchange_rate?: number
           id?: string
           is_closed?: boolean
           notes?: string | null
+          pago_movil_pagados?: number
+          pago_movil_recibidos?: number
+          premios_por_pagar?: number
           session_date: string
           session_id: string
+          sumatoria_bolivares?: number
+          total_banco?: number
+          total_deudas_bs?: number
+          total_deudas_usd?: number
           total_expenses_bs?: number
           total_expenses_usd?: number
+          total_gastos_bs?: number
+          total_gastos_usd?: number
           total_mobile_payments_bs?: number
           total_pos_bs?: number
           total_prizes_bs?: number
@@ -102,15 +130,29 @@ export type Database = {
           cash_available_usd?: number
           closure_notes?: string | null
           created_at?: string
+          cuadre_ventas_premios_bs?: number
+          cuadre_ventas_premios_usd?: number
           daily_closure_confirmed?: boolean
+          diferencia_cierre?: number
+          diferencia_final?: number
+          excess_usd?: number
           exchange_rate?: number
           id?: string
           is_closed?: boolean
           notes?: string | null
+          pago_movil_pagados?: number
+          pago_movil_recibidos?: number
+          premios_por_pagar?: number
           session_date?: string
           session_id?: string
+          sumatoria_bolivares?: number
+          total_banco?: number
+          total_deudas_bs?: number
+          total_deudas_usd?: number
           total_expenses_bs?: number
           total_expenses_usd?: number
+          total_gastos_bs?: number
+          total_gastos_usd?: number
           total_mobile_payments_bs?: number
           total_pos_bs?: number
           total_prizes_bs?: number
