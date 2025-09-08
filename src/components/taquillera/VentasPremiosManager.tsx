@@ -283,18 +283,29 @@ export const VentasPremiosManager = ({ onSuccess, dateRange }: VentasPremiosMana
         throw new Error(errors[0].error?.message);
       }
 
+      // Calcular totales con los datos actualizados
+      const currentTotals = data.systems.reduce(
+        (acc, system) => ({
+          sales_bs: acc.sales_bs + (system.sales_bs || 0),
+          sales_usd: acc.sales_usd + (system.sales_usd || 0),
+          prizes_bs: acc.prizes_bs + (system.prizes_bs || 0),
+          prizes_usd: acc.prizes_usd + (system.prizes_usd || 0),
+        }),
+        { sales_bs: 0, sales_usd: 0, prizes_bs: 0, prizes_usd: 0 }
+      );
+
       // Guardar resumen en daily_cuadres_summary
       const summaryData = {
         session_id: sessionId,
         user_id: user.id,
         session_date: fromDate,
         agency_id: user.user_metadata?.agency_id || null,
-        total_sales_bs: totals.sales_bs,
-        total_sales_usd: totals.sales_usd,
-        total_prizes_bs: totals.prizes_bs,
-        total_prizes_usd: totals.prizes_usd,
-        cuadre_ventas_premios_bs: totals.sales_bs - totals.prizes_bs,
-        cuadre_ventas_premios_usd: totals.sales_usd - totals.prizes_usd,
+        total_sales_bs: currentTotals.sales_bs,
+        total_sales_usd: currentTotals.sales_usd,
+        total_prizes_bs: currentTotals.prizes_bs,
+        total_prizes_usd: currentTotals.prizes_usd,
+        cuadre_ventas_premios_bs: currentTotals.sales_bs - currentTotals.prizes_bs,
+        cuadre_ventas_premios_usd: currentTotals.sales_usd - currentTotals.prizes_usd,
       };
 
       console.log('🔍 GUARDANDO SUMMARY - Datos:', summaryData);
