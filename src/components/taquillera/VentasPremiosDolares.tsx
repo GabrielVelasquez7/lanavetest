@@ -1,4 +1,5 @@
 import { UseFormReturn } from 'react-hook-form';
+import { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatCurrency } from '@/lib/utils';
@@ -16,13 +17,35 @@ interface VentasPremiosDolaresProps {
 }
 
 export const VentasPremiosDolares = ({ form, lotteryOptions }: VentasPremiosDolaresProps) => {
-  const formatNumberForDisplay = (value: number): string => {
-    if (value === 0) return '';
-    return value.toLocaleString('en-US', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
+  const systems = form.watch('systems');
+  const [inputValues, setInputValues] = useState<Record<string, string>>({});
+
+  // Sincronizar valores del formulario con los inputs cuando cambian externamente
+  useEffect(() => {
+    const newInputValues: Record<string, string> = {};
+    systems.forEach((system, index) => {
+      const salesKey = `${index}-sales_usd`;
+      const prizesKey = `${index}-prizes_usd`;
+      
+      if (!inputValues[salesKey]) {
+        newInputValues[salesKey] = system.sales_usd ? system.sales_usd.toLocaleString('en-US', {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }) : '';
+      }
+      
+      if (!inputValues[prizesKey]) {
+        newInputValues[prizesKey] = system.prizes_usd ? system.prizes_usd.toLocaleString('en-US', {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }) : '';
+      }
     });
-  };
+    
+    if (Object.keys(newInputValues).length > 0) {
+      setInputValues(prev => ({ ...prev, ...newInputValues }));
+    }
+  }, [systems]);
 
   const parseInputValue = (value: string): number => {
     if (!value || value.trim() === '') return 0;
@@ -33,11 +56,25 @@ export const VentasPremiosDolares = ({ form, lotteryOptions }: VentasPremiosDola
   };
 
   const handleInputChange = (index: number, field: 'sales_usd' | 'prizes_usd', value: string) => {
-    const numValue = parseInputValue(value);
-    form.setValue(`systems.${index}.${field}`, numValue);
+    const key = `${index}-${field}`;
+    setInputValues(prev => ({ ...prev, [key]: value }));
   };
 
-  const systems = form.watch('systems');
+  const handleInputBlur = (index: number, field: 'sales_usd' | 'prizes_usd') => {
+    const key = `${index}-${field}`;
+    const value = inputValues[key] || '';
+    const numValue = parseInputValue(value);
+    
+    form.setValue(`systems.${index}.${field}`, numValue);
+    
+    // Formatear el valor en el input
+    const formattedValue = numValue > 0 ? numValue.toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }) : '';
+    
+    setInputValues(prev => ({ ...prev, [key]: formattedValue }));
+  };
 
   const calculateTotals = () => {
     return systems.reduce(
@@ -77,20 +114,18 @@ export const VentasPremiosDolares = ({ form, lotteryOptions }: VentasPremiosDola
                 <Input
                   type="text"
                   placeholder="0.00"
-                  value={formatNumberForDisplay(system.sales_usd)}
-                  onChange={(e) => {
-                    handleInputChange(index, 'sales_usd', e.target.value);
-                  }}
+                  value={inputValues[`${index}-sales_usd`] || ''}
+                  onChange={(e) => handleInputChange(index, 'sales_usd', e.target.value)}
+                  onBlur={() => handleInputBlur(index, 'sales_usd')}
                   className="text-center"
                 />
                 
                 <Input
                   type="text"
                   placeholder="0.00"
-                  value={formatNumberForDisplay(system.prizes_usd)}
-                  onChange={(e) => {
-                    handleInputChange(index, 'prizes_usd', e.target.value);
-                  }}
+                  value={inputValues[`${index}-prizes_usd`] || ''}
+                  onChange={(e) => handleInputChange(index, 'prizes_usd', e.target.value)}
+                  onBlur={() => handleInputBlur(index, 'prizes_usd')}
                   className="text-center"
                 />
                 

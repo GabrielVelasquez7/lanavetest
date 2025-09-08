@@ -1,4 +1,5 @@
 import { UseFormReturn } from 'react-hook-form';
+import { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatCurrency } from '@/lib/utils';
@@ -16,13 +17,35 @@ interface VentasPremiosBolivaresProps {
 }
 
 export const VentasPremiosBolivares = ({ form, lotteryOptions }: VentasPremiosBolivaresProps) => {
-  const formatNumberForDisplay = (value: number): string => {
-    if (value === 0) return '';
-    return value.toLocaleString('es-VE', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
+  const systems = form.watch('systems');
+  const [inputValues, setInputValues] = useState<Record<string, string>>({});
+
+  // Sincronizar valores del formulario con los inputs cuando cambian externamente
+  useEffect(() => {
+    const newInputValues: Record<string, string> = {};
+    systems.forEach((system, index) => {
+      const salesKey = `${index}-sales_bs`;
+      const prizesKey = `${index}-prizes_bs`;
+      
+      if (!inputValues[salesKey]) {
+        newInputValues[salesKey] = system.sales_bs ? system.sales_bs.toLocaleString('es-VE', {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }) : '';
+      }
+      
+      if (!inputValues[prizesKey]) {
+        newInputValues[prizesKey] = system.prizes_bs ? system.prizes_bs.toLocaleString('es-VE', {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }) : '';
+      }
     });
-  };
+    
+    if (Object.keys(newInputValues).length > 0) {
+      setInputValues(prev => ({ ...prev, ...newInputValues }));
+    }
+  }, [systems]);
 
   const parseInputValue = (value: string): number => {
     if (!value || value.trim() === '') return 0;
@@ -33,11 +56,25 @@ export const VentasPremiosBolivares = ({ form, lotteryOptions }: VentasPremiosBo
   };
 
   const handleInputChange = (index: number, field: 'sales_bs' | 'prizes_bs', value: string) => {
-    const numValue = parseInputValue(value);
-    form.setValue(`systems.${index}.${field}`, numValue);
+    const key = `${index}-${field}`;
+    setInputValues(prev => ({ ...prev, [key]: value }));
   };
 
-  const systems = form.watch('systems');
+  const handleInputBlur = (index: number, field: 'sales_bs' | 'prizes_bs') => {
+    const key = `${index}-${field}`;
+    const value = inputValues[key] || '';
+    const numValue = parseInputValue(value);
+    
+    form.setValue(`systems.${index}.${field}`, numValue);
+    
+    // Formatear el valor en el input
+    const formattedValue = numValue > 0 ? numValue.toLocaleString('es-VE', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }) : '';
+    
+    setInputValues(prev => ({ ...prev, [key]: formattedValue }));
+  };
 
   const calculateTotals = () => {
     return systems.reduce(
@@ -77,20 +114,18 @@ export const VentasPremiosBolivares = ({ form, lotteryOptions }: VentasPremiosBo
                 <Input
                   type="text"
                   placeholder="0,00"
-                  value={formatNumberForDisplay(system.sales_bs)}
-                  onChange={(e) => {
-                    handleInputChange(index, 'sales_bs', e.target.value);
-                  }}
+                  value={inputValues[`${index}-sales_bs`] || ''}
+                  onChange={(e) => handleInputChange(index, 'sales_bs', e.target.value)}
+                  onBlur={() => handleInputBlur(index, 'sales_bs')}
                   className="text-center"
                 />
                 
                 <Input
                   type="text"
                   placeholder="0,00"
-                  value={formatNumberForDisplay(system.prizes_bs)}
-                  onChange={(e) => {
-                    handleInputChange(index, 'prizes_bs', e.target.value);
-                  }}
+                  value={inputValues[`${index}-prizes_bs`] || ''}
+                  onChange={(e) => handleInputChange(index, 'prizes_bs', e.target.value)}
+                  onBlur={() => handleInputBlur(index, 'prizes_bs')}
                   className="text-center"
                 />
                 
