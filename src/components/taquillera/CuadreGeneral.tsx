@@ -369,7 +369,7 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
   const isSingleDay = dateRange && format(dateRange.from, 'yyyy-MM-dd') === format(dateRange.to, 'yyyy-MM-dd');
 
   return (
-    <div Calculator className="space-y-6">
+    <div className="space-y-6">
       {/* Title and Status */}
       <div className="flex items-center justify-between">
         
