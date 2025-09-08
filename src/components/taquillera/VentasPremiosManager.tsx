@@ -296,25 +296,35 @@ export const VentasPremiosManager = ({ onSuccess, dateRange }: VentasPremiosMana
         cuadre_ventas_premios_usd: totals.sales_usd - totals.prizes_usd,
       };
 
+      console.log('🔍 GUARDANDO SUMMARY - Datos:', summaryData);
+
       // Si estamos en modo edición, actualizar el registro existente
       if (editMode) {
-        const { error: updateSummaryError } = await supabase
+        const { data: summaryResult, error: updateSummaryError } = await supabase
           .from('daily_cuadres_summary')
           .upsert(summaryData, {
             onConflict: 'session_id'
-          });
+          })
+          .select();
+        
+        console.log('🔍 SUMMARY UPSERT RESULT:', { data: summaryResult, error: updateSummaryError });
         
         if (updateSummaryError) {
-          console.error('Error updating summary:', updateSummaryError);
+          console.error('❌ Error updating summary:', updateSummaryError);
+          throw new Error(`Error actualizando resumen: ${updateSummaryError.message}`);
         }
       } else {
         // Crear nuevo registro de resumen
-        const { error: insertSummaryError } = await supabase
+        const { data: summaryResult, error: insertSummaryError } = await supabase
           .from('daily_cuadres_summary')
-          .insert(summaryData);
+          .insert(summaryData)
+          .select();
+        
+        console.log('🔍 SUMMARY INSERT RESULT:', { data: summaryResult, error: insertSummaryError });
         
         if (insertSummaryError) {
-          console.error('Error inserting summary:', insertSummaryError);
+          console.error('❌ Error inserting summary:', insertSummaryError);
+          throw new Error(`Error guardando resumen: ${insertSummaryError.message}`);
         }
       }
 
