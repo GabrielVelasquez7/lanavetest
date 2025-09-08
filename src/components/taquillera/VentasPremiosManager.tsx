@@ -288,6 +288,7 @@ export const VentasPremiosManager = ({ onSuccess, dateRange }: VentasPremiosMana
         session_id: sessionId,
         user_id: user.id,
         session_date: fromDate,
+        agency_id: user.user_metadata?.agency_id || null,
         total_sales_bs: totals.sales_bs,
         total_sales_usd: totals.sales_usd,
         total_prizes_bs: totals.prizes_bs,
