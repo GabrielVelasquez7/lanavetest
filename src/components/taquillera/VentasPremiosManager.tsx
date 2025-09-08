@@ -276,11 +276,17 @@ export const VentasPremiosManager = ({ onSuccess, dateRange }: VentasPremiosMana
         promises.push(supabase.from('prize_transactions').insert(prizesData));
       }
 
-      const results = await Promise.all(promises);
-      const errors = results.filter(r => r.error);
-      
-      if (errors.length > 0) {
-        throw new Error(errors[0].error?.message);
+      console.log('🔍 DATOS A INSERTAR:', { salesDataLength: salesData.length, prizesDataLength: prizesData.length });
+
+      // Ejecutar inserciones solo si hay datos
+      if (promises.length > 0) {
+        const results = await Promise.all(promises);
+        const errors = results.filter(r => r.error);
+        
+        if (errors.length > 0) {
+          console.error('❌ Error en transacciones:', errors[0].error);
+          throw new Error(errors[0].error?.message);
+        }
       }
 
       // Calcular totales con los datos actualizados
@@ -294,6 +300,8 @@ export const VentasPremiosManager = ({ onSuccess, dateRange }: VentasPremiosMana
         { sales_bs: 0, sales_usd: 0, prizes_bs: 0, prizes_usd: 0 }
       );
 
+      console.log('🔍 LLEGANDO A GUARDAR RESUMEN - currentTotals:', currentTotals);
+      
       // Guardar resumen en daily_cuadres_summary
       const summaryData = {
         session_id: sessionId,
