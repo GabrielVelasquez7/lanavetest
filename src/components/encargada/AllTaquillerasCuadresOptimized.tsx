@@ -116,14 +116,14 @@ export function AllTaquillerasCuadresOptimized() {
         throw sessionsError;
       }
 
-      // Fetch user profiles separately
-      const userIds = [...new Set(sessions?.map(s => s.user_id) || [])];
-      
-      if (userIds.length === 0) {
+      if (!sessions || sessions.length === 0) {
         setAgencyGroups([]);
         return;
       }
 
+      // Fetch user profiles separately with better error handling
+      const userIds = [...new Set(sessions.map(s => s.user_id))];
+      
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select(`
@@ -133,27 +133,33 @@ export function AllTaquillerasCuadresOptimized() {
         `)
         .in('user_id', userIds);
 
-      // Fetch agency data separately
+      console.log('Profiles found:', profiles?.length || 0, profiles);
+      console.log('Profile error:', profilesError);
+      
+      if (profilesError) {
+        console.error('Profiles error:', profilesError);
+        // Don't throw, continue with empty profiles
+      }
+
+      // Fetch agency data separately for found profiles
       const agencyIds = [...new Set(profiles?.map(p => p.agency_id).filter(Boolean) || [])];
       let agenciesMap: Record<string, any> = {};
       
       if (agencyIds.length > 0) {
-        const { data: agenciesData } = await supabase
+        const { data: agenciesData, error: agenciesError } = await supabase
           .from('agencies')
           .select('id, name')
           .in('id', agencyIds);
         
-        agenciesMap = agenciesData?.reduce((acc, agency) => {
-          acc[agency.id] = agency;
-          return acc;
-        }, {} as Record<string, any>) || {};
-      }
-
-      console.log('Profiles found:', profiles?.length || 0, profiles);
-      
-      if (profilesError) {
-        console.error('Profiles error:', profilesError);
-        throw profilesError;
+        console.log('Agencies found:', agenciesData?.length || 0, agenciesData);
+        console.log('Agencies error:', agenciesError);
+        
+        if (!agenciesError && agenciesData) {
+          agenciesMap = agenciesData.reduce((acc, agency) => {
+            acc[agency.id] = agency;
+            return acc;
+          }, {} as Record<string, any>);
+        }
       }
 
       // Create a map of profiles by user_id
@@ -162,9 +168,11 @@ export function AllTaquillerasCuadresOptimized() {
         return acc;
       }, {} as Record<string, any>) || {};
 
-      // Fetch sales and prizes for each session
+      // Fetch sales and prizes for each session with better logging
       const cuadresWithTotals = await Promise.all(
-        (sessions || []).map(async (session) => {
+        sessions.map(async (session) => {
+          console.log('Fetching transactions for session:', session.id);
+          
           const [salesResult, prizesResult] = await Promise.all([
             supabase
               .from('sales_transactions')
@@ -176,6 +184,9 @@ export function AllTaquillerasCuadresOptimized() {
               .eq('session_id', session.id)
           ]);
 
+          console.log('Sales for session', session.id, ':', salesResult.data?.length || 0);
+          console.log('Prizes for session', session.id, ':', prizesResult.data?.length || 0);
+
           const totalSalesBs = salesResult.data?.reduce((sum, sale) => sum + (sale.amount_bs || 0), 0) || 0;
           const totalSalesUsd = salesResult.data?.reduce((sum, sale) => sum + (sale.amount_usd || 0), 0) || 0;
           const totalPrizesBs = prizesResult.data?.reduce((sum, prize) => sum + (prize.amount_bs || 0), 0) || 0;
@@ -183,6 +194,9 @@ export function AllTaquillerasCuadresOptimized() {
 
           const profile = profilesMap[session.user_id];
           const agency = profile?.agency_id ? agenciesMap[profile.agency_id] : null;
+
+          console.log('Profile for user', session.user_id, ':', profile);
+          console.log('Agency for profile:', agency);
 
           return {
             session_id: session.id,
@@ -204,6 +218,8 @@ export function AllTaquillerasCuadresOptimized() {
           } as TaquilleraCuadre;
         })
       );
+
+      console.log('Final cuadres with totals:', cuadresWithTotals);
 
       // Group by agency
       const groupedByAgency = cuadresWithTotals.reduce((acc, cuadre) => {
@@ -232,8 +248,10 @@ export function AllTaquillerasCuadresOptimized() {
         }).length,
       }));
 
+      console.log('Final agency groups:', agencyGroupsArray);
       setAgencyGroups(agencyGroupsArray);
     } catch (error: any) {
+      console.error('Error in fetchCuadres:', error);
       toast({
         title: "Error",
         description: "No se pudieron cargar los cuadres de taquilleras",
