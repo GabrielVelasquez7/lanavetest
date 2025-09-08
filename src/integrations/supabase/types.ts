@@ -89,6 +89,42 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_system_cuadres: {
+        Row: {
+          agency_id: string | null
+          amount_bs: number
+          amount_usd: number
+          created_at: string
+          cuadre_date: string
+          id: string
+          lottery_system_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          agency_id?: string | null
+          amount_bs?: number
+          amount_usd?: number
+          created_at?: string
+          cuadre_date: string
+          id?: string
+          lottery_system_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          agency_id?: string | null
+          amount_bs?: number
+          amount_usd?: number
+          created_at?: string
+          cuadre_date?: string
+          id?: string
+          lottery_system_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       expenses: {
         Row: {
           amount_bs: number

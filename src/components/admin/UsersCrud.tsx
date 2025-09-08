@@ -15,7 +15,7 @@ interface Profile {
   id: string;
   user_id: string;
   full_name: string;
-  role: 'taquillero' | 'encargado' | 'administrador';
+  role: 'taquillero' | 'encargado' | 'administrador' | 'encargada';
   agency_id: string | null;
   agency_name?: string;
   is_active: boolean;
@@ -37,7 +37,7 @@ export const UsersCrud = () => {
     email: '',
     password: '',
     full_name: '',
-    role: 'taquillero' as 'taquillero' | 'encargado' | 'administrador',
+    role: 'taquillero' as 'taquillero' | 'encargado' | 'administrador' | 'encargada',
     agency_id: 'none',
     is_active: true
   });
@@ -246,7 +246,7 @@ export const UsersCrud = () => {
                   <Label htmlFor="role">Rol *</Label>
                   <Select 
                     value={formData.role} 
-                    onValueChange={(value: 'taquillero' | 'encargado' | 'administrador') => 
+                    onValueChange={(value: 'taquillero' | 'encargado' | 'administrador' | 'encargada') => 
                       setFormData({ ...formData, role: value })
                     }
                   >
@@ -256,6 +256,7 @@ export const UsersCrud = () => {
                     <SelectContent>
                       <SelectItem value="taquillero">Taquillero</SelectItem>
                       <SelectItem value="encargado">Encargado</SelectItem>
+                      <SelectItem value="encargada">Encargada</SelectItem>
                       <SelectItem value="administrador">Administrador</SelectItem>
                     </SelectContent>
                   </Select>
