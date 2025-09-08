@@ -19,33 +19,31 @@ interface VentasPremiosBolivaresProps {
 export const VentasPremiosBolivares = ({ form, lotteryOptions }: VentasPremiosBolivaresProps) => {
   const systems = form.watch('systems');
   const [inputValues, setInputValues] = useState<Record<string, string>>({});
+  const [isInitialized, setIsInitialized] = useState(false);
 
-  // Sincronizar valores del formulario con los inputs cuando cambian externamente
+  // Inicializar valores solo una vez al cargar los datos
   useEffect(() => {
-    const newInputValues: Record<string, string> = {};
-    systems.forEach((system, index) => {
-      const salesKey = `${index}-sales_bs`;
-      const prizesKey = `${index}-prizes_bs`;
-      
-      if (!inputValues[salesKey]) {
-        newInputValues[salesKey] = system.sales_bs ? system.sales_bs.toLocaleString('es-VE', {
+    if (systems.length > 0 && !isInitialized) {
+      const newInputValues: Record<string, string> = {};
+      systems.forEach((system, index) => {
+        const salesKey = `${index}-sales_bs`;
+        const prizesKey = `${index}-prizes_bs`;
+        
+        newInputValues[salesKey] = system.sales_bs > 0 ? system.sales_bs.toLocaleString('es-VE', {
           minimumFractionDigits: 2,
           maximumFractionDigits: 2,
         }) : '';
-      }
-      
-      if (!inputValues[prizesKey]) {
-        newInputValues[prizesKey] = system.prizes_bs ? system.prizes_bs.toLocaleString('es-VE', {
+        
+        newInputValues[prizesKey] = system.prizes_bs > 0 ? system.prizes_bs.toLocaleString('es-VE', {
           minimumFractionDigits: 2,
           maximumFractionDigits: 2,
         }) : '';
-      }
-    });
-    
-    if (Object.keys(newInputValues).length > 0) {
-      setInputValues(prev => ({ ...prev, ...newInputValues }));
+      });
+      
+      setInputValues(newInputValues);
+      setIsInitialized(true);
     }
-  }, [systems]);
+  }, [systems, isInitialized]);
 
   const parseInputValue = (value: string): number => {
     if (!value || value.trim() === '') return 0;
@@ -65,9 +63,10 @@ export const VentasPremiosBolivares = ({ form, lotteryOptions }: VentasPremiosBo
     const value = inputValues[key] || '';
     const numValue = parseInputValue(value);
     
+    // Actualizar el formulario
     form.setValue(`systems.${index}.${field}`, numValue);
     
-    // Formatear el valor en el input
+    // Formatear el valor en el input solo si es mayor que 0
     const formattedValue = numValue > 0 ? numValue.toLocaleString('es-VE', {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
