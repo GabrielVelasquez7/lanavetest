@@ -108,7 +108,10 @@ export function DailyCuadreSistemasOptimized({ profile }: { profile: any }) {
       const cuadrePromises = agencyFilter.map(async (agency) => {
         const { data, error } = await supabase
           .from('daily_system_cuadres')
-          .select('*, lottery_systems(name, code)')
+          .select(`
+            *,
+            lottery_systems!daily_system_cuadres_lottery_system_id_fkey(name, code)
+          `)
           .eq('cuadre_date', format(selectedDate, 'yyyy-MM-dd'))
           .eq('agency_id', agency.id);
 

@@ -123,7 +123,22 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "daily_system_cuadres_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "daily_system_cuadres_lottery_system_id_fkey"
+            columns: ["lottery_system_id"]
+            isOneToOne: false
+            referencedRelation: "lottery_systems"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       expenses: {
         Row: {

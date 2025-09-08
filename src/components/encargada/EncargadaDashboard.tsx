@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calculator, Users, Calendar } from "lucide-react";
 import { DailyCuadreSistemasOptimized } from "./DailyCuadreSistemasOptimized";
-import { AllTaquillerasCuadres } from "./AllTaquillerasCuadres";
+import { AllTaquillerasCuadresOptimized } from "./AllTaquillerasCuadresOptimized";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -113,7 +113,7 @@ export function EncargadaDashboard() {
         </TabsContent>
 
         <TabsContent value="supervision" className="space-y-4">
-          <AllTaquillerasCuadres />
+          <AllTaquillerasCuadresOptimized />
         </TabsContent>
       </Tabs>
     </div>
