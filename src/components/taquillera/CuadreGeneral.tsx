@@ -44,6 +44,7 @@ interface CuadreData {
   cashAvailableUsd: number;
   closureConfirmed: boolean;
   closureNotes: string;
+  premiosPorPagar: number;
   
   // Exchange rate
   exchangeRate: number;
@@ -65,6 +66,7 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
     cashAvailableUsd: 0,
     closureConfirmed: false,
     closureNotes: '',
+    premiosPorPagar: 0,
     exchangeRate: 36.00,
   });
   
@@ -72,12 +74,14 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
   const [exchangeRateInput, setExchangeRateInput] = useState<string>('36.00');
   const [cashAvailableInput, setCashAvailableInput] = useState<string>('0');
   const [cashAvailableUsdInput, setCashAvailableUsdInput] = useState<string>('0');
+  const [premiosPorPagarInput, setPremiosPorPagarInput] = useState<string>('0');
   
   // Track if user has manually edited the fields to prevent overriding them
   const [fieldsEditedByUser, setFieldsEditedByUser] = useState({
     exchangeRate: false,
     cashAvailable: false,
     cashAvailableUsd: false,
+    premiosPorPagar: false,
   });
   
   const [loading, setLoading] = useState(true);
@@ -128,6 +132,7 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
           cashAvailableUsd: 0,
           closureConfirmed: false,
           closureNotes: '',
+          premiosPorPagar: 0,
           exchangeRate: 36.00,
         });
         setLoading(false);
@@ -259,6 +264,7 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
         cashAvailableUsd: sessionData ? Number(sessionData.cash_available_usd || 0) : 0,
         closureConfirmed: sessionData ? sessionData.daily_closure_confirmed || false : false,
         closureNotes: sessionData ? sessionData.closure_notes || '' : '',
+        premiosPorPagar: 0,
         exchangeRate: sessionData ? Number(sessionData.exchange_rate || 36.00) : 36.00,
         sessionId: sessionData?.id,
       };
@@ -274,6 +280,9 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
       }
       if (!fieldsEditedByUser.cashAvailableUsd) {
         setCashAvailableUsdInput(finalCuadre.cashAvailableUsd.toString());
+      }
+      if (!fieldsEditedByUser.premiosPorPagar) {
+        setPremiosPorPagarInput(finalCuadre.premiosPorPagar.toString());
       }
     } catch (error) {
       console.error('Error fetching cuadre data:', error);
@@ -354,7 +363,8 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
     (excessUsd * cuadre.exchangeRate);
 
   const diferenciaCierre = sumatoriaBolivares - cuadreVentasPremios.bs;
-  const isCuadreBalanced = Math.abs(diferenciaCierre) < 1; // Allow 1 Bs difference
+  const diferenciaFinal = diferenciaCierre - cuadre.premiosPorPagar;
+  const isCuadreBalanced = Math.abs(diferenciaFinal) <= 100; // Allow 100 Bs tolerance
 
   const isSingleDay = dateRange && format(dateRange.from, 'yyyy-MM-dd') === format(dateRange.to, 'yyyy-MM-dd');
 
@@ -421,7 +431,7 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
               </CardContent>
             </Card>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="cash-available">Efectivo disponible del día (Bs)</Label>
                 <Input
@@ -467,6 +477,31 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
                     if (e.target.value === '' || parseFloat(e.target.value) < 0) {
                       setCashAvailableUsdInput('0');
                       setCuadre(prev => ({ ...prev, cashAvailableUsd: 0 }));
+                    }
+                  }}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="premios-por-pagar">Premios por pagar (Bs)</Label>
+                <Input
+                  id="premios-por-pagar"
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={premiosPorPagarInput}
+                  onChange={(e) => {
+                    setPremiosPorPagarInput(e.target.value);
+                    setFieldsEditedByUser(prev => ({ ...prev, premiosPorPagar: true }));
+                    const amount = parseFloat(e.target.value);
+                    if (!isNaN(amount) && amount >= 0) {
+                      setCuadre(prev => ({ ...prev, premiosPorPagar: amount }));
+                    }
+                  }}
+                  onBlur={(e) => {
+                    if (e.target.value === '' || parseFloat(e.target.value) < 0) {
+                      setPremiosPorPagarInput('0');
+                      setCuadre(prev => ({ ...prev, premiosPorPagar: 0 }));
                     }
                   }}
                 />
@@ -572,9 +607,9 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
                   </div>
                   <Separator className="my-3" />
                   <div className="flex justify-between font-bold text-xl mb-4">
-                    <span>Diferencia:</span>
+                    <span>Diferencia Final:</span>
                     <span className={`${isCuadreBalanced ? 'text-success' : 'text-destructive'}`}>
-                      {formatCurrency(diferenciaCierre, 'VES')}
+                      {formatCurrency(diferenciaFinal, 'VES')}
                     </span>
                   </div>
                   <div className="flex items-center gap-2 justify-center mt-4">
