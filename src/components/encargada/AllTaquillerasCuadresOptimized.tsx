@@ -129,10 +129,25 @@ export function AllTaquillerasCuadresOptimized() {
         .select(`
           user_id,
           full_name,
-          agency_id,
-          agencies(id, name)
+          agency_id
         `)
         .in('user_id', userIds);
+
+      // Fetch agency data separately
+      const agencyIds = [...new Set(profiles?.map(p => p.agency_id).filter(Boolean) || [])];
+      let agenciesMap: Record<string, any> = {};
+      
+      if (agencyIds.length > 0) {
+        const { data: agenciesData } = await supabase
+          .from('agencies')
+          .select('id, name')
+          .in('id', agencyIds);
+        
+        agenciesMap = agenciesData?.reduce((acc, agency) => {
+          acc[agency.id] = agency;
+          return acc;
+        }, {} as Record<string, any>) || {};
+      }
 
       console.log('Profiles found:', profiles?.length || 0, profiles);
       
@@ -167,7 +182,7 @@ export function AllTaquillerasCuadresOptimized() {
           const totalPrizesUsd = prizesResult.data?.reduce((sum, prize) => sum + (prize.amount_usd || 0), 0) || 0;
 
           const profile = profilesMap[session.user_id];
-          const agency = profile?.agencies;
+          const agency = profile?.agency_id ? agenciesMap[profile.agency_id] : null;
 
           return {
             session_id: session.id,
