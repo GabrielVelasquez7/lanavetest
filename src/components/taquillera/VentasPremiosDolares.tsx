@@ -32,7 +32,7 @@ export const VentasPremiosDolares = ({ form, lotteryOptions }: VentasPremiosDola
     return isNaN(num) ? 0 : num;
   };
 
-  const handleNumberInput = (index: number, field: 'sales_usd' | 'prizes_usd', value: string) => {
+  const handleInputChange = (index: number, field: 'sales_usd' | 'prizes_usd', value: string) => {
     const numValue = parseInputValue(value);
     form.setValue(`systems.${index}.${field}`, numValue);
   };
@@ -77,14 +77,9 @@ export const VentasPremiosDolares = ({ form, lotteryOptions }: VentasPremiosDola
                 <Input
                   type="text"
                   placeholder="0.00"
-                  defaultValue={formatNumberForDisplay(system.sales_usd)}
-                  onBlur={(e) => {
-                    const value = parseInputValue(e.target.value);
-                    form.setValue(`systems.${index}.sales_usd`, value);
-                    e.target.value = formatNumberForDisplay(value);
-                  }}
+                  value={formatNumberForDisplay(system.sales_usd)}
                   onChange={(e) => {
-                    handleNumberInput(index, 'sales_usd', e.target.value);
+                    handleInputChange(index, 'sales_usd', e.target.value);
                   }}
                   className="text-center"
                 />
@@ -92,14 +87,9 @@ export const VentasPremiosDolares = ({ form, lotteryOptions }: VentasPremiosDola
                 <Input
                   type="text"
                   placeholder="0.00"
-                  defaultValue={formatNumberForDisplay(system.prizes_usd)}
-                  onBlur={(e) => {
-                    const value = parseInputValue(e.target.value);
-                    form.setValue(`systems.${index}.prizes_usd`, value);
-                    e.target.value = formatNumberForDisplay(value);
-                  }}
+                  value={formatNumberForDisplay(system.prizes_usd)}
                   onChange={(e) => {
-                    handleNumberInput(index, 'prizes_usd', e.target.value);
+                    handleInputChange(index, 'prizes_usd', e.target.value);
                   }}
                   className="text-center"
                 />
