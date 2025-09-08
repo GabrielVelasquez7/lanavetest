@@ -374,6 +374,107 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
         )}
       </div>
 
+      {/* Daily Closure Section - Only for single day */}
+      {isSingleDay && (
+        <Card className="border-2 border-accent/20">
+          <CardHeader>
+            <CardTitle className="text-accent">Cierre Diario</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Exchange Rate Section */}
+            <Card className="bg-primary/5 border-primary/20">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  💱 Tasa del Día
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <Label htmlFor="exchange-rate">Tasa de cambio (Bs por USD)</Label>
+                  <Input
+                    id="exchange-rate"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="36.00"
+                    value={exchangeRateInput}
+                    onChange={(e) => {
+                      setExchangeRateInput(e.target.value);
+                      setFieldsEditedByUser(prev => ({ ...prev, exchangeRate: true }));
+                      const rate = parseFloat(e.target.value);
+                      if (!isNaN(rate) && rate > 0) {
+                        setCuadre(prev => ({ ...prev, exchangeRate: rate }));
+                      }
+                    }}
+                    onBlur={(e) => {
+                      if (e.target.value === '' || parseFloat(e.target.value) <= 0) {
+                        setExchangeRateInput('36.00');
+                        setCuadre(prev => ({ ...prev, exchangeRate: 36.00 }));
+                      }
+                    }}
+                    className="text-center font-medium"
+                  />
+                  <p className="text-sm text-muted-foreground">
+                    Esta tasa se aplica automáticamente para convertir dólares a bolívares en el cuadre.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="cash-available">Efectivo disponible del día (Bs)</Label>
+                <Input
+                  id="cash-available"
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={cashAvailableInput}
+                  onChange={(e) => {
+                    setCashAvailableInput(e.target.value);
+                    setFieldsEditedByUser(prev => ({ ...prev, cashAvailable: true }));
+                    const amount = parseFloat(e.target.value);
+                    if (!isNaN(amount) && amount >= 0) {
+                      setCuadre(prev => ({ ...prev, cashAvailable: amount }));
+                    }
+                  }}
+                  onBlur={(e) => {
+                    if (e.target.value === '' || parseFloat(e.target.value) < 0) {
+                      setCashAvailableInput('0');
+                      setCuadre(prev => ({ ...prev, cashAvailable: 0 }));
+                    }
+                  }}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="cash-available-usd">Efectivo disponible en USD</Label>
+                <Input
+                  id="cash-available-usd"
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={cashAvailableUsdInput}
+                  onChange={(e) => {
+                    setCashAvailableUsdInput(e.target.value);
+                    setFieldsEditedByUser(prev => ({ ...prev, cashAvailableUsd: true }));
+                    const amount = parseFloat(e.target.value);
+                    if (!isNaN(amount) && amount >= 0) {
+                      setCuadre(prev => ({ ...prev, cashAvailableUsd: amount }));
+                    }
+                  }}
+                  onBlur={(e) => {
+                    if (e.target.value === '' || parseFloat(e.target.value) < 0) {
+                      setCashAvailableUsdInput('0');
+                      setCuadre(prev => ({ ...prev, cashAvailableUsd: 0 }));
+                    }
+                  }}
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Detailed Breakdown */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -567,105 +668,10 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
         </CardContent>
       </Card>
 
-      {/* Daily Closure Section - Only for single day */}
+      {/* Confirmation and Notes Section - Only for single day */}
       {isSingleDay && (
         <Card className="border-2 border-accent/20">
-          <CardHeader>
-            <CardTitle className="text-accent">Cierre Diario</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Exchange Rate Section */}
-            <Card className="bg-primary/5 border-primary/20">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  💱 Tasa del Día
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <Label htmlFor="exchange-rate">Tasa de cambio (Bs por USD)</Label>
-                  <Input
-                    id="exchange-rate"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder="36.00"
-                    value={exchangeRateInput}
-                    onChange={(e) => {
-                      setExchangeRateInput(e.target.value);
-                      setFieldsEditedByUser(prev => ({ ...prev, exchangeRate: true }));
-                      const rate = parseFloat(e.target.value);
-                      if (!isNaN(rate) && rate > 0) {
-                        setCuadre(prev => ({ ...prev, exchangeRate: rate }));
-                      }
-                    }}
-                    onBlur={(e) => {
-                      if (e.target.value === '' || parseFloat(e.target.value) <= 0) {
-                        setExchangeRateInput('36.00');
-                        setCuadre(prev => ({ ...prev, exchangeRate: 36.00 }));
-                      }
-                    }}
-                    className="text-center font-medium"
-                  />
-                  <p className="text-sm text-muted-foreground">
-                    Esta tasa se aplica automáticamente para convertir dólares a bolívares en el cuadre.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="cash-available">Efectivo disponible del día (Bs)</Label>
-                <Input
-                  id="cash-available"
-                  type="number"
-                  step="0.01"
-                  placeholder="0.00"
-                  value={cashAvailableInput}
-                  onChange={(e) => {
-                    setCashAvailableInput(e.target.value);
-                    setFieldsEditedByUser(prev => ({ ...prev, cashAvailable: true }));
-                    const amount = parseFloat(e.target.value);
-                    if (!isNaN(amount) && amount >= 0) {
-                      setCuadre(prev => ({ ...prev, cashAvailable: amount }));
-                    }
-                  }}
-                  onBlur={(e) => {
-                    if (e.target.value === '' || parseFloat(e.target.value) < 0) {
-                      setCashAvailableInput('0');
-                      setCuadre(prev => ({ ...prev, cashAvailable: 0 }));
-                    }
-                  }}
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="cash-available-usd">Efectivo disponible en USD</Label>
-                <Input
-                  id="cash-available-usd"
-                  type="number"
-                  step="0.01"
-                  placeholder="0.00"
-                  value={cashAvailableUsdInput}
-                  onChange={(e) => {
-                    setCashAvailableUsdInput(e.target.value);
-                    setFieldsEditedByUser(prev => ({ ...prev, cashAvailableUsd: true }));
-                    const amount = parseFloat(e.target.value);
-                    if (!isNaN(amount) && amount >= 0) {
-                      setCuadre(prev => ({ ...prev, cashAvailableUsd: amount }));
-                    }
-                  }}
-                  onBlur={(e) => {
-                    if (e.target.value === '' || parseFloat(e.target.value) < 0) {
-                      setCashAvailableUsdInput('0');
-                      setCuadre(prev => ({ ...prev, cashAvailableUsd: 0 }));
-                    }
-                  }}
-                />
-              </div>
-            </div>
-            
+          <CardContent className="space-y-4 pt-6">
             <div className="flex items-center justify-center">
               <div className="flex items-center space-x-2">
                 <Switch
