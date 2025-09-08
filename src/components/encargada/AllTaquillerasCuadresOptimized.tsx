@@ -37,6 +37,21 @@ interface TaquilleraCuadre {
   total_sales_usd: number;
   total_prizes_bs: number;
   total_prizes_usd: number;
+  // New fields for complete cuadre calculation
+  total_gastos_bs?: number;
+  total_gastos_usd?: number;
+  total_deudas_bs?: number;
+  total_deudas_usd?: number;
+  pago_movil_recibidos?: number;
+  pago_movil_pagados?: number;
+  premios_por_pagar?: number;
+  cuadre_ventas_premios_bs?: number;
+  cuadre_ventas_premios_usd?: number;
+  total_banco?: number;
+  excess_usd?: number;
+  sumatoria_bolivares?: number;
+  diferencia_cierre?: number;
+  diferencia_final?: number;
 }
 
 interface AgencyGroup {
@@ -173,6 +188,21 @@ export function AllTaquillerasCuadresOptimized() {
           total_sales_usd: cuadre.total_sales_usd || 0,
           total_prizes_bs: cuadre.total_prizes_bs || 0,
           total_prizes_usd: cuadre.total_prizes_usd || 0,
+          // New fields for complete cuadre calculation
+          total_gastos_bs: cuadre.total_gastos_bs || 0,
+          total_gastos_usd: cuadre.total_gastos_usd || 0,
+          total_deudas_bs: cuadre.total_deudas_bs || 0,
+          total_deudas_usd: cuadre.total_deudas_usd || 0,
+          pago_movil_recibidos: cuadre.pago_movil_recibidos || 0,
+          pago_movil_pagados: cuadre.pago_movil_pagados || 0,
+          premios_por_pagar: cuadre.premios_por_pagar || 0,
+          cuadre_ventas_premios_bs: cuadre.cuadre_ventas_premios_bs || 0,
+          cuadre_ventas_premios_usd: cuadre.cuadre_ventas_premios_usd || 0,
+          total_banco: cuadre.total_banco || 0,
+          excess_usd: cuadre.excess_usd || 0,
+          sumatoria_bolivares: cuadre.sumatoria_bolivares || 0,
+          diferencia_cierre: cuadre.diferencia_cierre || 0,
+          diferencia_final: cuadre.diferencia_final || 0,
         } as TaquilleraCuadre;
       });
 
@@ -264,10 +294,8 @@ export function AllTaquillerasCuadresOptimized() {
   };
 
   const calculateBalance = (cuadre: TaquilleraCuadre) => {
-    const totalIncomeBs = cuadre.total_sales_bs + cuadre.total_sales_usd * cuadre.exchange_rate;
-    const availableBs = cuadre.cash_available_bs + cuadre.cash_available_usd * cuadre.exchange_rate;
-    const balanceBs = availableBs - totalIncomeBs + cuadre.total_prizes_bs + cuadre.total_prizes_usd * cuadre.exchange_rate;
-    return balanceBs;
+    // Use the pre-calculated diferencia_final from the summary table
+    return (cuadre as any).diferencia_final || 0;
   };
 
   const totalTaquilleras = agencyGroups.reduce((sum, group) => sum + group.total_taquilleras, 0);
