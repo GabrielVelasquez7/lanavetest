@@ -130,7 +130,7 @@ export function AllTaquillerasCuadresOptimized() {
           user_id,
           full_name,
           agency_id,
-          agencies!profiles_agency_id_fkey(id, name)
+          agencies(id, name)
         `)
         .in('user_id', userIds);
 
