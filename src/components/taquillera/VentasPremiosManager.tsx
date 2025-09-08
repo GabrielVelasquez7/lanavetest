@@ -11,7 +11,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { VentasPremiosBolivares } from './VentasPremiosBolivares';
 import { VentasPremiosDolares } from './VentasPremiosDolares';
 import { Edit } from 'lucide-react';
-import { format } from 'date-fns';
 import { formatCurrency } from '@/lib/utils';
 import { formatDateForDB } from '@/lib/dateUtils';
 
@@ -90,6 +89,7 @@ export const VentasPremiosManager = ({ onSuccess, dateRange }: VentasPremiosMana
         await loadDateRangeData(systemsData);
 
       } catch (error: any) {
+        console.error('❌ Error en fetchData:', error);
         toast({
           title: 'Error',
           description: error.message || 'No se pudieron cargar los datos',
@@ -190,8 +190,13 @@ export const VentasPremiosManager = ({ onSuccess, dateRange }: VentasPremiosMana
     );
   }, [form]);
 
-  const onSubmit = async (data: VentasPremiosForm) => {
-    if (!user || !dateRange) return;
+  const handleSubmit = async () => {
+    console.log('🔍 INICIANDO SUBMIT - Función ejecutándose...');
+    
+    if (!user || !dateRange) {
+      console.error('❌ No hay usuario o dateRange');
+      return;
+    }
 
     // Solo permitir guardar si es un solo día
     const fromDate = formatDateForDB(dateRange.from);
@@ -207,11 +212,18 @@ export const VentasPremiosManager = ({ onSuccess, dateRange }: VentasPremiosMana
     }
 
     setLoading(true);
+    console.log('🔍 LOADING SET TO TRUE');
+
     try {
+      // Obtener datos del formulario
+      const data = form.getValues();
+      console.log('🔍 DATOS DEL FORMULARIO:', data);
+
       let sessionId = currentSessionId;
 
       // Crear sesión si no existe
       if (!sessionId) {
+        console.log('🔍 CREANDO NUEVA SESIÓN...');
         const { data: newSession, error: createError } = await supabase
           .from('daily_sessions')
           .insert({
@@ -224,10 +236,12 @@ export const VentasPremiosManager = ({ onSuccess, dateRange }: VentasPremiosMana
         if (createError) throw createError;
         sessionId = newSession.id;
         setCurrentSessionId(sessionId);
+        console.log('🔍 SESIÓN CREADA:', sessionId);
       }
 
       // Si estamos en modo edición, eliminar transacciones existentes
       if (editMode && sessionId) {
+        console.log('🔍 ELIMINANDO TRANSACCIONES EXISTENTES...');
         await Promise.all([
           supabase.from('sales_transactions').delete().eq('session_id', sessionId),
           supabase.from('prize_transactions').delete().eq('session_id', sessionId)
@@ -238,6 +252,8 @@ export const VentasPremiosManager = ({ onSuccess, dateRange }: VentasPremiosMana
       const systemsWithData = data.systems.filter(
         system => system.sales_bs > 0 || system.sales_usd > 0 || system.prizes_bs > 0 || system.prizes_usd > 0
       );
+
+      console.log('🔍 SISTEMAS CON DATOS:', systemsWithData);
 
       if (systemsWithData.length === 0) {
         toast({
@@ -267,7 +283,14 @@ export const VentasPremiosManager = ({ onSuccess, dateRange }: VentasPremiosMana
           amount_usd: system.prizes_usd,
         }));
 
-      // Insertar datos
+      console.log('🔍 DATOS A INSERTAR:', { 
+        salesDataLength: salesData.length, 
+        prizesDataLength: prizesData.length,
+        salesData,
+        prizesData 
+      });
+
+      // Insertar datos de transacciones
       const promises = [];
       if (salesData.length > 0) {
         promises.push(supabase.from('sales_transactions').insert(salesData));
@@ -276,9 +299,6 @@ export const VentasPremiosManager = ({ onSuccess, dateRange }: VentasPremiosMana
         promises.push(supabase.from('prize_transactions').insert(prizesData));
       }
 
-      console.log('🔍 DATOS A INSERTAR:', { salesDataLength: salesData.length, prizesDataLength: prizesData.length });
-
-      // Ejecutar inserciones solo si hay datos
       if (promises.length > 0) {
         const results = await Promise.all(promises);
         const errors = results.filter(r => r.error);
@@ -289,8 +309,8 @@ export const VentasPremiosManager = ({ onSuccess, dateRange }: VentasPremiosMana
         }
       }
 
-      // Calcular totales con los datos actualizados
-      const currentTotals = data.systems.reduce(
+      // Calcular totales para el resumen
+      const currentTotals = systemsWithData.reduce(
         (acc, system) => ({
           sales_bs: acc.sales_bs + (system.sales_bs || 0),
           sales_usd: acc.sales_usd + (system.sales_usd || 0),
@@ -318,7 +338,7 @@ export const VentasPremiosManager = ({ onSuccess, dateRange }: VentasPremiosMana
 
       console.log('🔍 GUARDANDO SUMMARY - Datos:', summaryData);
 
-      // Si estamos en modo edición, actualizar el registro existente
+      // Insertar o actualizar resumen
       if (editMode) {
         const { data: summaryResult, error: updateSummaryError } = await supabase
           .from('daily_cuadres_summary')
@@ -334,7 +354,6 @@ export const VentasPremiosManager = ({ onSuccess, dateRange }: VentasPremiosMana
           throw new Error(`Error actualizando resumen: ${updateSummaryError.message}`);
         }
       } else {
-        // Crear nuevo registro de resumen
         const { data: summaryResult, error: insertSummaryError } = await supabase
           .from('daily_cuadres_summary')
           .insert(summaryData)
@@ -359,6 +378,7 @@ export const VentasPremiosManager = ({ onSuccess, dateRange }: VentasPremiosMana
       onSuccess?.();
 
     } catch (error: any) {
+      console.error('❌ ERROR GENERAL:', error);
       toast({
         title: 'Error',
         description: error.message || 'Error al procesar las transacciones',
@@ -366,6 +386,7 @@ export const VentasPremiosManager = ({ onSuccess, dateRange }: VentasPremiosMana
       });
     } finally {
       setLoading(false);
+      console.log('🔍 LOADING SET TO FALSE');
     }
   };
 
@@ -451,7 +472,7 @@ export const VentasPremiosManager = ({ onSuccess, dateRange }: VentasPremiosMana
       {/* Botón de guardar */}
       <div className="flex justify-center">
         <Button 
-          onClick={form.handleSubmit(onSubmit)} 
+          onClick={handleSubmit}
           disabled={loading} 
           size="lg"
           className="min-w-[200px]"
