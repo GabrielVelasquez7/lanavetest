@@ -12,6 +12,7 @@ import { es } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { TaquilleraCuadreDetalle } from './TaquilleraCuadreDetalle';
 import {
   Dialog,
   DialogContent,
@@ -23,6 +24,7 @@ import {
 interface TaquilleraCuadre {
   session_id: string;
   session_date: string;
+  user_id: string; // Add user_id field
   user_name: string;
   agency_id: string;
   agency_name: string;
@@ -174,6 +176,7 @@ export function AllTaquillerasCuadresOptimized() {
         return {
           session_id: cuadre.session_id,
           session_date: cuadre.session_date,
+          user_id: cuadre.user_id, // Add user_id
           user_name: profile?.full_name || 'Usuario desconocido',
           agency_id: cuadre.agency_id || profile?.agency_id || 'sin-agencia',
           agency_name: agency?.name || 'Sin agencia',
@@ -294,7 +297,7 @@ export function AllTaquillerasCuadresOptimized() {
   };
 
   const calculateBalance = (cuadre: TaquilleraCuadre) => {
-    // Use the pre-calculated diferencia_final from the summary table
+    // Use the pre-calculated diferencia_final from the summary table (already includes premios por pagar subtraction)
     return (cuadre as any).diferencia_final || 0;
   };
 
@@ -529,106 +532,15 @@ export function AllTaquillerasCuadresOptimized() {
                               Ver Detalles
                             </Button>
                           </DialogTrigger>
-                          <DialogContent className="max-w-2xl">
+                          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
                             <DialogHeader>
-                              <DialogTitle>
-                                Detalles del Cuadre - {cuadre.user_name}
-                              </DialogTitle>
+                              <DialogTitle>Cuadre Detallado - {cuadre.user_name}</DialogTitle>
                             </DialogHeader>
-                            {selectedCuadre && (
-                              <div className="space-y-4">
-                                <div className="grid grid-cols-2 gap-4">
-                                  <div>
-                                    <Label>Taquillera</Label>
-                                    <p className="font-semibold">{selectedCuadre.user_name}</p>
-                                  </div>
-                                  <div>
-                                    <Label>Agencia</Label>
-                                    <p className="font-semibold">{selectedCuadre.agency_name}</p>
-                                  </div>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-4">
-                                  <div>
-                                    <Label>Total Ventas Bs</Label>
-                                    <p className="text-lg font-bold text-green-600">
-                                      Bs {selectedCuadre.total_sales_bs.toLocaleString('es-VE', { minimumFractionDigits: 2 })}
-                                    </p>
-                                  </div>
-                                  <div>
-                                    <Label>Total Ventas USD</Label>
-                                    <p className="text-lg font-bold text-green-600">
-                                      $ {selectedCuadre.total_sales_usd.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                                    </p>
-                                  </div>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-4">
-                                  <div>
-                                    <Label>Total Premios Bs</Label>
-                                    <p className="text-lg font-bold text-red-600">
-                                      Bs {selectedCuadre.total_prizes_bs.toLocaleString('es-VE', { minimumFractionDigits: 2 })}
-                                    </p>
-                                  </div>
-                                  <div>
-                                    <Label>Total Premios USD</Label>
-                                    <p className="text-lg font-bold text-red-600">
-                                      $ {selectedCuadre.total_prizes_usd.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                                    </p>
-                                  </div>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-4">
-                                  <div>
-                                    <Label>Efectivo Disponible Bs</Label>
-                                    <p className="text-lg font-bold">
-                                      Bs {selectedCuadre.cash_available_bs.toLocaleString('es-VE', { minimumFractionDigits: 2 })}
-                                    </p>
-                                  </div>
-                                  <div>
-                                    <Label>Efectivo Disponible USD</Label>
-                                    <p className="text-lg font-bold">
-                                      $ {selectedCuadre.cash_available_usd.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                                    </p>
-                                  </div>
-                                </div>
-
-                                <div>
-                                  <Label>Tasa de Cambio</Label>
-                                  <p className="text-lg font-bold">
-                                    Bs {selectedCuadre.exchange_rate.toLocaleString('es-VE', { minimumFractionDigits: 2 })} / USD
-                                  </p>
-                                </div>
-
-                                {selectedCuadre.notes && (
-                                  <div>
-                                    <Label>Notas</Label>
-                                    <p className="p-2 bg-muted rounded">{selectedCuadre.notes}</p>
-                                  </div>
-                                )}
-
-                                {selectedCuadre.closure_notes && (
-                                  <div>
-                                    <Label>Notas de Cierre</Label>
-                                    <p className="p-2 bg-muted rounded">{selectedCuadre.closure_notes}</p>
-                                  </div>
-                                )}
-
-                                <div className="pt-4 border-t">
-                                  <div className={cn(
-                                    "text-center p-4 rounded",
-                                    isBalanced ? "bg-green-50 text-green-800" : "bg-red-50 text-red-800"
-                                  )}>
-                                    <p className="font-semibold">
-                                      Balance Final: Bs {calculateBalance(selectedCuadre).toLocaleString('es-VE', { minimumFractionDigits: 2 })}
-                                    </p>
-                                    <p className="text-sm mt-1">
-                                      {isBalanced ? "✅ Cuadre perfecto (dentro de tolerancia)" : "⚠️ Cuadre con diferencia"}
-                                    </p>
-                                  </div>
-                                </div>
-                              </div>
-                            )}
+                            <TaquilleraCuadreDetalle
+                              userId={cuadre.user_id}
+                              selectedDate={selectedDate}
+                              userFullName={cuadre.user_name}
+                            />
                           </DialogContent>
                         </Dialog>
                       </CardContent>
