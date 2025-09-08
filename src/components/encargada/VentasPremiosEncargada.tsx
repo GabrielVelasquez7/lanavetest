@@ -1,0 +1,407 @@
+import { useState, useEffect, useCallback } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { VentasPremiosBolivares } from '../taquillera/VentasPremiosBolivares';
+import { VentasPremiosDolares } from '../taquillera/VentasPremiosDolares';
+import { Edit, Building2 } from 'lucide-react';
+import { formatCurrency } from '@/lib/utils';
+import { formatDateForDB } from '@/lib/dateUtils';
+
+const systemEntrySchema = z.object({
+  lottery_system_id: z.string(),
+  lottery_system_name: z.string(),
+  sales_bs: z.number().min(0),
+  sales_usd: z.number().min(0),
+  prizes_bs: z.number().min(0),
+  prizes_usd: z.number().min(0),
+});
+
+const ventasPremiosSchema = z.object({
+  systems: z.array(systemEntrySchema),
+});
+
+export type VentasPremiosForm = z.infer<typeof ventasPremiosSchema>;
+export type SystemEntry = z.infer<typeof systemEntrySchema>;
+
+interface LotterySystem {
+  id: string;
+  name: string;
+  code: string;
+}
+
+interface Agency {
+  id: string;
+  name: string;
+}
+
+interface VentasPremiosEncargadaProps {
+  dateRange?: {
+    from: Date;
+    to: Date;
+  };
+}
+
+export const VentasPremiosEncargada = ({ dateRange }: VentasPremiosEncargadaProps) => {
+  const [activeTab, setActiveTab] = useState('bolivares');
+  const [lotteryOptions, setLotteryOptions] = useState<LotterySystem[]>([]);
+  const [agencies, setAgencies] = useState<Agency[]>([]);
+  const [selectedAgency, setSelectedAgency] = useState<string>('');
+  const [loading, setLoading] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [currentCuadreId, setCurrentCuadreId] = useState<string | null>(null);
+  const { user } = useAuth();
+  const { toast } = useToast();
+
+  const form = useForm<VentasPremiosForm>({
+    resolver: zodResolver(ventasPremiosSchema),
+    defaultValues: {
+      systems: [],
+    },
+  });
+
+  // Cargar agencias y sistemas de lotería
+  useEffect(() => {
+    const fetchInitialData = async () => {
+      try {
+        const [agenciesResult, systemsResult] = await Promise.all([
+          supabase
+            .from('agencies')
+            .select('id, name')
+            .eq('is_active', true)
+            .order('name'),
+          supabase
+            .from('lottery_systems')
+            .select('id, name, code')
+            .eq('is_active', true)
+            .order('name')
+        ]);
+
+        if (agenciesResult.error) throw agenciesResult.error;
+        if (systemsResult.error) throw systemsResult.error;
+
+        setAgencies(agenciesResult.data || []);
+        setLotteryOptions(systemsResult.data || []);
+
+        // Seleccionar primera agencia por defecto
+        if (agenciesResult.data && agenciesResult.data.length > 0) {
+          setSelectedAgency(agenciesResult.data[0].id);
+        }
+
+      } catch (error: any) {
+        toast({
+          title: 'Error',
+          description: error.message || 'No se pudieron cargar los datos iniciales',
+          variant: 'destructive',
+        });
+      }
+    };
+
+    fetchInitialData();
+  }, [user, toast]);
+
+  // Cargar datos cuando cambie la agencia o el rango de fechas
+  useEffect(() => {
+    if (selectedAgency && lotteryOptions.length > 0) {
+      loadAgencyData();
+    }
+  }, [selectedAgency, dateRange, lotteryOptions]);
+
+  const loadAgencyData = async () => {
+    if (!user || !dateRange || !selectedAgency) return;
+
+    const fromDate = formatDateForDB(dateRange.from);
+    const toDate = formatDateForDB(dateRange.to);
+    
+    try {
+      // Inicializar formulario con todos los sistemas
+      const systemsData: SystemEntry[] = lotteryOptions.map(system => ({
+        lottery_system_id: system.id,
+        lottery_system_name: system.name,
+        sales_bs: 0,
+        sales_usd: 0,
+        prizes_bs: 0,
+        prizes_usd: 0,
+      }));
+
+      // Buscar cuadres existentes para la agencia en el rango de fechas
+      const { data: cuadres } = await supabase
+        .from('daily_system_cuadres')
+        .select('*')
+        .eq('agency_id', selectedAgency)
+        .gte('cuadre_date', fromDate)
+        .lte('cuadre_date', toDate);
+
+      if (cuadres && cuadres.length > 0) {
+        // Agrupar por sistema de lotería y sumar los montos
+        const systemsWithData = systemsData.map(system => {
+          const systemCuadres = cuadres.filter(c => c.lottery_system_id === system.lottery_system_id);
+          
+          return {
+            ...system,
+            sales_bs: systemCuadres.reduce((sum, c) => sum + Number(c.amount_bs || 0), 0),
+            sales_usd: systemCuadres.reduce((sum, c) => sum + Number(c.amount_usd || 0), 0),
+            prizes_bs: 0, // Los cuadres solo tienen montos netos, no separamos premios
+            prizes_usd: 0,
+          };
+        });
+
+        form.setValue('systems', systemsWithData);
+        
+        // Determinar si estamos en modo edición (solo si es un día único)
+        const isSingleDay = fromDate === toDate;
+        const hasData = systemsWithData.some(s => s.sales_bs > 0 || s.sales_usd > 0);
+        setEditMode(hasData && isSingleDay);
+        
+        // Establecer ID del cuadre si es un día único
+        if (isSingleDay && cuadres.length > 0) {
+          setCurrentCuadreId(cuadres[0].id);
+        } else {
+          setCurrentCuadreId(null);
+        }
+      } else {
+        form.setValue('systems', systemsData);
+        setEditMode(false);
+        setCurrentCuadreId(null);
+      }
+    } catch (error) {
+      console.error('Error loading agency data:', error);
+      const systemsData: SystemEntry[] = lotteryOptions.map(system => ({
+        lottery_system_id: system.id,
+        lottery_system_name: system.name,
+        sales_bs: 0,
+        sales_usd: 0,
+        prizes_bs: 0,
+        prizes_usd: 0,
+      }));
+      form.setValue('systems', systemsData);
+      setEditMode(false);
+      setCurrentCuadreId(null);
+    }
+  };
+
+  const calculateTotals = useCallback(() => {
+    const systems = form.watch('systems');
+    return systems.reduce(
+      (acc, system) => ({
+        sales_bs: acc.sales_bs + (system.sales_bs || 0),
+        sales_usd: acc.sales_usd + (system.sales_usd || 0),
+        prizes_bs: acc.prizes_bs + (system.prizes_bs || 0),
+        prizes_usd: acc.prizes_usd + (system.prizes_usd || 0),
+      }),
+      { sales_bs: 0, sales_usd: 0, prizes_bs: 0, prizes_usd: 0 }
+    );
+  }, [form]);
+
+  const onSubmit = async (data: VentasPremiosForm) => {
+    if (!user || !dateRange || !selectedAgency) return;
+
+    // Solo permitir guardar si es un solo día
+    const fromDate = formatDateForDB(dateRange.from);
+    const toDate = formatDateForDB(dateRange.to);
+    
+    if (fromDate !== toDate) {
+      toast({
+        title: 'Error',
+        description: 'Solo puedes guardar cambios para un día específico. Selecciona una fecha única.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Si estamos en modo edición, eliminar cuadres existentes para esta fecha y agencia
+      if (editMode) {
+        await supabase
+          .from('daily_system_cuadres')
+          .delete()
+          .eq('agency_id', selectedAgency)
+          .eq('cuadre_date', fromDate);
+      }
+
+      // Filtrar sistemas con datos (cuadre neto = ventas - premios)
+      const systemsWithData = data.systems.filter(
+        system => {
+          const cuadreNeto = (system.sales_bs - system.prizes_bs) !== 0 || 
+                           (system.sales_usd - system.prizes_usd) !== 0;
+          return cuadreNeto;
+        }
+      );
+
+      if (systemsWithData.length === 0) {
+        toast({
+          title: 'Error',
+          description: 'Debe ingresar al menos un cuadre con datos',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // Preparar datos para insertar (guardamos el cuadre neto)
+      const cuadresData = systemsWithData.map(system => ({
+        user_id: user.id,
+        agency_id: selectedAgency,
+        cuadre_date: fromDate,
+        lottery_system_id: system.lottery_system_id,
+        amount_bs: system.sales_bs - system.prizes_bs, // Cuadre neto en Bs
+        amount_usd: system.sales_usd - system.prizes_usd, // Cuadre neto en USD
+      }));
+
+      // Insertar nuevos cuadres
+      const { error: insertError } = await supabase
+        .from('daily_system_cuadres')
+        .insert(cuadresData);
+
+      if (insertError) throw insertError;
+
+      toast({
+        title: 'Éxito',
+        description: editMode 
+          ? 'Cuadre actualizado correctamente'
+          : `Registrados ${cuadresData.length} cuadres correctamente`,
+      });
+
+      setEditMode(true);
+      await loadAgencyData();
+
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Error al procesar los cuadres',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const totals = calculateTotals();
+  const selectedAgencyName = agencies.find(a => a.id === selectedAgency)?.name || '';
+
+  return (
+    <div className="space-y-6">
+      {/* Selector de Agencia */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <Building2 className="h-5 w-5 mr-2" />
+            Seleccionar Agencia
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Select value={selectedAgency} onValueChange={setSelectedAgency}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Selecciona una agencia" />
+            </SelectTrigger>
+            <SelectContent>
+              {agencies.map((agency) => (
+                <SelectItem key={agency.id} value={agency.id}>
+                  {agency.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </CardContent>
+      </Card>
+
+      {selectedAgency && (
+        <>
+          {/* Resumen de totales */}
+          <Card className="bg-muted/50">
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <span>Resumen del Cuadre - {selectedAgencyName} {editMode && <Edit className="h-4 w-4 ml-2" />}</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                <div>
+                  <p className="text-sm text-muted-foreground">Ventas Bs</p>
+                  <p className="text-xl font-bold text-success">
+                    {formatCurrency(totals.sales_bs, 'VES')}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Premios Bs</p>
+                  <p className="text-xl font-bold text-destructive">
+                    {formatCurrency(totals.prizes_bs, 'VES')}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Ventas USD</p>
+                  <p className="text-xl font-bold text-success">
+                    {formatCurrency(totals.sales_usd, 'USD')}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Premios USD</p>
+                  <p className="text-xl font-bold text-destructive">
+                    {formatCurrency(totals.prizes_usd, 'USD')}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-4 pt-4 border-t">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-center">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Cuadre Bs</p>
+                    <p className={`text-2xl font-bold ${(totals.sales_bs - totals.prizes_bs) >= 0 ? 'text-success' : 'text-destructive'}`}>
+                      {formatCurrency(totals.sales_bs - totals.prizes_bs, 'VES')}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Cuadre USD</p>
+                    <p className={`text-2xl font-bold ${(totals.sales_usd - totals.prizes_usd) >= 0 ? 'text-success' : 'text-destructive'}`}>
+                      {formatCurrency(totals.sales_usd - totals.prizes_usd, 'USD')}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Tabs para diferentes secciones */}
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="bolivares">Ventas/Premios Bs</TabsTrigger>
+              <TabsTrigger value="dolares">Ventas/Premios USD</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="bolivares" className="space-y-4">
+              <VentasPremiosBolivares 
+                form={form} 
+                lotteryOptions={lotteryOptions}
+              />
+            </TabsContent>
+
+            <TabsContent value="dolares" className="space-y-4">
+              <VentasPremiosDolares 
+                form={form} 
+                lotteryOptions={lotteryOptions}
+              />
+            </TabsContent>
+          </Tabs>
+
+          {/* Botón de guardar */}
+          <div className="flex justify-center">
+            <Button 
+              onClick={form.handleSubmit(onSubmit)} 
+              disabled={loading} 
+              size="lg"
+              className="min-w-[200px]"
+            >
+              {loading ? 'Procesando...' : editMode ? 'Actualizar Cuadre' : 'Registrar Cuadre'}
+            </Button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+};

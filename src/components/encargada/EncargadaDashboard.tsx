@@ -4,6 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calculator, Users, Calendar } from "lucide-react";
 import { DailyCuadreSistemasOptimized } from "./DailyCuadreSistemasOptimized";
 import { AllTaquillerasCuadresOptimized } from "./AllTaquillerasCuadresOptimized";
+import { VentasPremiosEncargada } from "./VentasPremiosEncargada";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -105,11 +106,16 @@ export function EncargadaDashboard() {
       <Tabs defaultValue="cuadre-diario" className="space-y-4">
         <TabsList>
           <TabsTrigger value="cuadre-diario">Cuadre Diario de Sistemas</TabsTrigger>
+          <TabsTrigger value="ventas-premios">Ventas y Premios</TabsTrigger>
           <TabsTrigger value="supervision">Supervisión Taquilleras</TabsTrigger>
         </TabsList>
 
         <TabsContent value="cuadre-diario" className="space-y-4">
           <DailyCuadreSistemasOptimized profile={profile} />
+        </TabsContent>
+
+        <TabsContent value="ventas-premios" className="space-y-4">
+          <VentasPremiosEncargada />
         </TabsContent>
 
         <TabsContent value="supervision" className="space-y-4">
