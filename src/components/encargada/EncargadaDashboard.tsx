@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calculator, Users, Calendar } from "lucide-react";
-import { DailyCuadreSistemasOptimized } from "./DailyCuadreSistemasOptimized";
 import { AllTaquillerasCuadresOptimized } from "./AllTaquillerasCuadresOptimized";
 import { VentasPremiosEncargada } from "./VentasPremiosEncargada";
 import { useAuth } from "@/hooks/useAuth";
@@ -62,13 +61,13 @@ export function EncargadaDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Cuadre Diario</CardTitle>
+            <CardTitle className="text-sm font-medium">Cuadre por Agencias</CardTitle>
             <Calculator className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">Sistemas</div>
+            <div className="text-2xl font-bold">Ventas/Premios</div>
             <p className="text-xs text-muted-foreground">
-              Cuadre por sistema de lotería
+              Cuadre por agencia y sistema
             </p>
           </CardContent>
         </Card>
@@ -103,18 +102,13 @@ export function EncargadaDashboard() {
       </div>
 
       {/* Main Content */}
-      <Tabs defaultValue="cuadre-diario" className="space-y-4">
+      <Tabs defaultValue="cuadre-agencias" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="cuadre-diario">Cuadre Diario de Sistemas</TabsTrigger>
-          <TabsTrigger value="ventas-premios">Ventas y Premios</TabsTrigger>
+          <TabsTrigger value="cuadre-agencias">Cuadre por Agencias</TabsTrigger>
           <TabsTrigger value="supervision">Supervisión Taquilleras</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="cuadre-diario" className="space-y-4">
-          <DailyCuadreSistemasOptimized profile={profile} />
-        </TabsContent>
-
-        <TabsContent value="ventas-premios" className="space-y-4">
+        <TabsContent value="cuadre-agencias" className="space-y-4">
           <VentasPremiosEncargada />
         </TabsContent>
 
