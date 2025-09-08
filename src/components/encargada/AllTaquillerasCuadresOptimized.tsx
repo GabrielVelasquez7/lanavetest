@@ -92,57 +92,41 @@ export function AllTaquillerasCuadresOptimized() {
       const dateStr = format(selectedDate, 'yyyy-MM-dd');
       console.log('Fetching cuadres for date:', dateStr);
       
-      const { data: sessions, error: sessionsError } = await supabase
-        .from('daily_sessions')
-        .select(`
-          id,
-          session_date,
-          is_closed,
-          daily_closure_confirmed,
-          cash_available_bs,
-          cash_available_usd,
-          exchange_rate,
-          notes,
-          closure_notes,
-          user_id
-        `)
+      // Query the summary table directly 
+      const { data: cuadresSummary, error: cuadresError } = await supabase
+        .from('daily_cuadres_summary')
+        .select('*')
         .eq('session_date', dateStr)
         .order('created_at', { ascending: false });
 
-      console.log('Sessions found:', sessions?.length || 0, sessions);
+      console.log('Cuadres summary found:', cuadresSummary?.length || 0, cuadresSummary);
 
-      if (sessionsError) {
-        console.error('Sessions error:', sessionsError);
-        throw sessionsError;
+      if (cuadresError) {
+        console.error('Cuadres error:', cuadresError);
+        throw cuadresError;
       }
 
-      if (!sessions || sessions.length === 0) {
+      if (!cuadresSummary || cuadresSummary.length === 0) {
         setAgencyGroups([]);
         return;
       }
 
-      // Fetch user profiles separately with better error handling
-      const userIds = [...new Set(sessions.map(s => s.user_id))];
+      // Fetch user profiles for the found cuadres
+      const userIds = [...new Set(cuadresSummary.map(c => c.user_id))];
       
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
-        .select(`
-          user_id,
-          full_name,
-          agency_id
-        `)
+        .select('user_id, full_name, agency_id')
         .in('user_id', userIds);
 
       console.log('Profiles found:', profiles?.length || 0, profiles);
-      console.log('Profile error:', profilesError);
-      
+
       if (profilesError) {
         console.error('Profiles error:', profilesError);
-        // Don't throw, continue with empty profiles
       }
 
       // Fetch agency data separately for found profiles
-      const agencyIds = [...new Set(profiles?.map(p => p.agency_id).filter(Boolean) || [])];
+      const agencyIds = [...new Set(cuadresSummary.map(c => c.agency_id).filter(Boolean))];
       let agenciesMap: Record<string, any> = {};
       
       if (agencyIds.length > 0) {
@@ -152,7 +136,6 @@ export function AllTaquillerasCuadresOptimized() {
           .in('id', agencyIds);
         
         console.log('Agencies found:', agenciesData?.length || 0, agenciesData);
-        console.log('Agencies error:', agenciesError);
         
         if (!agenciesError && agenciesData) {
           agenciesMap = agenciesData.reduce((acc, agency) => {
@@ -168,61 +151,35 @@ export function AllTaquillerasCuadresOptimized() {
         return acc;
       }, {} as Record<string, any>) || {};
 
-      // Fetch sales and prizes for each session with better logging
-      const cuadresWithTotals = await Promise.all(
-        sessions.map(async (session) => {
-          console.log('Fetching transactions for session:', session.id);
-          
-          const [salesResult, prizesResult] = await Promise.all([
-            supabase
-              .from('sales_transactions')
-              .select('amount_bs, amount_usd')
-              .eq('session_id', session.id),
-            supabase
-              .from('prize_transactions')
-              .select('amount_bs, amount_usd')
-              .eq('session_id', session.id)
-          ]);
+      // Transform data to match existing interface
+      const cuadresWithData = cuadresSummary.map((cuadre) => {
+        const profile = profilesMap[cuadre.user_id];
+        const agency = agenciesMap[cuadre.agency_id];
 
-          console.log('Sales for session', session.id, ':', salesResult.data?.length || 0);
-          console.log('Prizes for session', session.id, ':', prizesResult.data?.length || 0);
+        return {
+          session_id: cuadre.session_id,
+          session_date: cuadre.session_date,
+          user_name: profile?.full_name || 'Usuario desconocido',
+          agency_id: cuadre.agency_id || profile?.agency_id || 'sin-agencia',
+          agency_name: agency?.name || 'Sin agencia',
+          is_closed: cuadre.is_closed,
+          daily_closure_confirmed: cuadre.daily_closure_confirmed,
+          cash_available_bs: cuadre.cash_available_bs || 0,
+          cash_available_usd: cuadre.cash_available_usd || 0,
+          exchange_rate: cuadre.exchange_rate || 36,
+          notes: cuadre.notes || '',
+          closure_notes: cuadre.closure_notes || '',
+          total_sales_bs: cuadre.total_sales_bs || 0,
+          total_sales_usd: cuadre.total_sales_usd || 0,
+          total_prizes_bs: cuadre.total_prizes_bs || 0,
+          total_prizes_usd: cuadre.total_prizes_usd || 0,
+        } as TaquilleraCuadre;
+      });
 
-          const totalSalesBs = salesResult.data?.reduce((sum, sale) => sum + (sale.amount_bs || 0), 0) || 0;
-          const totalSalesUsd = salesResult.data?.reduce((sum, sale) => sum + (sale.amount_usd || 0), 0) || 0;
-          const totalPrizesBs = prizesResult.data?.reduce((sum, prize) => sum + (prize.amount_bs || 0), 0) || 0;
-          const totalPrizesUsd = prizesResult.data?.reduce((sum, prize) => sum + (prize.amount_usd || 0), 0) || 0;
-
-          const profile = profilesMap[session.user_id];
-          const agency = profile?.agency_id ? agenciesMap[profile.agency_id] : null;
-
-          console.log('Profile for user', session.user_id, ':', profile);
-          console.log('Agency for profile:', agency);
-
-          return {
-            session_id: session.id,
-            session_date: session.session_date,
-            user_name: profile?.full_name || 'Usuario desconocido',
-            agency_id: profile?.agency_id || 'sin-agencia',
-            agency_name: agency?.name || 'Sin agencia',
-            is_closed: session.is_closed,
-            daily_closure_confirmed: session.daily_closure_confirmed,
-            cash_available_bs: session.cash_available_bs || 0,
-            cash_available_usd: session.cash_available_usd || 0,
-            exchange_rate: session.exchange_rate || 36,
-            notes: session.notes || '',
-            closure_notes: session.closure_notes || '',
-            total_sales_bs: totalSalesBs,
-            total_sales_usd: totalSalesUsd,
-            total_prizes_bs: totalPrizesBs,
-            total_prizes_usd: totalPrizesUsd,
-          } as TaquilleraCuadre;
-        })
-      );
-
-      console.log('Final cuadres with totals:', cuadresWithTotals);
+      console.log('Final cuadres with data:', cuadresWithData);
 
       // Group by agency
-      const groupedByAgency = cuadresWithTotals.reduce((acc, cuadre) => {
+      const groupedByAgency = cuadresWithData.reduce((acc, cuadre) => {
         if (!acc[cuadre.agency_id]) {
           acc[cuadre.agency_id] = {
             agency_id: cuadre.agency_id,

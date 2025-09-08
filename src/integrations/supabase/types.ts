@@ -44,6 +44,99 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_cuadres_summary: {
+        Row: {
+          agency_id: string | null
+          balance_bs: number
+          cash_available_bs: number
+          cash_available_usd: number
+          closure_notes: string | null
+          created_at: string
+          daily_closure_confirmed: boolean
+          exchange_rate: number
+          id: string
+          is_closed: boolean
+          notes: string | null
+          session_date: string
+          session_id: string
+          total_expenses_bs: number
+          total_expenses_usd: number
+          total_mobile_payments_bs: number
+          total_pos_bs: number
+          total_prizes_bs: number
+          total_prizes_usd: number
+          total_sales_bs: number
+          total_sales_usd: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          agency_id?: string | null
+          balance_bs?: number
+          cash_available_bs?: number
+          cash_available_usd?: number
+          closure_notes?: string | null
+          created_at?: string
+          daily_closure_confirmed?: boolean
+          exchange_rate?: number
+          id?: string
+          is_closed?: boolean
+          notes?: string | null
+          session_date: string
+          session_id: string
+          total_expenses_bs?: number
+          total_expenses_usd?: number
+          total_mobile_payments_bs?: number
+          total_pos_bs?: number
+          total_prizes_bs?: number
+          total_prizes_usd?: number
+          total_sales_bs?: number
+          total_sales_usd?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          agency_id?: string | null
+          balance_bs?: number
+          cash_available_bs?: number
+          cash_available_usd?: number
+          closure_notes?: string | null
+          created_at?: string
+          daily_closure_confirmed?: boolean
+          exchange_rate?: number
+          id?: string
+          is_closed?: boolean
+          notes?: string | null
+          session_date?: string
+          session_id?: string
+          total_expenses_bs?: number
+          total_expenses_usd?: number
+          total_mobile_payments_bs?: number
+          total_pos_bs?: number
+          total_prizes_bs?: number
+          total_prizes_usd?: number
+          total_sales_bs?: number
+          total_sales_usd?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_cuadres_summary_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "daily_cuadres_summary_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: true
+            referencedRelation: "daily_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       daily_sessions: {
         Row: {
           cash_available_bs: number | null
