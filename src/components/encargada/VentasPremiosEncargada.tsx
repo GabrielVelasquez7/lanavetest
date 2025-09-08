@@ -6,14 +6,18 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { VentasPremiosBolivares } from '../taquillera/VentasPremiosBolivares';
 import { VentasPremiosDolares } from '../taquillera/VentasPremiosDolares';
-import { Edit, Building2 } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
+import { Edit, Building2, CalendarIcon } from 'lucide-react';
+import { formatCurrency, cn } from '@/lib/utils';
 import { formatDateForDB } from '@/lib/dateUtils';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 const systemEntrySchema = z.object({
   lottery_system_id: z.string(),
@@ -43,17 +47,15 @@ interface Agency {
 }
 
 interface VentasPremiosEncargadaProps {
-  dateRange?: {
-    from: Date;
-    to: Date;
-  };
+  // No props needed, component handles its own date selection
 }
 
-export const VentasPremiosEncargada = ({ dateRange }: VentasPremiosEncargadaProps) => {
+export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
   const [activeTab, setActiveTab] = useState('bolivares');
   const [lotteryOptions, setLotteryOptions] = useState<LotterySystem[]>([]);
   const [agencies, setAgencies] = useState<Agency[]>([]);
   const [selectedAgency, setSelectedAgency] = useState<string>('');
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [loading, setLoading] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [currentCuadreId, setCurrentCuadreId] = useState<string | null>(null);
@@ -107,18 +109,17 @@ export const VentasPremiosEncargada = ({ dateRange }: VentasPremiosEncargadaProp
     fetchInitialData();
   }, [user, toast]);
 
-  // Cargar datos cuando cambie la agencia o el rango de fechas
+  // Cargar datos cuando cambie la agencia o la fecha
   useEffect(() => {
-    if (selectedAgency && lotteryOptions.length > 0) {
+    if (selectedAgency && lotteryOptions.length > 0 && selectedDate) {
       loadAgencyData();
     }
-  }, [selectedAgency, dateRange, lotteryOptions]);
+  }, [selectedAgency, selectedDate, lotteryOptions]);
 
   const loadAgencyData = async () => {
-    if (!user || !dateRange || !selectedAgency) return;
+    if (!user || !selectedDate || !selectedAgency) return;
 
-    const fromDate = formatDateForDB(dateRange.from);
-    const toDate = formatDateForDB(dateRange.to);
+    const dateStr = formatDateForDB(selectedDate);
     
     try {
       // Inicializar formulario con todos los sistemas
@@ -131,13 +132,12 @@ export const VentasPremiosEncargada = ({ dateRange }: VentasPremiosEncargadaProp
         prizes_usd: 0,
       }));
 
-      // Buscar cuadres existentes para la agencia en el rango de fechas
+      // Buscar cuadres existentes para la agencia en la fecha seleccionada
       const { data: cuadres } = await supabase
         .from('daily_system_cuadres')
         .select('*')
         .eq('agency_id', selectedAgency)
-        .gte('cuadre_date', fromDate)
-        .lte('cuadre_date', toDate);
+        .eq('cuadre_date', dateStr);
 
       if (cuadres && cuadres.length > 0) {
         // Agrupar por sistema de lotería y sumar los montos
@@ -155,13 +155,12 @@ export const VentasPremiosEncargada = ({ dateRange }: VentasPremiosEncargadaProp
 
         form.setValue('systems', systemsWithData);
         
-        // Determinar si estamos en modo edición (solo si es un día único)
-        const isSingleDay = fromDate === toDate;
+        // Determinar si estamos en modo edición
         const hasData = systemsWithData.some(s => s.sales_bs > 0 || s.sales_usd > 0);
-        setEditMode(hasData && isSingleDay);
+        setEditMode(hasData);
         
-        // Establecer ID del cuadre si es un día único
-        if (isSingleDay && cuadres.length > 0) {
+        // Establecer ID del cuadre
+        if (cuadres.length > 0) {
           setCurrentCuadreId(cuadres[0].id);
         } else {
           setCurrentCuadreId(null);
@@ -201,20 +200,9 @@ export const VentasPremiosEncargada = ({ dateRange }: VentasPremiosEncargadaProp
   }, [form]);
 
   const onSubmit = async (data: VentasPremiosForm) => {
-    if (!user || !dateRange || !selectedAgency) return;
+    if (!user || !selectedDate || !selectedAgency) return;
 
-    // Solo permitir guardar si es un solo día
-    const fromDate = formatDateForDB(dateRange.from);
-    const toDate = formatDateForDB(dateRange.to);
-    
-    if (fromDate !== toDate) {
-      toast({
-        title: 'Error',
-        description: 'Solo puedes guardar cambios para un día específico. Selecciona una fecha única.',
-        variant: 'destructive',
-      });
-      return;
-    }
+    const dateStr = formatDateForDB(selectedDate);
 
     setLoading(true);
     try {
@@ -224,7 +212,7 @@ export const VentasPremiosEncargada = ({ dateRange }: VentasPremiosEncargadaProp
           .from('daily_system_cuadres')
           .delete()
           .eq('agency_id', selectedAgency)
-          .eq('cuadre_date', fromDate);
+          .eq('cuadre_date', dateStr);
       }
 
       // Filtrar sistemas con datos (cuadre neto = ventas - premios)
@@ -249,7 +237,7 @@ export const VentasPremiosEncargada = ({ dateRange }: VentasPremiosEncargadaProp
       const cuadresData = systemsWithData.map(system => ({
         user_id: user.id,
         agency_id: selectedAgency,
-        cuadre_date: fromDate,
+        cuadre_date: dateStr,
         lottery_system_id: system.lottery_system_id,
         amount_bs: system.sales_bs - system.prizes_bs, // Cuadre neto en Bs
         amount_usd: system.sales_usd - system.prizes_usd, // Cuadre neto en USD
@@ -288,29 +276,65 @@ export const VentasPremiosEncargada = ({ dateRange }: VentasPremiosEncargadaProp
 
   return (
     <div className="space-y-6">
-      {/* Selector de Agencia */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Building2 className="h-5 w-5 mr-2" />
-            Seleccionar Agencia
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Select value={selectedAgency} onValueChange={setSelectedAgency}>
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Selecciona una agencia" />
-            </SelectTrigger>
-            <SelectContent>
-              {agencies.map((agency) => (
-                <SelectItem key={agency.id} value={agency.id}>
-                  {agency.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </CardContent>
-      </Card>
+      {/* Selectores de Agencia y Fecha */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Building2 className="h-5 w-5 mr-2" />
+              Seleccionar Agencia
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Select value={selectedAgency} onValueChange={setSelectedAgency}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Selecciona una agencia" />
+              </SelectTrigger>
+              <SelectContent>
+                {agencies.map((agency) => (
+                  <SelectItem key={agency.id} value={agency.id}>
+                    {agency.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <CalendarIcon className="h-5 w-5 mr-2" />
+              Seleccionar Fecha
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start text-left font-normal",
+                    !selectedDate && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {selectedDate ? format(selectedDate, "PPP", { locale: es }) : "Seleccionar fecha"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={(date) => date && setSelectedDate(date)}
+                  initialFocus
+                  className={cn("p-3 pointer-events-auto")}
+                />
+              </PopoverContent>
+            </Popover>
+          </CardContent>
+        </Card>
+      </div>
 
       {selectedAgency && (
         <>
