@@ -17,22 +17,34 @@ const Index = () => {
     );
   }
 
-  if (!user || !profile) {
+  // If no user is authenticated, show auth layout
+  if (!user) {
     return <AuthLayout />;
   }
 
-  // Render admin dashboard for admin users
-  if (profile.role === 'administrador') {
-    return <AdminDashboard />;
+  // If user is authenticated but profile is still loading or doesn't exist, 
+  // show loading state to prevent wrong dashboard from showing
+  if (!profile) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-4">Cargando perfil...</h1>
+        </div>
+      </div>
+    );
   }
 
-  // Render encargada dashboard for encargada users
-  if (profile.role === 'encargada') {
-    return <EncargadaDashboard />;
+  // Now safely render based on role
+  switch (profile.role) {
+    case 'administrador':
+      return <AdminDashboard />;
+    case 'encargada':
+    case 'encargado':
+      return <EncargadaDashboard />;
+    case 'taquillero':
+    default:
+      return <TaquilleraDashboard />;
   }
-
-  // Render taquillera dashboard for other users
-  return <TaquilleraDashboard />;
 };
 
 export default Index;
