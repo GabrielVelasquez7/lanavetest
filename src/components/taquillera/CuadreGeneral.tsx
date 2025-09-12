@@ -118,27 +118,6 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
 
       if (sessionsError) throw sessionsError;
 
-      if (!sessions || sessions.length === 0) {
-        console.log('🔍 CUADRE DEBUG - No sessions found, setting empty cuadre');
-        setCuadre({
-          totalSales: { bs: 0, usd: 0 },
-          totalPrizes: { bs: 0, usd: 0 },
-          totalGastos: { bs: 0, usd: 0 },
-          totalDeudas: { bs: 0, usd: 0 },
-          pagoMovilRecibidos: 0,
-          pagoMovilPagados: 0,
-          totalPointOfSale: 0,
-          cashAvailable: 0,
-          cashAvailableUsd: 0,
-          closureConfirmed: false,
-          closureNotes: '',
-          premiosPorPagar: 0,
-          exchangeRate: 36.00,
-        });
-        setLoading(false);
-        return;
-      }
-
       const sessionIds = sessions.map(s => s.id);
       console.log('🔍 CUADRE DEBUG - Session IDs to query:', sessionIds);
       
