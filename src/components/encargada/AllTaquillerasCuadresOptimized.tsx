@@ -390,6 +390,36 @@ export function AllTaquillerasCuadresOptimized() {
         </CardHeader>
       </Card>
 
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-green-700 flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4" />
+              Balances Correctos
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold text-green-800">{balancesCorrectos}</p>
+            <p className="text-xs text-green-600 mt-1">Tolerancia ≤ Bs 100</p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-red-50 to-red-100 border-red-200">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-red-700 flex items-center gap-2">
+              <AlertCircle className="h-4 w-4" />
+              Diferencias Encontradas
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold text-red-800">{diferenciasEncontradas}</p>
+            <p className="text-xs text-red-600 mt-1">
+              Total: Bs {totalDiferencia.toLocaleString('es-VE', { minimumFractionDigits: 2 })}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Agency Groups */}
       {filteredGroups.length === 0 ? (
