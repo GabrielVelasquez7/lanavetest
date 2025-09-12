@@ -136,10 +136,10 @@ export const TaquilleraCuadreDetalle = ({ userId, selectedDate, userFullName }: 
       };
 
       if (!cuadreSummaryError && cuadreSummary) {
-        // Use summary data if available
+        // Use summary data if available, but always fetch individual mobile payments for accuracy
         console.log('🔍 CUADRE DETALLE DEBUG - Using summary data:', cuadreSummary);
         
-        // We still need to fetch individual mobile payments to separate received vs paid
+        // Always fetch individual mobile payments to get accurate received vs paid breakdown
         const { data: mobilePaymentsData } = await supabase
           .from('mobile_payments')
           .select('amount_bs, description')
@@ -292,15 +292,18 @@ export const TaquilleraCuadreDetalle = ({ userId, selectedDate, userFullName }: 
 
       console.log('🔍 CUADRE DETALLE DEBUG - Calculated totals:', calculatedTotals);
 
-      // Get premios por pagar from summary or use total prizes
-      const premiosPorPagar = cuadreSummary?.total_prizes_bs || calculatedTotals.totalPrizes.bs;
+      // Note: "premios por pagar" should be pending prizes, not paid prizes
+      // total_prizes_bs represents prizes that were already paid
+      // For now, we'll use 0 as premios por pagar since there's no specific field for pending prizes
+      const premiosPorPagar = 0; // This should be calculated separately from pending prize claims
 
       console.log('🔍 CUADRE DETALLE DEBUG - Final values:', {
         cuadreSummaryData: cuadreSummary,
         premiosPorPagar,
         pagoMovilRecibidos: calculatedTotals.pagoMovilRecibidos,
         pagoMovilPagados: calculatedTotals.pagoMovilPagados,
-        totalPointOfSale: calculatedTotals.totalPointOfSale
+        totalPointOfSale: calculatedTotals.totalPointOfSale,
+        note: 'total_prizes_bs represents paid prizes, not pending prizes'
       });
 
       const finalCuadre = {
