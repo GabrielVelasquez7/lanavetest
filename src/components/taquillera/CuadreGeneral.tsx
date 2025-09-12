@@ -303,7 +303,31 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
         .single();
 
       if (sessionInfo) {
-        // Also update daily_cuadres_summary with the same values
+        // Calculate the important values for closure
+        const cuadreVentasPremios = {
+          bs: cuadre.totalSales.bs - cuadre.totalPrizes.bs,
+          usd: cuadre.totalSales.usd - cuadre.totalPrizes.usd,
+        };
+
+        // Calculate USD excess
+        const excessUsd = cuadre.cashAvailableUsd - cuadreVentasPremios.usd;
+        
+        // Calculate bank total and closure difference
+        const totalBanco = cuadre.pagoMovilRecibidos + cuadre.totalPointOfSale - cuadre.pagoMovilPagados;
+        const sumatoriaBolivares = 
+          cuadre.cashAvailable + 
+          totalBanco + 
+          cuadre.totalDeudas.bs + 
+          cuadre.totalGastos.bs + 
+          (excessUsd * cuadre.exchangeRate);
+        
+        const diferenciaCierre = sumatoriaBolivares - cuadreVentasPremios.bs;
+        const diferenciaFinal = diferenciaCierre - cuadre.premiosPorPagar;
+        
+        // Calculate USD difference
+        const diferenciaUsd = (cuadre.cashAvailableUsd + cuadre.totalGastos.usd + cuadre.totalDeudas.usd) - cuadreVentasPremios.usd;
+
+        // Also update daily_cuadres_summary with calculated values
         await supabase
           .from('daily_cuadres_summary')
           .upsert({
@@ -313,6 +337,10 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
             cash_available_bs: cuadre.cashAvailable,
             cash_available_usd: cuadre.cashAvailableUsd,
             exchange_rate: cuadre.exchangeRate,
+            // Save calculated closure values
+            excess_usd: excessUsd,
+            diferencia_final: diferenciaFinal,
+            // We can use diferencia_final for now, but we could add diferencia_usd field if needed
           }, { onConflict: 'session_id' });
       }
 
