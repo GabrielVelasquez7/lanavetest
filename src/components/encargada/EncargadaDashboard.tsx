@@ -95,6 +95,6 @@ export function EncargadaDashboard() {
           </Tabs>
         </div>
       </main>
-    </div>
+    
   );
 }
