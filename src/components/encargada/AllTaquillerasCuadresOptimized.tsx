@@ -401,7 +401,7 @@ export function AllTaquillerasCuadresOptimized() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-green-800">{balancesCorrectos}</p>
-            <p className="text-xs text-green-600 mt-1">Tolerancia ≤ Bs 100</p>
+            
           </CardContent>
         </Card>
 
@@ -415,7 +415,6 @@ export function AllTaquillerasCuadresOptimized() {
           <CardContent>
             <p className="text-2xl font-bold text-red-800">{diferenciasEncontradas}</p>
             <p className="text-xs text-red-600 mt-1">
-              Total: Bs {totalDiferencia.toLocaleString('es-VE', { minimumFractionDigits: 2 })}
             </p>
           </CardContent>
         </Card>
