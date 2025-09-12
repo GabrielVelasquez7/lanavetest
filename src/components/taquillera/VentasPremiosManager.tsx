@@ -356,13 +356,15 @@ export const VentasPremiosManager = ({ onSuccess, dateRange }: VentasPremiosMana
       } else {
         const { data: summaryResult, error: insertSummaryError } = await supabase
           .from('daily_cuadres_summary')
-          .insert(summaryData)
+          .upsert(summaryData, {
+            onConflict: 'session_id'
+          })
           .select();
         
-        console.log('🔍 SUMMARY INSERT RESULT:', { data: summaryResult, error: insertSummaryError });
+        console.log('🔍 SUMMARY UPSERT RESULT:', { data: summaryResult, error: insertSummaryError });
         
         if (insertSummaryError) {
-          console.error('❌ Error inserting summary:', insertSummaryError);
+          console.error('❌ Error upserting summary:', insertSummaryError);
           throw new Error(`Error guardando resumen: ${insertSummaryError.message}`);
         }
       }
