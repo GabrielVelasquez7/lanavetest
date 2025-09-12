@@ -124,35 +124,20 @@ export const TaquilleraCuadreDetalle = ({ userId, selectedDate, userFullName }: 
         .eq('session_id', sessionId)
         .single();
 
-      let totalSales, totalPrizes, totalGastos, totalDeudas, pagoMovilRecibidos, pagoMovilPagados, totalPointOfSale;
+      // Initialize variables for calculated totals
+      let calculatedTotals: {
+        totalSales: { bs: number; usd: number };
+        totalPrizes: { bs: number; usd: number };
+        totalGastos: { bs: number; usd: number };
+        totalDeudas: { bs: number; usd: number };
+        pagoMovilRecibidos: number;
+        pagoMovilPagados: number;
+        totalPointOfSale: number;
+      };
 
       if (!cuadreSummaryError && cuadreSummary) {
         // Use summary data if available
         console.log('🔍 CUADRE DETALLE DEBUG - Using summary data:', cuadreSummary);
-        
-        totalSales = {
-          bs: Number(cuadreSummary.total_sales_bs || 0),
-          usd: Number(cuadreSummary.total_sales_usd || 0)
-        };
-        
-        totalPrizes = {
-          bs: Number(cuadreSummary.total_prizes_bs || 0),
-          usd: Number(cuadreSummary.total_prizes_usd || 0)
-        };
-        
-        totalGastos = {
-          bs: Number(cuadreSummary.total_expenses_bs || 0),
-          usd: Number(cuadreSummary.total_expenses_usd || 0)
-        };
-        
-        totalDeudas = {
-          bs: Number(cuadreSummary.total_debt_bs || 0),
-          usd: Number(cuadreSummary.total_debt_usd || 0)
-        };
-        
-        // Calculate mobile payments received and paid from net total
-        // The total_mobile_payments_bs represents net (received - paid)
-        const netMobilePayments = Number(cuadreSummary.total_mobile_payments_bs || 0);
         
         // We still need to fetch individual mobile payments to separate received vs paid
         const { data: mobilePaymentsData } = await supabase
@@ -160,7 +145,7 @@ export const TaquilleraCuadreDetalle = ({ userId, selectedDate, userFullName }: 
           .select('amount_bs, description')
           .eq('session_id', sessionId);
 
-        pagoMovilRecibidos = mobilePaymentsData?.reduce(
+        const pagoMovilRecibidos = mobilePaymentsData?.reduce(
           (sum, item) => {
             const amount = Number(item.amount_bs || 0);
             return amount > 0 ? sum + amount : sum;
@@ -168,7 +153,7 @@ export const TaquilleraCuadreDetalle = ({ userId, selectedDate, userFullName }: 
           0
         ) || 0;
 
-        pagoMovilPagados = Math.abs(mobilePaymentsData?.reduce(
+        const pagoMovilPagados = Math.abs(mobilePaymentsData?.reduce(
           (sum, item) => {
             const amount = Number(item.amount_bs || 0);
             return amount < 0 ? sum + amount : sum;
@@ -176,7 +161,27 @@ export const TaquilleraCuadreDetalle = ({ userId, selectedDate, userFullName }: 
           0
         ) || 0);
         
-        totalPointOfSale = Number(cuadreSummary.total_pos_bs || 0);
+        calculatedTotals = {
+          totalSales: {
+            bs: Number(cuadreSummary.total_sales_bs || 0),
+            usd: Number(cuadreSummary.total_sales_usd || 0)
+          },
+          totalPrizes: {
+            bs: Number(cuadreSummary.total_prizes_bs || 0),
+            usd: Number(cuadreSummary.total_prizes_usd || 0)
+          },
+          totalGastos: {
+            bs: Number(cuadreSummary.total_expenses_bs || 0),
+            usd: Number(cuadreSummary.total_expenses_usd || 0)
+          },
+          totalDeudas: {
+            bs: Number(cuadreSummary.total_debt_bs || 0),
+            usd: Number(cuadreSummary.total_debt_usd || 0)
+          },
+          pagoMovilRecibidos,
+          pagoMovilPagados,
+          totalPointOfSale: Number(cuadreSummary.total_pos_bs || 0)
+        };
         
       } else {
         // Fallback to individual transaction calculation
@@ -217,7 +222,7 @@ export const TaquilleraCuadreDetalle = ({ userId, selectedDate, userFullName }: 
         if (mobilePaymentsData.error) throw mobilePaymentsData.error;
         if (posData.error) throw posData.error;
 
-        totalSales = salesData.data?.reduce(
+        const totalSales = salesData.data?.reduce(
           (acc, item) => ({
             bs: acc.bs + Number(item.amount_bs || 0),
             usd: acc.usd + Number(item.amount_usd || 0),
@@ -225,7 +230,7 @@ export const TaquilleraCuadreDetalle = ({ userId, selectedDate, userFullName }: 
           { bs: 0, usd: 0 }
         ) || { bs: 0, usd: 0 };
 
-        totalPrizes = prizesData.data?.reduce(
+        const totalPrizes = prizesData.data?.reduce(
           (acc, item) => ({
             bs: acc.bs + Number(item.amount_bs || 0),
             usd: acc.usd + Number(item.amount_usd || 0),
@@ -236,7 +241,7 @@ export const TaquilleraCuadreDetalle = ({ userId, selectedDate, userFullName }: 
         const gastos = expensesData.data?.filter(e => e.category === 'gasto_operativo') || [];
         const deudas = expensesData.data?.filter(e => e.category === 'deuda') || [];
 
-        totalGastos = gastos.reduce(
+        const totalGastos = gastos.reduce(
           (acc, item) => ({
             bs: acc.bs + Number(item.amount_bs || 0),
             usd: acc.usd + Number(item.amount_usd || 0),
@@ -244,7 +249,7 @@ export const TaquilleraCuadreDetalle = ({ userId, selectedDate, userFullName }: 
           { bs: 0, usd: 0 }
         );
 
-        totalDeudas = deudas.reduce(
+        const totalDeudas = deudas.reduce(
           (acc, item) => ({
             bs: acc.bs + Number(item.amount_bs || 0),
             usd: acc.usd + Number(item.amount_usd || 0),
@@ -252,7 +257,7 @@ export const TaquilleraCuadreDetalle = ({ userId, selectedDate, userFullName }: 
           { bs: 0, usd: 0 }
         );
 
-        pagoMovilRecibidos = mobilePaymentsData.data?.reduce(
+        const pagoMovilRecibidos = mobilePaymentsData.data?.reduce(
           (sum, item) => {
             const amount = Number(item.amount_bs || 0);
             return amount > 0 ? sum + amount : sum;
@@ -260,7 +265,7 @@ export const TaquilleraCuadreDetalle = ({ userId, selectedDate, userFullName }: 
           0
         ) || 0;
 
-        pagoMovilPagados = Math.abs(mobilePaymentsData.data?.reduce(
+        const pagoMovilPagados = Math.abs(mobilePaymentsData.data?.reduce(
           (sum, item) => {
             const amount = Number(item.amount_bs || 0);
             return amount < 0 ? sum + amount : sum;
@@ -268,28 +273,29 @@ export const TaquilleraCuadreDetalle = ({ userId, selectedDate, userFullName }: 
           0
         ) || 0);
 
-        totalPointOfSale = posData.data?.reduce(
+        const totalPointOfSale = posData.data?.reduce(
           (sum, item) => sum + Number(item.amount_bs || 0),
           0
         ) || 0;
+
+        calculatedTotals = {
+          totalSales,
+          totalPrizes,
+          totalGastos,
+          totalDeudas,
+          pagoMovilRecibidos,
+          pagoMovilPagados,
+          totalPointOfSale
+        };
       }
 
-      console.log('🔍 CUADRE DETALLE DEBUG - Query results:', {
-        cuadreSummary: { data: cuadreSummary, error: cuadreSummaryError },
-        calculatedTotals: { totalSales, totalPrizes, totalGastos, totalDeudas, pagoMovilRecibidos, pagoMovilPagados, totalPointOfSale }
-      });
+      console.log('🔍 CUADRE DETALLE DEBUG - Calculated totals:', calculatedTotals);
 
       // Get premios por pagar from summary or use total prizes
-      const premiosPorPagar = cuadreSummary?.total_prizes_bs || totalPrizes.bs;
+      const premiosPorPagar = cuadreSummary?.total_prizes_bs || calculatedTotals.totalPrizes.bs;
 
       const finalCuadre = {
-        totalSales,
-        totalPrizes,
-        totalGastos,
-        totalDeudas,
-        pagoMovilRecibidos,
-        pagoMovilPagados,
-        totalPointOfSale,
+        ...calculatedTotals,
         cashAvailable: Number(sessionData.cash_available_bs || 0),
         cashAvailableUsd: Number(sessionData.cash_available_usd || 0),
         closureConfirmed: sessionData.daily_closure_confirmed || false,
