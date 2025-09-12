@@ -54,18 +54,13 @@ const updateDailyCuadresSummary = async (sessionId: string, userId: string, sess
       total_prizes_usd: totalPrizesUsd,
       total_expenses_bs: totalGastosBs + totalDeudasBs,
       total_expenses_usd: totalGastosUsd + totalDeudasUsd,
-      total_gastos_bs: totalGastosBs,
-      total_gastos_usd: totalGastosUsd,
-      total_deudas_bs: totalDeudasBs,
-      total_deudas_usd: totalDeudasUsd,
+      total_debt_bs: totalDeudasBs,
+      total_debt_usd: totalDeudasUsd,
       total_mobile_payments_bs: totalMobilePaymentsBs,
       total_pos_bs: totalPosBs,
-      pago_movil_recibidos: totalMobilePaymentsBs,
       cash_available_bs: cashAvailableBs,
       cash_available_usd: cashAvailableUsd,
       exchange_rate: exchangeRate,
-      cuadre_ventas_premios_bs: cuadreVentasPremiosBs,
-      cuadre_ventas_premios_usd: cuadreVentasPremiosUsd,
       balance_bs: balanceBs
     }, { onConflict: 'session_id' });
 };

@@ -191,20 +191,20 @@ export function AllTaquillerasCuadresOptimized() {
           total_sales_usd: cuadre.total_sales_usd || 0,
           total_prizes_bs: cuadre.total_prizes_bs || 0,
           total_prizes_usd: cuadre.total_prizes_usd || 0,
-          // New fields for complete cuadre calculation
-          total_gastos_bs: cuadre.total_gastos_bs || 0,
-          total_gastos_usd: cuadre.total_gastos_usd || 0,
-          total_deudas_bs: cuadre.total_deudas_bs || 0,
-          total_deudas_usd: cuadre.total_deudas_usd || 0,
-          pago_movil_recibidos: cuadre.pago_movil_recibidos || 0,
-          pago_movil_pagados: cuadre.pago_movil_pagados || 0,
-          premios_por_pagar: cuadre.premios_por_pagar || 0,
-          cuadre_ventas_premios_bs: cuadre.cuadre_ventas_premios_bs || 0,
-          cuadre_ventas_premios_usd: cuadre.cuadre_ventas_premios_usd || 0,
-          total_banco: cuadre.total_banco || 0,
+          // Updated fields for complete cuadre calculation
+          total_gastos_bs: (cuadre.total_expenses_bs || 0) - (cuadre.total_debt_bs || 0),
+          total_gastos_usd: (cuadre.total_expenses_usd || 0) - (cuadre.total_debt_usd || 0),  
+          total_deudas_bs: cuadre.total_debt_bs || 0,
+          total_deudas_usd: cuadre.total_debt_usd || 0,
+          pago_movil_recibidos: Math.max(cuadre.total_mobile_payments_bs || 0, 0),
+          pago_movil_pagados: Math.abs(Math.min(cuadre.total_mobile_payments_bs || 0, 0)),
+          premios_por_pagar: cuadre.total_prizes_bs || 0,
+          cuadre_ventas_premios_bs: (cuadre.total_sales_bs || 0) - (cuadre.total_prizes_bs || 0),
+          cuadre_ventas_premios_usd: (cuadre.total_sales_usd || 0) - (cuadre.total_prizes_usd || 0),
+          total_banco: 0, // Removed field
           excess_usd: cuadre.excess_usd || 0,
-          sumatoria_bolivares: cuadre.sumatoria_bolivares || 0,
-          diferencia_cierre: cuadre.diferencia_cierre || 0,
+          sumatoria_bolivares: (cuadre.total_sales_bs || 0) + (cuadre.total_pos_bs || 0) + Math.max(cuadre.total_mobile_payments_bs || 0, 0),
+          diferencia_cierre: cuadre.diferencia_final || 0,
           diferencia_final: cuadre.diferencia_final || 0,
         } as TaquilleraCuadre;
       });

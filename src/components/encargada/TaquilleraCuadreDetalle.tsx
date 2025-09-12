@@ -142,7 +142,7 @@ export const TaquilleraCuadreDetalle = ({ userId, selectedDate, userFullName }: 
           .eq('session_id', sessionId),
         supabase
           .from('daily_cuadres_summary')
-          .select('premios_por_pagar')
+          .select('total_prizes_bs')
           .eq('session_id', sessionId)
           .single()
       ]);
@@ -222,8 +222,8 @@ export const TaquilleraCuadreDetalle = ({ userId, selectedDate, userFullName }: 
         0
       ) || 0;
 
-      // Get premios por pagar from summary or default to 0
-      const premiosPorPagar = cuadreSummary.data?.premios_por_pagar || 0;
+      // Get premios por pagar from summary or use total prizes
+      const premiosPorPagar = cuadreSummary.data?.total_prizes_bs || 0;
 
       const finalCuadre = {
         totalSales,
