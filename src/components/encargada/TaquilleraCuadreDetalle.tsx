@@ -145,6 +145,7 @@ export const TaquilleraCuadreDetalle = ({ userId, selectedDate, userFullName }: 
           .select('amount_bs, description')
           .eq('session_id', sessionId);
 
+        // Calculate mobile payments received and paid from individual transactions
         const pagoMovilRecibidos = mobilePaymentsData?.reduce(
           (sum, item) => {
             const amount = Number(item.amount_bs || 0);
@@ -293,6 +294,14 @@ export const TaquilleraCuadreDetalle = ({ userId, selectedDate, userFullName }: 
 
       // Get premios por pagar from summary or use total prizes
       const premiosPorPagar = cuadreSummary?.total_prizes_bs || calculatedTotals.totalPrizes.bs;
+
+      console.log('🔍 CUADRE DETALLE DEBUG - Final values:', {
+        cuadreSummaryData: cuadreSummary,
+        premiosPorPagar,
+        pagoMovilRecibidos: calculatedTotals.pagoMovilRecibidos,
+        pagoMovilPagados: calculatedTotals.pagoMovilPagados,
+        totalPointOfSale: calculatedTotals.totalPointOfSale
+      });
 
       const finalCuadre = {
         ...calculatedTotals,
