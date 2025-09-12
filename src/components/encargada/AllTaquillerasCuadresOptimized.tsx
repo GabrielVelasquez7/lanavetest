@@ -301,9 +301,20 @@ export function AllTaquillerasCuadresOptimized() {
     return (cuadre as any).diferencia_final || 0;
   };
 
-  const totalTaquilleras = agencyGroups.reduce((sum, group) => sum + group.total_taquilleras, 0);
-  const totalConfirmed = agencyGroups.reduce((sum, group) => sum + group.confirmed_cuadres, 0);
-  const totalBalanced = agencyGroups.reduce((sum, group) => sum + group.balanced_cuadres, 0);
+  // Calculate meaningful metrics instead of basic counts
+  const allCuadres = agencyGroups.flatMap(group => group.cuadres);
+  const balancesCorrectos = allCuadres.filter(cuadre => {
+    const balance = calculateBalance(cuadre);
+    return Math.abs(balance) <= 100;
+  }).length;
+  const diferenciasEncontradas = allCuadres.filter(cuadre => {
+    const balance = calculateBalance(cuadre);
+    return Math.abs(balance) > 100;
+  }).length;
+  const totalDiferencia = allCuadres.reduce((sum, cuadre) => {
+    const balance = calculateBalance(cuadre);
+    return sum + Math.abs(balance);
+  }, 0);
 
   if (loading) {
     return <div className="p-6">Cargando cuadres...</div>;
@@ -380,52 +391,32 @@ export function AllTaquillerasCuadresOptimized() {
       </Card>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-blue-700 flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              Total Taquilleras
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-blue-800">{totalTaquilleras}</p>
-          </CardContent>
-        </Card>
-
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm text-green-700 flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4" />
-              Cuadres Confirmados
+              Balances Correctos
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-green-800">{totalConfirmed}</p>
+            <p className="text-2xl font-bold text-green-800">{balancesCorrectos}</p>
+            <p className="text-xs text-green-600 mt-1">Tolerancia ≤ Bs 100</p>
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
+        <Card className="bg-gradient-to-br from-red-50 to-red-100 border-red-200">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-purple-700 flex items-center gap-2">
-              <TrendingUp className="h-4 w-4" />
-              Cuadres Balanceados
+            <CardTitle className="text-sm text-red-700 flex items-center gap-2">
+              <AlertCircle className="h-4 w-4" />
+              Diferencias Encontradas
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-purple-800">{totalBalanced}</p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-orange-700 flex items-center gap-2">
-              <Building2 className="h-4 w-4" />
-              Agencias Activas
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-orange-800">{filteredGroups.length}</p>
+            <p className="text-2xl font-bold text-red-800">{diferenciasEncontradas}</p>
+            <p className="text-xs text-red-600 mt-1">
+              Total: Bs {totalDiferencia.toLocaleString('es-VE', { minimumFractionDigits: 2 })}
+            </p>
           </CardContent>
         </Card>
       </div>
