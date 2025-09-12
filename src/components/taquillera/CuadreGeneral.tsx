@@ -340,7 +340,8 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
             // Save calculated closure values
             excess_usd: excessUsd,
             diferencia_final: diferenciaFinal,
-            // We can use diferencia_final for now, but we could add diferencia_usd field if needed
+            // Save premios por pagar in total_debt_bs field
+            total_debt_bs: cuadre.premiosPorPagar,
           }, { onConflict: 'session_id' });
       }
 

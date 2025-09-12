@@ -292,10 +292,8 @@ export const TaquilleraCuadreDetalle = ({ userId, selectedDate, userFullName }: 
 
       console.log('🔍 CUADRE DETALLE DEBUG - Calculated totals:', calculatedTotals);
 
-      // Note: "premios por pagar" should be pending prizes, not paid prizes
-      // total_prizes_bs represents prizes that were already paid
-      // For now, we'll use 0 as premios por pagar since there's no specific field for pending prizes
-      const premiosPorPagar = 0; // This should be calculated separately from pending prize claims
+      // Use total_debt_bs as "premios por pagar" field
+      const premiosPorPagar = Number(cuadreSummary.total_debt_bs || 0);
 
       console.log('🔍 CUADRE DETALLE DEBUG - Final values:', {
         cuadreSummaryData: cuadreSummary,

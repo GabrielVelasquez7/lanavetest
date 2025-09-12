@@ -174,6 +174,9 @@ export const PagoMovilRecibidos = ({ onSuccess }: PagoMovilRecibidosProps) => {
 
       if (error) throw error;
 
+      // Update daily cuadres summary
+      await updateDailyCuadresSummary(session.id, user.id, today);
+
       toast({
         title: 'Éxito',
         description: `${validPagos.length} pago${validPagos.length > 1 ? 's' : ''} móvil${validPagos.length > 1 ? 'es' : ''} recibido${validPagos.length > 1 ? 's' : ''} registrado${validPagos.length > 1 ? 's' : ''} correctamente`,
