@@ -1,4 +1,74 @@
 import { getTodayVenezuela } from '@/lib/dateUtils';
+
+// Helper function to update daily cuadres summary
+const updateDailyCuadresSummary = async (sessionId: string, userId: string, sessionDate: string) => {
+  // Get all data for this session
+  const [salesRes, prizesRes, posRes, expensesRes, mobilePaymentsRes, sessionRes] = await Promise.all([
+    supabase.from('sales_transactions').select('amount_bs, amount_usd').eq('session_id', sessionId),
+    supabase.from('prize_transactions').select('amount_bs, amount_usd').eq('session_id', sessionId),
+    supabase.from('point_of_sale').select('amount_bs').eq('session_id', sessionId),
+    supabase.from('expenses').select('amount_bs, amount_usd, category').eq('session_id', sessionId),
+    supabase.from('mobile_payments').select('amount_bs').eq('session_id', sessionId),
+    supabase.from('daily_sessions').select('cash_available_bs, cash_available_usd, exchange_rate').eq('id', sessionId).single()
+  ]);
+
+  // Calculate totals
+  const totalSalesBs = salesRes.data?.reduce((sum, item) => sum + Number(item.amount_bs), 0) || 0;
+  const totalSalesUsd = salesRes.data?.reduce((sum, item) => sum + Number(item.amount_usd), 0) || 0;
+  const totalPrizesBs = prizesRes.data?.reduce((sum, item) => sum + Number(item.amount_bs), 0) || 0;
+  const totalPrizesUsd = prizesRes.data?.reduce((sum, item) => sum + Number(item.amount_usd), 0) || 0;
+  const totalPosBs = posRes.data?.reduce((sum, item) => sum + Number(item.amount_bs), 0) || 0;
+  
+  // Calculate expenses by category
+  const gastos = expensesRes.data?.filter(exp => exp.category === 'gasto_operativo') || [];
+  const deudas = expensesRes.data?.filter(exp => exp.category === 'deuda') || [];
+  
+  const totalGastosBs = gastos.reduce((sum, item) => sum + Number(item.amount_bs), 0);
+  const totalGastosUsd = gastos.reduce((sum, item) => sum + Number(item.amount_usd), 0);
+  const totalDeudasBs = deudas.reduce((sum, item) => sum + Number(item.amount_bs), 0);
+  const totalDeudasUsd = deudas.reduce((sum, item) => sum + Number(item.amount_usd), 0);
+  
+  // Calculate mobile payments
+  const totalMobilePaymentsBs = mobilePaymentsRes.data?.reduce((sum, item) => sum + Number(item.amount_bs), 0) || 0;
+
+  const sessionData = sessionRes.data;
+  const cashAvailableBs = Number(sessionData?.cash_available_bs || 0);
+  const cashAvailableUsd = Number(sessionData?.cash_available_usd || 0);
+  const exchangeRate = Number(sessionData?.exchange_rate || 36);
+
+  // Calculate cuadre and balance
+  const cuadreVentasPremiosBs = totalSalesBs - totalPrizesBs;
+  const cuadreVentasPremiosUsd = totalSalesUsd - totalPrizesUsd;
+  const balanceBs = cuadreVentasPremiosBs - totalGastosBs - totalDeudasBs + totalMobilePaymentsBs + totalPosBs;
+
+  // Upsert the summary
+  await supabase
+    .from('daily_cuadres_summary')
+    .upsert({
+      session_id: sessionId,
+      user_id: userId,
+      session_date: sessionDate,
+      total_sales_bs: totalSalesBs,
+      total_sales_usd: totalSalesUsd,
+      total_prizes_bs: totalPrizesBs,
+      total_prizes_usd: totalPrizesUsd,
+      total_expenses_bs: totalGastosBs + totalDeudasBs,
+      total_expenses_usd: totalGastosUsd + totalDeudasUsd,
+      total_gastos_bs: totalGastosBs,
+      total_gastos_usd: totalGastosUsd,
+      total_deudas_bs: totalDeudasBs,
+      total_deudas_usd: totalDeudasUsd,
+      total_mobile_payments_bs: totalMobilePaymentsBs,
+      total_pos_bs: totalPosBs,
+      pago_movil_recibidos: totalMobilePaymentsBs,
+      cash_available_bs: cashAvailableBs,
+      cash_available_usd: cashAvailableUsd,
+      exchange_rate: exchangeRate,
+      cuadre_ventas_premios_bs: cuadreVentasPremiosBs,
+      cuadre_ventas_premios_usd: cuadreVentasPremiosUsd,
+      balance_bs: balanceBs
+    }, { onConflict: 'session_id' });
+};
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
