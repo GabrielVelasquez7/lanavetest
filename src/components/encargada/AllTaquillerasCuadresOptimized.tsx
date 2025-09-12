@@ -480,25 +480,6 @@ export function AllTaquillerasCuadresOptimized() {
                       </CardHeader>
                       
                       <CardContent className="space-y-3">
-                        <div className="grid grid-cols-2 gap-2 text-sm">
-                          <div>
-                            <span className="text-muted-foreground">Ventas:</span>
-                            <p className="font-medium">Bs {cuadre.total_sales_bs.toLocaleString('es-VE', { minimumFractionDigits: 2 })}</p>
-                          </div>
-                          <div>
-                            <span className="text-muted-foreground">Premios:</span>
-                            <p className="font-medium">Bs {cuadre.total_prizes_bs.toLocaleString('es-VE', { minimumFractionDigits: 2 })}</p>
-                          </div>
-                          <div>
-                            <span className="text-muted-foreground">Efectivo:</span>
-                            <p className="font-medium">Bs {cuadre.cash_available_bs.toLocaleString('es-VE', { minimumFractionDigits: 2 })}</p>
-                          </div>
-                          <div>
-                            <span className="text-muted-foreground">Tasa:</span>
-                            <p className="font-medium">{cuadre.exchange_rate}</p>
-                          </div>
-                        </div>
-
                         <div className={cn(
                           "text-center p-2 rounded border-t",
                           isBalanced ? "bg-green-50 text-green-800" : "bg-red-50 text-red-800"
