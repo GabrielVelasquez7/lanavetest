@@ -328,21 +328,22 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
         const diferenciaUsd = (cuadre.cashAvailableUsd + cuadre.totalGastos.usd + cuadre.totalDeudas.usd) - cuadreVentasPremios.usd;
 
         // Also update daily_cuadres_summary with calculated values
+        const payload: any = {
+          session_id: cuadre.sessionId,
+          user_id: sessionInfo.user_id,
+          session_date: sessionInfo.session_date,
+          cash_available_bs: cuadre.cashAvailable,
+          cash_available_usd: cuadre.cashAvailableUsd,
+          exchange_rate: cuadre.exchangeRate,
+          // Save calculated closure values
+          excess_usd: excessUsd,
+          diferencia_final: diferenciaFinal,
+          // Save premios por pagar in pending_prizes field
+          pending_prizes: cuadre.premiosPorPagar,
+        };
         await supabase
           .from('daily_cuadres_summary')
-          .upsert({
-            session_id: cuadre.sessionId,
-            user_id: sessionInfo.user_id,
-            session_date: sessionInfo.session_date,
-            cash_available_bs: cuadre.cashAvailable,
-            cash_available_usd: cuadre.cashAvailableUsd,
-            exchange_rate: cuadre.exchangeRate,
-            // Save calculated closure values
-            excess_usd: excessUsd,
-            diferencia_final: diferenciaFinal,
-            // Save premios por pagar in total_debt_bs field
-            total_debt_bs: cuadre.premiosPorPagar,
-          }, { onConflict: 'session_id' });
+          .upsert(payload, { onConflict: 'session_id' });
       }
 
       toast({

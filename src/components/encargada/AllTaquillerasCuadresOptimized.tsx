@@ -192,13 +192,13 @@ export function AllTaquillerasCuadresOptimized() {
           total_prizes_bs: cuadre.total_prizes_bs || 0,
           total_prizes_usd: cuadre.total_prizes_usd || 0,
           // Updated fields for complete cuadre calculation
-          total_gastos_bs: (cuadre.total_expenses_bs || 0),  // Remove debt subtraction since total_debt_bs now holds premios por pagar
-          total_gastos_usd: (cuadre.total_expenses_usd || 0),  
-          total_deudas_bs: 0, // Reset to 0 since total_debt_bs now holds premios por pagar
-          total_deudas_usd: 0, // Reset to 0 since total_debt_usd now holds premios por pagar USD
+          total_gastos_bs: (cuadre.total_expenses_bs || 0) - (cuadre.total_debt_bs || 0),
+          total_gastos_usd: (cuadre.total_expenses_usd || 0) - (cuadre.total_debt_usd || 0),  
+          total_deudas_bs: cuadre.total_debt_bs || 0,
+          total_deudas_usd: cuadre.total_debt_usd || 0,
           pago_movil_recibidos: Math.max(cuadre.total_mobile_payments_bs || 0, 0),
           pago_movil_pagados: Math.abs(Math.min(cuadre.total_mobile_payments_bs || 0, 0)),
-          premios_por_pagar: cuadre.total_debt_bs || 0, // Now using total_debt_bs for premios por pagar
+          premios_por_pagar: (cuadre as any).pending_prizes || 0,
           cuadre_ventas_premios_bs: (cuadre.total_sales_bs || 0) - (cuadre.total_prizes_bs || 0),
           cuadre_ventas_premios_usd: (cuadre.total_sales_usd || 0) - (cuadre.total_prizes_usd || 0),
           total_banco: 0, // Removed field

@@ -59,6 +59,7 @@ export type Database = {
           id: string
           is_closed: boolean
           notes: string | null
+          pending_prizes: number
           session_date: string
           session_id: string
           total_debt_bs: number | null
@@ -88,6 +89,7 @@ export type Database = {
           id?: string
           is_closed?: boolean
           notes?: string | null
+          pending_prizes?: number
           session_date: string
           session_id: string
           total_debt_bs?: number | null
@@ -117,6 +119,7 @@ export type Database = {
           id?: string
           is_closed?: boolean
           notes?: string | null
+          pending_prizes?: number
           session_date?: string
           session_id?: string
           total_debt_bs?: number | null

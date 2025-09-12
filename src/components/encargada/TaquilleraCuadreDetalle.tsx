@@ -119,7 +119,8 @@ export const TaquilleraCuadreDetalle = ({ userId, selectedDate, userFullName }: 
           total_prizes_bs, total_prizes_usd,
           total_expenses_bs, total_expenses_usd,
           total_debt_bs, total_debt_usd,
-          total_mobile_payments_bs, total_pos_bs
+          total_mobile_payments_bs, total_pos_bs,
+          pending_prizes
         `)
         .eq('session_id', sessionId)
         .single();
@@ -139,28 +140,10 @@ export const TaquilleraCuadreDetalle = ({ userId, selectedDate, userFullName }: 
         // Use summary data if available, but always fetch individual mobile payments for accuracy
         console.log('🔍 CUADRE DETALLE DEBUG - Using summary data:', cuadreSummary);
         
-        // Always fetch individual mobile payments to get accurate received vs paid breakdown
-        const { data: mobilePaymentsData } = await supabase
-          .from('mobile_payments')
-          .select('amount_bs, description')
-          .eq('session_id', sessionId);
-
-        // Calculate mobile payments received and paid from individual transactions
-        const pagoMovilRecibidos = mobilePaymentsData?.reduce(
-          (sum, item) => {
-            const amount = Number(item.amount_bs || 0);
-            return amount > 0 ? sum + amount : sum;
-          },
-          0
-        ) || 0;
-
-        const pagoMovilPagados = Math.abs(mobilePaymentsData?.reduce(
-          (sum, item) => {
-            const amount = Number(item.amount_bs || 0);
-            return amount < 0 ? sum + amount : sum;
-          },
-          0
-        ) || 0);
+        // Use summary net mobile payments due to RLS restrictions for encargadas
+        const netMobile = Number(cuadreSummary.total_mobile_payments_bs || 0);
+        const pagoMovilRecibidos = netMobile > 0 ? netMobile : 0;
+        const pagoMovilPagados = netMobile < 0 ? Math.abs(netMobile) : 0;
         
         calculatedTotals = {
           totalSales: {
@@ -172,8 +155,8 @@ export const TaquilleraCuadreDetalle = ({ userId, selectedDate, userFullName }: 
             usd: Number(cuadreSummary.total_prizes_usd || 0)
           },
           totalGastos: {
-            bs: Number(cuadreSummary.total_expenses_bs || 0),
-            usd: Number(cuadreSummary.total_expenses_usd || 0)
+            bs: Number(cuadreSummary.total_expenses_bs || 0) - Number(cuadreSummary.total_debt_bs || 0),
+            usd: Number(cuadreSummary.total_expenses_usd || 0) - Number(cuadreSummary.total_debt_usd || 0)
           },
           totalDeudas: {
             bs: Number(cuadreSummary.total_debt_bs || 0),
@@ -292,8 +275,8 @@ export const TaquilleraCuadreDetalle = ({ userId, selectedDate, userFullName }: 
 
       console.log('🔍 CUADRE DETALLE DEBUG - Calculated totals:', calculatedTotals);
 
-      // Use total_debt_bs as "premios por pagar" field
-      const premiosPorPagar = Number(cuadreSummary.total_debt_bs || 0);
+      // Use pending_prizes from summary as "premios por pagar"
+      const premiosPorPagar = Number((cuadreSummary as any)?.pending_prizes || 0);
 
       console.log('🔍 CUADRE DETALLE DEBUG - Final values:', {
         cuadreSummaryData: cuadreSummary,
