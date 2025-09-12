@@ -76,50 +76,7 @@ export function EncargadaDashboard() {
       </header>
 
       <main className="container mx-auto p-6">
-        <div className="space-y-6">
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Cuadre por Agencias</CardTitle>
-                <Calculator className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">Ventas/Premios</div>
-                <p className="text-xs text-muted-foreground">
-                  Cuadre por agencia y sistema
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Supervisión</CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">Taquilleras</div>
-                <p className="text-xs text-muted-foreground">
-                  Monitoreo de cuadres
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Fecha</CardTitle>
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {new Date().toLocaleDateString('es-VE')}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Día de trabajo actual
-                </p>
-              </CardContent>
-            </Card>
-          </div>
+       
 
           {/* Main Content */}
           <Tabs defaultValue="cuadre-agencias" className="space-y-4">
