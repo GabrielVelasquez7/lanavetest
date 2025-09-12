@@ -111,119 +111,176 @@ export const TaquilleraCuadreDetalle = ({ userId, selectedDate, userFullName }: 
       const sessionData = sessions[0];
       const sessionId = sessionData.id;
 
-      // Fetch all data in parallel
-      const [
-        salesData, 
-        prizesData, 
-        expensesData, 
-        mobilePaymentsData, 
-        posData,
-        cuadreSummary
-      ] = await Promise.all([
-        supabase
-          .from('sales_transactions')
-          .select('amount_bs, amount_usd')
-          .eq('session_id', sessionId),
-        supabase
-          .from('prize_transactions')
-          .select('amount_bs, amount_usd')
-          .eq('session_id', sessionId),
-        supabase
-          .from('expenses')
-          .select('amount_bs, amount_usd, category')
-          .eq('session_id', sessionId),
-        supabase
+      // First try to get data from daily_cuadres_summary
+      const { data: cuadreSummary, error: cuadreSummaryError } = await supabase
+        .from('daily_cuadres_summary')
+        .select(`
+          total_sales_bs, total_sales_usd,
+          total_prizes_bs, total_prizes_usd,
+          total_expenses_bs, total_expenses_usd,
+          total_debt_bs, total_debt_usd,
+          total_mobile_payments_bs, total_pos_bs
+        `)
+        .eq('session_id', sessionId)
+        .single();
+
+      let totalSales, totalPrizes, totalGastos, totalDeudas, pagoMovilRecibidos, pagoMovilPagados, totalPointOfSale;
+
+      if (!cuadreSummaryError && cuadreSummary) {
+        // Use summary data if available
+        console.log('🔍 CUADRE DETALLE DEBUG - Using summary data:', cuadreSummary);
+        
+        totalSales = {
+          bs: Number(cuadreSummary.total_sales_bs || 0),
+          usd: Number(cuadreSummary.total_sales_usd || 0)
+        };
+        
+        totalPrizes = {
+          bs: Number(cuadreSummary.total_prizes_bs || 0),
+          usd: Number(cuadreSummary.total_prizes_usd || 0)
+        };
+        
+        totalGastos = {
+          bs: Number(cuadreSummary.total_expenses_bs || 0),
+          usd: Number(cuadreSummary.total_expenses_usd || 0)
+        };
+        
+        totalDeudas = {
+          bs: Number(cuadreSummary.total_debt_bs || 0),
+          usd: Number(cuadreSummary.total_debt_usd || 0)
+        };
+        
+        // Calculate mobile payments received and paid from net total
+        // The total_mobile_payments_bs represents net (received - paid)
+        const netMobilePayments = Number(cuadreSummary.total_mobile_payments_bs || 0);
+        
+        // We still need to fetch individual mobile payments to separate received vs paid
+        const { data: mobilePaymentsData } = await supabase
           .from('mobile_payments')
           .select('amount_bs, description')
-          .eq('session_id', sessionId),
-        supabase
-          .from('point_of_sale')
-          .select('amount_bs')
-          .eq('session_id', sessionId),
-        supabase
-          .from('daily_cuadres_summary')
-          .select('total_prizes_bs')
-          .eq('session_id', sessionId)
-          .single()
-      ]);
+          .eq('session_id', sessionId);
+
+        pagoMovilRecibidos = mobilePaymentsData?.reduce(
+          (sum, item) => {
+            const amount = Number(item.amount_bs || 0);
+            return amount > 0 ? sum + amount : sum;
+          },
+          0
+        ) || 0;
+
+        pagoMovilPagados = Math.abs(mobilePaymentsData?.reduce(
+          (sum, item) => {
+            const amount = Number(item.amount_bs || 0);
+            return amount < 0 ? sum + amount : sum;
+          },
+          0
+        ) || 0);
+        
+        totalPointOfSale = Number(cuadreSummary.total_pos_bs || 0);
+        
+      } else {
+        // Fallback to individual transaction calculation
+        console.log('🔍 CUADRE DETALLE DEBUG - Summary not found, calculating from individual transactions');
+        
+        const [
+          salesData, 
+          prizesData, 
+          expensesData, 
+          mobilePaymentsData, 
+          posData
+        ] = await Promise.all([
+          supabase
+            .from('sales_transactions')
+            .select('amount_bs, amount_usd')
+            .eq('session_id', sessionId),
+          supabase
+            .from('prize_transactions')
+            .select('amount_bs, amount_usd')
+            .eq('session_id', sessionId),
+          supabase
+            .from('expenses')
+            .select('amount_bs, amount_usd, category')
+            .eq('session_id', sessionId),
+          supabase
+            .from('mobile_payments')
+            .select('amount_bs, description')
+            .eq('session_id', sessionId),
+          supabase
+            .from('point_of_sale')
+            .select('amount_bs')
+            .eq('session_id', sessionId)
+        ]);
+
+        if (salesData.error) throw salesData.error;
+        if (prizesData.error) throw prizesData.error;
+        if (expensesData.error) throw expensesData.error;
+        if (mobilePaymentsData.error) throw mobilePaymentsData.error;
+        if (posData.error) throw posData.error;
+
+        totalSales = salesData.data?.reduce(
+          (acc, item) => ({
+            bs: acc.bs + Number(item.amount_bs || 0),
+            usd: acc.usd + Number(item.amount_usd || 0),
+          }),
+          { bs: 0, usd: 0 }
+        ) || { bs: 0, usd: 0 };
+
+        totalPrizes = prizesData.data?.reduce(
+          (acc, item) => ({
+            bs: acc.bs + Number(item.amount_bs || 0),
+            usd: acc.usd + Number(item.amount_usd || 0),
+          }),
+          { bs: 0, usd: 0 }
+        ) || { bs: 0, usd: 0 };
+
+        const gastos = expensesData.data?.filter(e => e.category === 'gasto_operativo') || [];
+        const deudas = expensesData.data?.filter(e => e.category === 'deuda') || [];
+
+        totalGastos = gastos.reduce(
+          (acc, item) => ({
+            bs: acc.bs + Number(item.amount_bs || 0),
+            usd: acc.usd + Number(item.amount_usd || 0),
+          }),
+          { bs: 0, usd: 0 }
+        );
+
+        totalDeudas = deudas.reduce(
+          (acc, item) => ({
+            bs: acc.bs + Number(item.amount_bs || 0),
+            usd: acc.usd + Number(item.amount_usd || 0),
+          }),
+          { bs: 0, usd: 0 }
+        );
+
+        pagoMovilRecibidos = mobilePaymentsData.data?.reduce(
+          (sum, item) => {
+            const amount = Number(item.amount_bs || 0);
+            return amount > 0 ? sum + amount : sum;
+          },
+          0
+        ) || 0;
+
+        pagoMovilPagados = Math.abs(mobilePaymentsData.data?.reduce(
+          (sum, item) => {
+            const amount = Number(item.amount_bs || 0);
+            return amount < 0 ? sum + amount : sum;
+          },
+          0
+        ) || 0);
+
+        totalPointOfSale = posData.data?.reduce(
+          (sum, item) => sum + Number(item.amount_bs || 0),
+          0
+        ) || 0;
+      }
 
       console.log('🔍 CUADRE DETALLE DEBUG - Query results:', {
-        salesData: { data: salesData.data, error: salesData.error },
-        prizesData: { data: prizesData.data, error: prizesData.error },
-        expensesData: { data: expensesData.data, error: expensesData.error },
-        mobilePaymentsData: { data: mobilePaymentsData.data, error: mobilePaymentsData.error },
-        posData: { data: posData.data, error: posData.error },
-        cuadreSummary: { data: cuadreSummary.data, error: cuadreSummary.error }
+        cuadreSummary: { data: cuadreSummary, error: cuadreSummaryError },
+        calculatedTotals: { totalSales, totalPrizes, totalGastos, totalDeudas, pagoMovilRecibidos, pagoMovilPagados, totalPointOfSale }
       });
 
-      // Check for errors (ignore cuadreSummary error as it might not exist)
-      if (salesData.error) throw salesData.error;
-      if (prizesData.error) throw prizesData.error;
-      if (expensesData.error) throw expensesData.error;
-      if (mobilePaymentsData.error) throw mobilePaymentsData.error;
-      if (posData.error) throw posData.error;
-
-      // Calculate totals
-      const totalSales = salesData.data?.reduce(
-        (acc, item) => ({
-          bs: acc.bs + Number(item.amount_bs || 0),
-          usd: acc.usd + Number(item.amount_usd || 0),
-        }),
-        { bs: 0, usd: 0 }
-      ) || { bs: 0, usd: 0 };
-
-      const totalPrizes = prizesData.data?.reduce(
-        (acc, item) => ({
-          bs: acc.bs + Number(item.amount_bs || 0),
-          usd: acc.usd + Number(item.amount_usd || 0),
-        }),
-        { bs: 0, usd: 0 }
-      ) || { bs: 0, usd: 0 };
-
-      // Separate expenses by category
-      const gastos = expensesData.data?.filter(e => e.category === 'gasto_operativo') || [];
-      const deudas = expensesData.data?.filter(e => e.category === 'deuda') || [];
-
-      const totalGastos = gastos.reduce(
-        (acc, item) => ({
-          bs: acc.bs + Number(item.amount_bs || 0),
-          usd: acc.usd + Number(item.amount_usd || 0),
-        }),
-        { bs: 0, usd: 0 }
-      );
-
-      const totalDeudas = deudas.reduce(
-        (acc, item) => ({
-          bs: acc.bs + Number(item.amount_bs || 0),
-          usd: acc.usd + Number(item.amount_usd || 0),
-        }),
-        { bs: 0, usd: 0 }
-      );
-
-      // Separate mobile payments (positive = received, negative = paid)
-      const pagoMovilRecibidos = mobilePaymentsData.data?.reduce(
-        (sum, item) => {
-          const amount = Number(item.amount_bs || 0);
-          return amount > 0 ? sum + amount : sum;
-        },
-        0
-      ) || 0;
-
-      const pagoMovilPagados = Math.abs(mobilePaymentsData.data?.reduce(
-        (sum, item) => {
-          const amount = Number(item.amount_bs || 0);
-          return amount < 0 ? sum + amount : sum;
-        },
-        0
-      ) || 0);
-
-      const totalPointOfSale = posData.data?.reduce(
-        (sum, item) => sum + Number(item.amount_bs || 0),
-        0
-      ) || 0;
-
       // Get premios por pagar from summary or use total prizes
-      const premiosPorPagar = cuadreSummary.data?.total_prizes_bs || 0;
+      const premiosPorPagar = cuadreSummary?.total_prizes_bs || totalPrizes.bs;
 
       const finalCuadre = {
         totalSales,
