@@ -295,6 +295,27 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
 
       if (error) throw error;
 
+      // Get session info to update daily_cuadres_summary
+      const { data: sessionInfo } = await supabase
+        .from('daily_sessions')
+        .select('user_id, session_date')
+        .eq('id', cuadre.sessionId)
+        .single();
+
+      if (sessionInfo) {
+        // Also update daily_cuadres_summary with the same values
+        await supabase
+          .from('daily_cuadres_summary')
+          .upsert({
+            session_id: cuadre.sessionId,
+            user_id: sessionInfo.user_id,
+            session_date: sessionInfo.session_date,
+            cash_available_bs: cuadre.cashAvailable,
+            cash_available_usd: cuadre.cashAvailableUsd,
+            exchange_rate: cuadre.exchangeRate,
+          }, { onConflict: 'session_id' });
+      }
+
       toast({
         title: 'Éxito',
         description: 'Cierre diario guardado correctamente',
