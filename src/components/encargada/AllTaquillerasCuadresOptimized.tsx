@@ -337,15 +337,27 @@ export function AllTaquillerasCuadresOptimized() {
       // Get current user info
       const { data: { user } } = await supabase.auth.getUser();
       
-      const { error } = await supabase
+      console.log('🔍 REVIEW DEBUG - User:', user);
+      console.log('🔍 REVIEW DEBUG - Cuadre ID:', reviewingCuadre.id);
+      console.log('🔍 REVIEW DEBUG - Status:', status);
+      console.log('🔍 REVIEW DEBUG - Observations:', reviewObservations);
+      
+      const updateData = {
+        encargada_status: status,
+        encargada_observations: reviewObservations || null,
+        encargada_reviewed_by: user?.id,
+        encargada_reviewed_at: new Date().toISOString(),
+      };
+      
+      console.log('🔍 REVIEW DEBUG - Update data:', updateData);
+      
+      const { data, error } = await supabase
         .from('daily_cuadres_summary')
-        .update({
-          encargada_status: status,
-          encargada_observations: reviewObservations,
-          encargada_reviewed_by: user?.id,
-          encargada_reviewed_at: new Date().toISOString(),
-        })
-        .eq('id', reviewingCuadre.id);
+        .update(updateData)
+        .eq('id', reviewingCuadre.id)
+        .select();
+
+      console.log('🔍 REVIEW DEBUG - Update result:', { data, error });
 
       if (error) throw error;
 
