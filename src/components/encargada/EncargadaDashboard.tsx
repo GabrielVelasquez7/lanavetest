@@ -7,7 +7,7 @@ import { AllTaquillerasCuadresOptimized } from "./AllTaquillerasCuadresOptimized
 import { VentasPremiosEncargada } from "./VentasPremiosEncargada";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/components/ui/use-toast";
 import { InterAgencyManager } from "./InterAgencyManager";
 
 export function EncargadaDashboard() {
