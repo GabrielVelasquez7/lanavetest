@@ -334,12 +334,15 @@ export function AllTaquillerasCuadresOptimized() {
     if (!reviewingCuadre) return;
 
     try {
+      // Get current user info
+      const { data: { user } } = await supabase.auth.getUser();
+      
       const { error } = await supabase
         .from('daily_cuadres_summary')
         .update({
           encargada_status: status,
           encargada_observations: reviewObservations,
-          encargada_reviewed_by: 'current_user_id', // You'll need to get the actual user ID
+          encargada_reviewed_by: user?.id,
           encargada_reviewed_at: new Date().toISOString(),
         })
         .eq('id', reviewingCuadre.id);
