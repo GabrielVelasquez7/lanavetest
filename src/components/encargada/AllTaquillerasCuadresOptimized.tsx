@@ -567,7 +567,7 @@ export function AllTaquillerasCuadresOptimized() {
                             <Button 
                               variant="outline" 
                               size="sm" 
-                              className="w-full"
+                              className="w-full mb-2"
                               onClick={() => setSelectedCuadre(cuadre)}
                             >
                               <Eye className="mr-2 h-4 w-4" />
@@ -585,6 +585,15 @@ export function AllTaquillerasCuadresOptimized() {
                             />
                           </DialogContent>
                         </Dialog>
+                        
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          className="w-full"
+                          onClick={() => openReviewDialog(cuadre)}
+                        >
+                          Revisar Cuadre
+                        </Button>
                       </CardContent>
                     </Card>
                   );
