@@ -332,8 +332,6 @@ export const VentasPremiosManager = ({ onSuccess, dateRange }: VentasPremiosMana
         total_sales_usd: currentTotals.sales_usd,
         total_prizes_bs: currentTotals.prizes_bs,
         total_prizes_usd: currentTotals.prizes_usd,
-        cuadre_ventas_premios_bs: currentTotals.sales_bs - currentTotals.prizes_bs,
-        cuadre_ventas_premios_usd: currentTotals.sales_usd - currentTotals.prizes_usd,
       };
 
       console.log('🔍 GUARDANDO SUMMARY - Datos:', summaryData);
