@@ -289,6 +289,111 @@ export type Database = {
           },
         ]
       }
+      inter_agency_debts: {
+        Row: {
+          creditor_agency_id: string
+          debtor_agency_id: string
+          id: string
+          last_updated: string
+          total_debt_bs: number
+          total_debt_usd: number
+        }
+        Insert: {
+          creditor_agency_id: string
+          debtor_agency_id: string
+          id?: string
+          last_updated?: string
+          total_debt_bs?: number
+          total_debt_usd?: number
+        }
+        Update: {
+          creditor_agency_id?: string
+          debtor_agency_id?: string
+          id?: string
+          last_updated?: string
+          total_debt_bs?: number
+          total_debt_usd?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inter_agency_debts_creditor_agency_id_fkey"
+            columns: ["creditor_agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inter_agency_debts_debtor_agency_id_fkey"
+            columns: ["debtor_agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inter_agency_loans: {
+        Row: {
+          amount_bs: number
+          amount_usd: number
+          created_at: string
+          created_by: string
+          description: string | null
+          due_date: string | null
+          from_agency_id: string
+          id: string
+          loan_date: string
+          reason: string
+          status: string
+          to_agency_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount_bs?: number
+          amount_usd?: number
+          created_at?: string
+          created_by: string
+          description?: string | null
+          due_date?: string | null
+          from_agency_id: string
+          id?: string
+          loan_date?: string
+          reason: string
+          status?: string
+          to_agency_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount_bs?: number
+          amount_usd?: number
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          due_date?: string | null
+          from_agency_id?: string
+          id?: string
+          loan_date?: string
+          reason?: string
+          status?: string
+          to_agency_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inter_agency_loans_from_agency_id_fkey"
+            columns: ["from_agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inter_agency_loans_to_agency_id_fkey"
+            columns: ["to_agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lottery_systems: {
         Row: {
           code: string

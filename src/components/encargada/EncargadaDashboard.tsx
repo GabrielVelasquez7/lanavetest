@@ -8,6 +8,7 @@ import { VentasPremiosEncargada } from "./VentasPremiosEncargada";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { InterAgencyManager } from "./InterAgencyManager";
 
 export function EncargadaDashboard() {
   const { user, signOut } = useAuth();
@@ -82,12 +83,15 @@ export function EncargadaDashboard() {
     <div className="space-y-6">
       {/* Main Content */}
       <Tabs defaultValue="cuadre-agencias" className="space-y-4">
-        <TabsList>
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="cuadre-agencias">
             Cuadre por Agencias
           </TabsTrigger>
           <TabsTrigger value="supervision">
             Supervisión Taquilleras
+          </TabsTrigger>
+          <TabsTrigger value="prestamos-deudas">
+            Préstamos y Deudas
           </TabsTrigger>
         </TabsList>
 
@@ -97,6 +101,10 @@ export function EncargadaDashboard() {
 
         <TabsContent value="supervision" className="space-y-4">
           <AllTaquillerasCuadresOptimized />
+        </TabsContent>
+
+        <TabsContent value="prestamos-deudas" className="space-y-4">
+          <InterAgencyManager />
         </TabsContent>
       </Tabs>
     </div>
