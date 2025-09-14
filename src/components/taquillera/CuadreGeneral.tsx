@@ -293,10 +293,10 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
   };
 
   const saveDailyClosure = async () => {
-    if (!user || !cuadre.sessionId) {
+    if (!user || !dateRange) {
       toast({
         title: 'Error',
-        description: 'Debes tener una sesión activa para registrar el cierre',
+        description: 'Usuario o fecha no válidos',
         variant: 'destructive',
       });
       return;
@@ -304,24 +304,53 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
 
     setSaving(true);
     try {
-      const { error } = await supabase
-        .from('daily_sessions')
-        .update({
-          cash_available_bs: cuadre.cashAvailable,
-          cash_available_usd: cuadre.cashAvailableUsd,
-          daily_closure_confirmed: cuadre.closureConfirmed,
-          closure_notes: cuadre.closureNotes,
-          exchange_rate: cuadre.exchangeRate,
-        })
-        .eq('id', cuadre.sessionId);
+      let sessionId = cuadre.sessionId;
+      
+      // Si no hay sesión, crear una para el día actual
+      if (!sessionId) {
+        const currentDate = formatDateForDB(dateRange.from);
+        
+        const { data: newSession, error: createError } = await supabase
+          .from('daily_sessions')
+          .insert({
+            user_id: user.id,
+            session_date: currentDate,
+            cash_available_bs: cuadre.cashAvailable,
+            cash_available_usd: cuadre.cashAvailableUsd,
+            exchange_rate: cuadre.exchangeRate,
+            daily_closure_confirmed: cuadre.closureConfirmed,
+            closure_notes: cuadre.closureNotes,
+            is_closed: false,
+          })
+          .select('id')
+          .single();
 
-      if (error) throw error;
+        if (createError) throw createError;
+        sessionId = newSession.id;
+        
+        // Actualizar el cuadre con el nuevo sessionId
+        setCuadre(prev => ({ ...prev, sessionId }));
+      } else {
+        // Si la sesión ya existe, actualizarla
+        const { error } = await supabase
+          .from('daily_sessions')
+          .update({
+            cash_available_bs: cuadre.cashAvailable,
+            cash_available_usd: cuadre.cashAvailableUsd,
+            daily_closure_confirmed: cuadre.closureConfirmed,
+            closure_notes: cuadre.closureNotes,
+            exchange_rate: cuadre.exchangeRate,
+          })
+          .eq('id', sessionId);
+
+        if (error) throw error;
+      }
 
       // Get session info to update daily_cuadres_summary
       const { data: sessionInfo } = await supabase
         .from('daily_sessions')
         .select('user_id, session_date')
-        .eq('id', cuadre.sessionId)
+        .eq('id', sessionId)
         .single();
 
       if (sessionInfo) {
@@ -346,23 +375,45 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
         const diferenciaCierre = sumatoriaBolivares - cuadreVentasPremios.bs;
         const diferenciaFinal = diferenciaCierre - cuadre.premiosPorPagar;
         
-        // Calculate USD difference
-        const diferenciaUsd = (cuadre.cashAvailableUsd + cuadre.totalGastos.usd + cuadre.totalDeudas.usd) - cuadreVentasPremios.usd;
+        // Get user's agency_id from profile
+        let agencyId = null;
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('agency_id')
+          .eq('user_id', user.id)
+          .single();
+        agencyId = profile?.agency_id;
 
         // Also update daily_cuadres_summary with calculated values
         const payload: any = {
-          session_id: cuadre.sessionId,
+          session_id: sessionId,
           user_id: sessionInfo.user_id,
           session_date: sessionInfo.session_date,
+          agency_id: agencyId,
+          total_sales_bs: cuadre.totalSales.bs,
+          total_sales_usd: cuadre.totalSales.usd,
+          total_prizes_bs: cuadre.totalPrizes.bs,
+          total_prizes_usd: cuadre.totalPrizes.usd,
+          total_expenses_bs: cuadre.totalGastos.bs + cuadre.totalDeudas.bs,
+          total_expenses_usd: cuadre.totalGastos.usd + cuadre.totalDeudas.usd,
+          total_debt_bs: cuadre.totalDeudas.bs,
+          total_debt_usd: cuadre.totalDeudas.usd,
+          total_mobile_payments_bs: cuadre.pagoMovilRecibidos - cuadre.pagoMovilPagados,
+          total_pos_bs: cuadre.totalPointOfSale,
           cash_available_bs: cuadre.cashAvailable,
           cash_available_usd: cuadre.cashAvailableUsd,
           exchange_rate: cuadre.exchangeRate,
+          balance_bs: diferenciaCierre,
+          is_closed: true,
+          daily_closure_confirmed: cuadre.closureConfirmed,
           // Save calculated closure values
           excess_usd: excessUsd,
           diferencia_final: diferenciaFinal,
           // Save premios por pagar in pending_prizes field
           pending_prizes: cuadre.premiosPorPagar,
+          notes: cuadre.closureNotes,
         };
+        
         await supabase
           .from('daily_cuadres_summary')
           .upsert(payload, { onConflict: 'session_id' });
@@ -372,6 +423,9 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
         title: 'Éxito',
         description: 'Cierre diario guardado correctamente',
       });
+      
+      // Refrescar los datos
+      fetchCuadreData();
     } catch (error: any) {
       toast({
         title: 'Error',
@@ -916,7 +970,7 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
             
             <Button 
               onClick={saveDailyClosure} 
-              disabled={saving || !cuadre.sessionId}
+              disabled={saving}
               className="w-full"
               size="lg"
             >
