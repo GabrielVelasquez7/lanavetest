@@ -54,6 +54,10 @@ export type Database = {
           created_at: string
           daily_closure_confirmed: boolean
           diferencia_final: number
+          encargada_observations: string | null
+          encargada_reviewed_at: string | null
+          encargada_reviewed_by: string | null
+          encargada_status: string | null
           excess_usd: number
           exchange_rate: number
           id: string
@@ -84,6 +88,10 @@ export type Database = {
           created_at?: string
           daily_closure_confirmed?: boolean
           diferencia_final?: number
+          encargada_observations?: string | null
+          encargada_reviewed_at?: string | null
+          encargada_reviewed_by?: string | null
+          encargada_status?: string | null
           excess_usd?: number
           exchange_rate?: number
           id?: string
@@ -114,6 +122,10 @@ export type Database = {
           created_at?: string
           daily_closure_confirmed?: boolean
           diferencia_final?: number
+          encargada_observations?: string | null
+          encargada_reviewed_at?: string | null
+          encargada_reviewed_by?: string | null
+          encargada_status?: string | null
           excess_usd?: number
           exchange_rate?: number
           id?: string

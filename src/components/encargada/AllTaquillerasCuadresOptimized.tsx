@@ -20,8 +20,10 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 
 interface TaquilleraCuadre {
+  id: string;
   session_id: string;
   session_date: string;
   user_id: string; // Add user_id field
@@ -54,6 +56,11 @@ interface TaquilleraCuadre {
   sumatoria_bolivares?: number;
   diferencia_cierre?: number;
   diferencia_final?: number;
+  // Encargada review fields
+  encargada_status?: string;
+  encargada_observations?: string;
+  encargada_reviewed_by?: string;
+  encargada_reviewed_at?: string;
 }
 
 interface AgencyGroup {
@@ -74,6 +81,9 @@ export function AllTaquillerasCuadresOptimized() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCuadre, setSelectedCuadre] = useState<TaquilleraCuadre | null>(null);
+  const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+  const [reviewingCuadre, setReviewingCuadre] = useState<TaquilleraCuadre | null>(null);
+  const [reviewObservations, setReviewObservations] = useState('');
   const { toast } = useToast();
 
   useEffect(() => {
@@ -174,6 +184,7 @@ export function AllTaquillerasCuadresOptimized() {
         const agency = agenciesMap[cuadre.agency_id];
 
         return {
+          id: cuadre.id,
           session_id: cuadre.session_id,
           session_date: cuadre.session_date,
           user_id: cuadre.user_id, // Add user_id
@@ -206,6 +217,11 @@ export function AllTaquillerasCuadresOptimized() {
           sumatoria_bolivares: (cuadre.total_sales_bs || 0) + (cuadre.total_pos_bs || 0) + Math.max(cuadre.total_mobile_payments_bs || 0, 0),
           diferencia_cierre: cuadre.diferencia_final || 0,
           diferencia_final: cuadre.diferencia_final || 0,
+          // Encargada review fields
+          encargada_status: cuadre.encargada_status || 'pendiente',
+          encargada_observations: cuadre.encargada_observations || '',
+          encargada_reviewed_by: cuadre.encargada_reviewed_by,
+          encargada_reviewed_at: cuadre.encargada_reviewed_at,
         } as TaquilleraCuadre;
       });
 
@@ -294,6 +310,58 @@ export function AllTaquillerasCuadresOptimized() {
         Abierto
       </Badge>
     );
+  };
+
+  const getEncargadaStatusBadge = (status: string) => {
+    switch (status) {
+      case 'aprobado':
+        return <Badge variant="default" className="bg-green-600">Aprobado</Badge>;
+      case 'rechazado':
+        return <Badge variant="destructive">Rechazado</Badge>;
+      case 'pendiente':
+      default:
+        return <Badge variant="outline">Pendiente Revisión</Badge>;
+    }
+  };
+
+  const openReviewDialog = (cuadre: TaquilleraCuadre) => {
+    setReviewingCuadre(cuadre);
+    setReviewObservations(cuadre.encargada_observations || '');
+    setReviewDialogOpen(true);
+  };
+
+  const submitReview = async (status: 'aprobado' | 'rechazado') => {
+    if (!reviewingCuadre) return;
+
+    try {
+      const { error } = await supabase
+        .from('daily_cuadres_summary')
+        .update({
+          encargada_status: status,
+          encargada_observations: reviewObservations,
+          encargada_reviewed_by: 'current_user_id', // You'll need to get the actual user ID
+          encargada_reviewed_at: new Date().toISOString(),
+        })
+        .eq('id', reviewingCuadre.id);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Éxito',
+        description: `Cuadre ${status === 'aprobado' ? 'aprobado' : 'rechazado'} correctamente`,
+      });
+
+      setReviewDialogOpen(false);
+      setReviewingCuadre(null);
+      setReviewObservations('');
+      fetchCuadres();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Error al revisar el cuadre',
+        variant: 'destructive',
+      });
+    }
   };
 
   const calculateBalance = (cuadre: TaquilleraCuadre) => {
@@ -523,6 +591,55 @@ export function AllTaquillerasCuadresOptimized() {
           </Card>
         ))
       )}
+
+      {/* Review Dialog */}
+      <Dialog open={reviewDialogOpen} onOpenChange={setReviewDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Revisar Cuadre</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <p className="text-sm font-medium">
+                Taquillera: {reviewingCuadre?.user_name}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Fecha: {reviewingCuadre?.session_date}
+              </p>
+              <p className="text-sm">
+                Diferencia: Bs {reviewingCuadre?.diferencia_final?.toLocaleString() || '0'}
+              </p>
+            </div>
+            
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Observaciones</label>
+              <Textarea
+                placeholder="Escribe tus observaciones aquí..."
+                value={reviewObservations}
+                onChange={(e) => setReviewObservations(e.target.value)}
+                rows={4}
+              />
+            </div>
+
+            <div className="flex space-x-2">
+              <Button
+                variant="default"
+                className="flex-1 bg-green-600 hover:bg-green-700"
+                onClick={() => submitReview('aprobado')}
+              >
+                Aprobar
+              </Button>
+              <Button
+                variant="destructive"
+                className="flex-1"
+                onClick={() => submitReview('rechazado')}
+              >
+                Rechazar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -51,6 +51,13 @@ interface CuadreData {
   
   // Session info
   sessionId?: string;
+  
+  // Encargada feedback
+  encargadaFeedback?: {
+    encargada_status?: string;
+    encargada_observations?: string;
+    encargada_reviewed_at?: string;
+  } | null;
 }
 
 export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps) => {
@@ -231,6 +238,20 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
         0
       ) || 0;
 
+      // Check if we have an existing cuadres summary with encargada feedback
+      let encargadaFeedback = null;
+      if (sessionData?.id) {
+        const { data: cuadreSummary } = await supabase
+          .from('daily_cuadres_summary')
+          .select('encargada_status, encargada_observations, encargada_reviewed_at')
+          .eq('session_id', sessionData.id)
+          .single();
+        
+        if (cuadreSummary) {
+          encargadaFeedback = cuadreSummary;
+        }
+      }
+
       const finalCuadre = {
         totalSales,
         totalPrizes,
@@ -246,6 +267,53 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
         premiosPorPagar: 0,
         exchangeRate: sessionData ? Number(sessionData.exchange_rate || 36.00) : 36.00,
         sessionId: sessionData?.id,
+        encargadaFeedback,
+      };
+
+       // Check if we have an existing cuadres summary with encargada feedback
+      let encargadaFeedback = null;
+      if (sessionData?.id) {
+        const { data: cuadreSummary } = await supabase
+          .from('daily_cuadres_summary')
+          .select('encargada_status, encargada_observations, encargada_reviewed_at')
+          .eq('session_id', sessionData.id)
+          .single();
+        
+        if (cuadreSummary) {
+          encargadaFeedback = cuadreSummary;
+        }
+      }
+
+      // Check if we have an existing cuadres summary with encargada feedback
+      let encargadaFeedback = null;
+      if (sessionIds.length === 1) {
+        const { data: cuadreSummary } = await supabase
+          .from('daily_cuadres_summary')
+          .select('encargada_status, encargada_observations, encargada_reviewed_at')
+          .eq('session_id', sessionIds[0])
+          .single();
+        
+        if (cuadreSummary) {
+          encargadaFeedback = cuadreSummary;
+        }
+      }
+
+      const finalCuadre = {
+        totalSales,
+        totalPrizes,
+        totalGastos,
+        totalDeudas,
+        pagoMovilRecibidos,
+        pagoMovilPagados,
+        totalPointOfSale,
+        cashAvailable: sessionData ? Number(sessionData.cash_available_bs || 0) : 0,
+        cashAvailableUsd: sessionData ? Number(sessionData.cash_available_usd || 0) : 0,
+        closureConfirmed: sessionData ? sessionData.daily_closure_confirmed || false : false,
+        closureNotes: sessionData ? sessionData.closure_notes || '' : '',
+        premiosPorPagar: 0,
+        exchangeRate: sessionData ? Number(sessionData.exchange_rate || 36.00) : 36.00,
+        sessionId: sessionData?.id,
+        encargadaFeedback,
       };
       
       setCuadre(finalCuadre);
@@ -410,6 +478,78 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
           </Badge>
         )}
       </div>
+
+      {/* Encargada Feedback Section */}
+      {cuadre.encargadaFeedback && cuadre.encargadaFeedback.encargada_status !== 'pendiente' && (
+        <Card className={`border-2 ${
+          cuadre.encargadaFeedback.encargada_status === 'aprobado' 
+            ? 'border-green-200 bg-green-50' 
+            : 'border-red-200 bg-red-50'
+        }`}>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base">Revisión de la Encargada</CardTitle>
+              <Badge 
+                variant={cuadre.encargadaFeedback.encargada_status === 'aprobado' ? 'default' : 'destructive'}
+                className={cuadre.encargadaFeedback.encargada_status === 'aprobado' ? 'bg-green-600' : ''}
+              >
+                {cuadre.encargadaFeedback.encargada_status === 'aprobado' ? 'Aprobado' : 'Rechazado'}
+              </Badge>
+            </div>
+          </CardHeader>
+          {cuadre.encargadaFeedback.encargada_observations && (
+            <CardContent className="pt-0">
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Observaciones:</Label>
+                <p className="text-sm p-3 bg-background/50 rounded border">
+                  {cuadre.encargadaFeedback.encargada_observations}
+                </p>
+                {cuadre.encargadaFeedback.encargada_reviewed_at && (
+                  <p className="text-xs text-muted-foreground">
+                    Revisado el {format(new Date(cuadre.encargadaFeedback.encargada_reviewed_at), 'dd/MM/yyyy HH:mm')}
+                  </p>
+                )}
+              </div>
+            </CardContent>
+          )}
+        </Card>
+      )}
+
+      {/* Encargada Feedback Section */}
+      {cuadre.encargadaFeedback && cuadre.encargadaFeedback.encargada_status !== 'pendiente' && (
+        <Card className={`border-2 ${
+          cuadre.encargadaFeedback.encargada_status === 'aprobado' 
+            ? 'border-green-200 bg-green-50' 
+            : 'border-red-200 bg-red-50'
+        }`}>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base">Revisión de la Encargada</CardTitle>
+              <Badge 
+                variant={cuadre.encargadaFeedback.encargada_status === 'aprobado' ? 'default' : 'destructive'}
+                className={cuadre.encargadaFeedback.encargada_status === 'aprobado' ? 'bg-green-600' : ''}
+              >
+                {cuadre.encargadaFeedback.encargada_status === 'aprobado' ? 'Aprobado' : 'Rechazado'}
+              </Badge>
+            </div>
+          </CardHeader>
+          {cuadre.encargadaFeedback.encargada_observations && (
+            <CardContent className="pt-0">
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Observaciones:</Label>
+                <p className="text-sm p-3 bg-background/50 rounded border">
+                  {cuadre.encargadaFeedback.encargada_observations}
+                </p>
+                {cuadre.encargadaFeedback.encargada_reviewed_at && (
+                  <p className="text-xs text-muted-foreground">
+                    Revisado el {format(new Date(cuadre.encargadaFeedback.encargada_reviewed_at), 'dd/MM/yyyy HH:mm')}
+                  </p>
+                )}
+              </div>
+            </CardContent>
+          )}
+        </Card>
+      )}
 
       {/* Daily Closure Section - Only for single day */}
       {isSingleDay && (
