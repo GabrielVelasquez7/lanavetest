@@ -238,17 +238,19 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
         0
       ) || 0;
 
-      // Check if we have an existing cuadres summary with encargada feedback
+      // Check if we have an existing cuadres summary with encargada feedback and pending prizes
       let encargadaFeedback = null;
+      let savedPremiosPorPagar = 0;
       if (sessionData?.id) {
         const { data: cuadreSummary } = await supabase
           .from('daily_cuadres_summary')
-          .select('encargada_status, encargada_observations, encargada_reviewed_at')
+          .select('encargada_status, encargada_observations, encargada_reviewed_at, pending_prizes')
           .eq('session_id', sessionData.id)
           .single();
         
         if (cuadreSummary) {
           encargadaFeedback = cuadreSummary;
+          savedPremiosPorPagar = Number(cuadreSummary.pending_prizes || 0);
         }
       }
 
@@ -264,7 +266,7 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
         cashAvailableUsd: sessionData ? Number(sessionData.cash_available_usd || 0) : 0,
         closureConfirmed: sessionData ? sessionData.daily_closure_confirmed || false : false,
         closureNotes: sessionData ? sessionData.closure_notes || '' : '',
-        premiosPorPagar: 0,
+        premiosPorPagar: savedPremiosPorPagar,
         exchangeRate: sessionData ? Number(sessionData.exchange_rate || 36.00) : 36.00,
         sessionId: sessionData?.id,
         encargadaFeedback,
