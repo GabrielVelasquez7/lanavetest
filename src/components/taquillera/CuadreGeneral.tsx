@@ -7,12 +7,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { formatCurrency } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
-import { Calculator, CheckCircle2, XCircle, Save, TrendingUp, TrendingDown } from 'lucide-react';
+import { Calculator, CheckCircle2, XCircle, Save, TrendingUp, TrendingDown, ChevronDown, ChevronRight } from 'lucide-react';
 import { formatDateForDB } from '@/lib/dateUtils';
 
 interface CuadreGeneralProps {
@@ -31,6 +32,10 @@ interface CuadreData {
   // Expenses separated by category
   totalGastos: { bs: number; usd: number };
   totalDeudas: { bs: number; usd: number };
+  
+  // Detailed expenses for dropdowns
+  gastosDetails: Array<{ description: string; amount_bs: number; amount_usd: number; created_at: string }>;
+  deudasDetails: Array<{ description: string; amount_bs: number; amount_usd: number; created_at: string }>;
   
   // Mobile payments separated
   pagoMovilRecibidos: number;
@@ -66,6 +71,8 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
     totalPrizes: { bs: 0, usd: 0 },
     totalGastos: { bs: 0, usd: 0 },
     totalDeudas: { bs: 0, usd: 0 },
+    gastosDetails: [],
+    deudasDetails: [],
     pagoMovilRecibidos: 0,
     pagoMovilPagados: 0,
     totalPointOfSale: 0,
@@ -88,6 +95,10 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
     cashAvailable: false,
     cashAvailableUsd: false,
   });
+
+  // State for collapsible dropdowns
+  const [gastosOpen, setGastosOpen] = useState(false);
+  const [deudasOpen, setDeudasOpen] = useState(false);
   
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -151,7 +162,7 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
           .in('session_id', sessionIds),
         supabase
           .from('expenses')
-          .select('amount_bs, amount_usd, category')
+          .select('amount_bs, amount_usd, category, description, created_at')
           .in('session_id', sessionIds),
         supabase
           .from('mobile_payments')
@@ -266,6 +277,8 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
         totalPrizes,
         totalGastos,
         totalDeudas,
+        gastosDetails: gastos,
+        deudasDetails: deudas,
         pagoMovilRecibidos,
         pagoMovilPagados,
         totalPointOfSale,
@@ -701,14 +714,76 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
                     <span>Total en banco:</span>
                     <span className="font-medium">{formatCurrency(totalBanco, 'VES')}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span>Deudas:</span>
-                    <span className="font-medium">{formatCurrency(cuadre.totalDeudas.bs, 'VES')}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Gastos:</span>
-                    <span className="font-medium">{formatCurrency(cuadre.totalGastos.bs, 'VES')}</span>
-                  </div>
+                  <Collapsible open={deudasOpen} onOpenChange={setDeudasOpen}>
+                    <CollapsibleTrigger asChild>
+                      <div className="flex justify-between items-center cursor-pointer hover:bg-muted/50 rounded px-2 py-1 transition-colors">
+                        <span className="flex items-center gap-1">
+                          {deudasOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                          Deudas:
+                        </span>
+                        <span className="font-medium">{formatCurrency(cuadre.totalDeudas.bs, 'VES')}</span>
+                      </div>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <div className="ml-4 mt-2 space-y-1 text-xs">
+                        {cuadre.deudasDetails.length > 0 ? (
+                          cuadre.deudasDetails.map((deuda, index) => (
+                            <div key={index} className="flex justify-between items-center py-1 px-2 bg-muted/30 rounded">
+                              <div className="flex-1">
+                                <span className="text-muted-foreground">{deuda.description}</span>
+                                <div className="text-xs text-muted-foreground">
+                                  {format(new Date(deuda.created_at), 'dd/MM/yyyy HH:mm')}
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <div>{formatCurrency(deuda.amount_bs, 'VES')}</div>
+                                {deuda.amount_usd > 0 && (
+                                  <div className="text-xs text-muted-foreground">{formatCurrency(deuda.amount_usd, 'USD')}</div>
+                                )}
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="text-muted-foreground text-center py-2">No hay deudas registradas</div>
+                        )}
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
+                  <Collapsible open={gastosOpen} onOpenChange={setGastosOpen}>
+                    <CollapsibleTrigger asChild>
+                      <div className="flex justify-between items-center cursor-pointer hover:bg-muted/50 rounded px-2 py-1 transition-colors">
+                        <span className="flex items-center gap-1">
+                          {gastosOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                          Gastos:
+                        </span>
+                        <span className="font-medium">{formatCurrency(cuadre.totalGastos.bs, 'VES')}</span>
+                      </div>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <div className="ml-4 mt-2 space-y-1 text-xs">
+                        {cuadre.gastosDetails.length > 0 ? (
+                          cuadre.gastosDetails.map((gasto, index) => (
+                            <div key={index} className="flex justify-between items-center py-1 px-2 bg-muted/30 rounded">
+                              <div className="flex-1">
+                                <span className="text-muted-foreground">{gasto.description}</span>
+                                <div className="text-xs text-muted-foreground">
+                                  {format(new Date(gasto.created_at), 'dd/MM/yyyy HH:mm')}
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <div>{formatCurrency(gasto.amount_bs, 'VES')}</div>
+                                {gasto.amount_usd > 0 && (
+                                  <div className="text-xs text-muted-foreground">{formatCurrency(gasto.amount_usd, 'USD')}</div>
+                                )}
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="text-muted-foreground text-center py-2">No hay gastos registrados</div>
+                        )}
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
                   <div className="flex justify-between">
                     <span>Excedente USD → Bs (x{cuadre.exchangeRate.toFixed(2)}):</span>
                     <span className="font-medium">{formatCurrency(excessUsd * cuadre.exchangeRate, 'VES')}</span>
