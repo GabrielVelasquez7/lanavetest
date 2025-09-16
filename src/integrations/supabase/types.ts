@@ -47,6 +47,7 @@ export type Database = {
       daily_cuadres_summary: {
         Row: {
           agency_id: string | null
+          balance_before_pending_prizes_bs: number | null
           balance_bs: number
           cash_available_bs: number
           cash_available_usd: number
@@ -81,6 +82,7 @@ export type Database = {
         }
         Insert: {
           agency_id?: string | null
+          balance_before_pending_prizes_bs?: number | null
           balance_bs?: number
           cash_available_bs?: number
           cash_available_usd?: number
@@ -115,6 +117,7 @@ export type Database = {
         }
         Update: {
           agency_id?: string | null
+          balance_before_pending_prizes_bs?: number | null
           balance_bs?: number
           cash_available_bs?: number
           cash_available_usd?: number
@@ -467,6 +470,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      pending_prizes: {
+        Row: {
+          amount_bs: number
+          created_at: string
+          description: string | null
+          id: string
+          is_paid: boolean
+          session_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount_bs?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_paid?: boolean
+          session_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount_bs?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_paid?: boolean
+          session_id?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       point_of_sale: {
         Row: {

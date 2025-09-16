@@ -11,6 +11,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { GastosManager } from './GastosManager';
 import { DailySummary } from './DailySummary';
 import { PagoMovilManager } from './PagoMovilManager';
+import { PremiosPorPagarManager } from './PremiosPorPagarManager';
 import { PointOfSaleForm } from './PointOfSaleForm';
 import { SystemCuadresView } from './SystemCuadresView';
 import { VentasPremiosManager } from './VentasPremiosManager';
@@ -227,7 +228,7 @@ export const TaquilleraDashboard = () => {
         </Card>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="transacciones" className="flex items-center gap-2">
               <DollarSign className="h-4 w-4" />
               Ventas/Premios
@@ -239,6 +240,10 @@ export const TaquilleraDashboard = () => {
             <TabsTrigger value="pago-movil" className="flex items-center gap-2">
               <Smartphone className="h-4 w-4" />
               Pago Móvil
+            </TabsTrigger>
+            <TabsTrigger value="premios-por-pagar" className="flex items-center gap-2">
+              <Gift className="h-4 w-4" />
+              Premios P.P.
             </TabsTrigger>
             <TabsTrigger value="punto-venta" className="flex items-center gap-2">
               <CreditCard className="h-4 w-4" />
@@ -264,6 +269,10 @@ export const TaquilleraDashboard = () => {
 
           <TabsContent value="pago-movil" className="space-y-6">
             <PagoMovilManager onSuccess={triggerRefresh} dateRange={dateRange} />
+          </TabsContent>
+
+          <TabsContent value="premios-por-pagar" className="space-y-6">
+            <PremiosPorPagarManager onSuccess={triggerRefresh} dateRange={dateRange} />
           </TabsContent>
 
           <TabsContent value="punto-venta" className="space-y-6">

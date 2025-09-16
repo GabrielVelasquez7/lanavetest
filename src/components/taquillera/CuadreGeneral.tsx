@@ -140,7 +140,8 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
         prizesData, 
         expensesData, 
         mobilePaymentsData, 
-        posData
+        posData,
+        pendingPrizesData
       ] = await Promise.all([
         supabase
           .from('sales_transactions')
@@ -161,6 +162,10 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
         supabase
           .from('point_of_sale')
           .select('amount_bs')
+          .in('session_id', sessionIds),
+        supabase
+          .from('pending_prizes')
+          .select('amount_bs, is_paid')
           .in('session_id', sessionIds)
       ]);
 
@@ -169,7 +174,8 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
         prizesData: { data: prizesData.data, error: prizesData.error },
         expensesData: { data: expensesData.data, error: expensesData.error },
         mobilePaymentsData: { data: mobilePaymentsData.data, error: mobilePaymentsData.error },
-        posData: { data: posData.data, error: posData.error }
+        posData: { data: posData.data, error: posData.error },
+        pendingPrizesData: { data: pendingPrizesData.data, error: pendingPrizesData.error }
       });
 
       // Check for errors
@@ -178,6 +184,7 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
       if (expensesData.error) throw expensesData.error;
       if (mobilePaymentsData.error) throw mobilePaymentsData.error;
       if (posData.error) throw posData.error;
+      if (pendingPrizesData.error) throw pendingPrizesData.error;
 
       // Calculate totals
       const totalSales = salesData.data?.reduce(
@@ -238,19 +245,21 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
         0
       ) || 0;
 
-      // Check if we have an existing cuadres summary with encargada feedback and pending prizes
+      // Calculate pending prizes from new table
+      const premiosPorPagarFromDB = pendingPrizesData.data?.filter(p => !p.is_paid)
+        .reduce((sum, item) => sum + Number(item.amount_bs || 0), 0) || 0;
+
+      // Check if we have an existing cuadres summary with encargada feedback
       let encargadaFeedback = null;
-      let savedPremiosPorPagar = 0;
       if (sessionData?.id) {
         const { data: cuadreSummary } = await supabase
           .from('daily_cuadres_summary')
-          .select('encargada_status, encargada_observations, encargada_reviewed_at, pending_prizes')
+          .select('encargada_status, encargada_observations, encargada_reviewed_at')
           .eq('session_id', sessionData.id)
           .single();
         
         if (cuadreSummary) {
           encargadaFeedback = cuadreSummary;
-          savedPremiosPorPagar = Number(cuadreSummary.pending_prizes || 0);
         }
       }
 
@@ -266,7 +275,7 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
         cashAvailableUsd: sessionData ? Number(sessionData.cash_available_usd || 0) : 0,
         closureConfirmed: sessionData ? sessionData.daily_closure_confirmed || false : false,
         closureNotes: sessionData ? sessionData.closure_notes || '' : '',
-        premiosPorPagar: savedPremiosPorPagar,
+        premiosPorPagar: premiosPorPagarFromDB, // Use data from new table
         exchangeRate: sessionData ? Number(sessionData.exchange_rate || 36.00) : 36.00,
         sessionId: sessionData?.id,
         encargadaFeedback,
@@ -405,7 +414,8 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
           cash_available_bs: cuadre.cashAvailable,
           cash_available_usd: cuadre.cashAvailableUsd,
           exchange_rate: cuadre.exchangeRate,
-          balance_bs: diferenciaCierre,
+          balance_before_pending_prizes_bs: diferenciaCierre, // Balance antes de aplicar premios por pagar
+          balance_bs: diferenciaFinal, // Balance final después de premios por pagar
           is_closed: true,
           daily_closure_confirmed: cuadre.closureConfirmed,
           // Save calculated closure values
