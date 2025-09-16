@@ -732,7 +732,7 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
                               <div className="flex-1">
                                 <span className="text-muted-foreground">{deuda.description}</span>
                                 <div className="text-xs text-muted-foreground">
-                                  {format(new Date(deuda.created_at), 'dd/MM/yyyy HH:mm')}
+                                  {format(new Date(deuda.created_at), 'dd/MM/yyyy')}
                                 </div>
                               </div>
                               <div className="text-right">
@@ -767,7 +767,7 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
                               <div className="flex-1">
                                 <span className="text-muted-foreground">{gasto.description}</span>
                                 <div className="text-xs text-muted-foreground">
-                                  {format(new Date(gasto.created_at), 'dd/MM/yyyy HH:mm')}
+                                  {format(new Date(gasto.created_at), 'dd/MM/yyyy')}
                                 </div>
                               </div>
                               <div className="text-right">
