@@ -25,6 +25,7 @@ interface WeeklyData {
   total_prizes_usd: number;
   total_expenses_bs: number;
   total_debt_bs: number;
+  total_bank_bs: number;
   total_balance_bs: number;
   total_balance_usd: number;
   total_sessions: number;
@@ -41,6 +42,7 @@ interface AgencyWeeklyData {
   total_prizes_usd: number;
   total_expenses_bs: number;
   total_debt_bs: number;
+  total_bank_bs: number;
   total_balance_bs: number;
   total_balance_usd: number;
   total_sessions: number;
@@ -203,6 +205,7 @@ export function WeeklyCuadreView() {
       let totalPrizesUsd = 0;
       let totalExpensesBs = 0;
       let totalDebtBs = 0;
+      let totalBankBs = 0;
       let totalSessions = 0;
       let isWeeklyClosed = false;
       let weeklyClosureNotes = '';
@@ -248,6 +251,7 @@ export function WeeklyCuadreView() {
             total_prizes_usd: 0,
             total_expenses_bs: 0,
             total_debt_bs: 0,
+            total_bank_bs: 0,
             total_balance_bs: 0,
             total_balance_usd: 0,
             total_sessions: 0,
@@ -274,6 +278,12 @@ export function WeeklyCuadreView() {
           agencyData[agencyId].total_prizes_usd += Number(cuadre.total_prizes_usd || 0);
           agencyData[agencyId].total_expenses_bs += Number(cuadre.total_expenses_bs || 0);
           agencyData[agencyId].total_debt_bs += Number(cuadre.total_debt_bs || 0);
+          
+          // Calculate banco total for agency: pago_movil_recibidos - pago_movil_pagados + pos
+          // En daily_cuadres_summary, total_mobile_payments_bs ya incluye el neto, y total_pos_bs es punto de venta
+          const agencyBankTotal = Number(cuadre.total_mobile_payments_bs || 0) + Number(cuadre.total_pos_bs || 0);
+          agencyData[agencyId].total_bank_bs += agencyBankTotal;
+          
           agencyData[agencyId].total_balance_bs += Number(cuadre.balance_bs || 0);
           agencyData[agencyId].total_sessions += 1;
           
@@ -289,6 +299,11 @@ export function WeeklyCuadreView() {
         totalPrizesUsd += Number(cuadre.total_prizes_usd || 0);
         totalExpensesBs += Number(cuadre.total_expenses_bs || 0);
         totalDebtBs += Number(cuadre.total_debt_bs || 0);
+        
+        // Calculate banco total: pago_movil_recibidos - pago_movil_pagados + pos
+        const weeklyBankTotal = Number(cuadre.total_mobile_payments_bs || 0) + Number(cuadre.total_pos_bs || 0);
+        totalBankBs += weeklyBankTotal;
+        
         totalSessions += 1;
 
         // Check weekly closure status
@@ -314,6 +329,7 @@ export function WeeklyCuadreView() {
         total_prizes_usd: totalPrizesUsd,
         total_expenses_bs: totalExpensesBs,
         total_debt_bs: totalDebtBs,
+        total_bank_bs: totalBankBs,
         total_balance_bs: totalSalesBs - totalPrizesBs,
         total_balance_usd: totalSalesUsd - totalPrizesUsd,
         total_sessions: totalSessions,
@@ -490,7 +506,7 @@ export function WeeklyCuadreView() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 mb-6">
+            <div className="grid grid-cols-3 gap-4 mb-6">
               <div className="text-center p-4 bg-amber-50 rounded-lg">
                 <p className="text-sm text-muted-foreground">Gastos Bs</p>
                 <p className="text-xl font-bold text-amber-700">
@@ -501,6 +517,12 @@ export function WeeklyCuadreView() {
                 <p className="text-sm text-muted-foreground">Deudas Bs</p>
                 <p className="text-xl font-bold text-amber-700">
                   {formatCurrency(weeklyData.total_debt_bs, 'bs')}
+                </p>
+              </div>
+              <div className="text-center p-4 bg-blue-50 rounded-lg">
+                <p className="text-sm text-muted-foreground">Total Banco</p>
+                <p className="text-xl font-bold text-blue-700">
+                  {formatCurrency(weeklyData.total_bank_bs, 'bs')}
                 </p>
               </div>
             </div>
