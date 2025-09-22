@@ -51,11 +51,10 @@ interface Agency {
 }
 
 interface VentasPremiosEncargadaProps {
-  selectedAgency?: string;
-  selectedDate?: Date;
+  // No props needed, component handles its own date selection
 }
 
-export const VentasPremiosEncargada = ({ selectedAgency: propSelectedAgency, selectedDate: propSelectedDate }: VentasPremiosEncargadaProps) => {
+export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
   const [mainTab, setMainTab] = useState('ventas-premios');
   const [activeTab, setActiveTab] = useState('bolivares');
   const [lotteryOptions, setLotteryOptions] = useState<LotterySystem[]>([]);
@@ -67,10 +66,6 @@ export const VentasPremiosEncargada = ({ selectedAgency: propSelectedAgency, sel
   const [currentCuadreId, setCurrentCuadreId] = useState<string | null>(null);
   const { user } = useAuth();
   const { toast } = useToast();
-
-  // Use props if provided, otherwise use internal state
-  const effectiveSelectedAgency = propSelectedAgency || selectedAgency;
-  const effectiveSelectedDate = propSelectedDate || selectedDate;
 
   const form = useForm<VentasPremiosForm>({
     resolver: zodResolver(ventasPremiosSchema),
@@ -102,8 +97,8 @@ export const VentasPremiosEncargada = ({ selectedAgency: propSelectedAgency, sel
         setAgencies(agenciesResult.data || []);
         setLotteryOptions(systemsResult.data || []);
 
-        // Si no hay props de agencia, seleccionar primera agencia por defecto
-        if (!propSelectedAgency && agenciesResult.data && agenciesResult.data.length > 0) {
+        // Seleccionar primera agencia por defecto
+        if (agenciesResult.data && agenciesResult.data.length > 0) {
           setSelectedAgency(agenciesResult.data[0].id);
         }
 
@@ -117,19 +112,19 @@ export const VentasPremiosEncargada = ({ selectedAgency: propSelectedAgency, sel
     };
 
     fetchInitialData();
-  }, [user, toast, propSelectedAgency]);
+  }, [user, toast]);
 
   // Cargar datos cuando cambie la agencia o la fecha
   useEffect(() => {
-    if (effectiveSelectedAgency && lotteryOptions.length > 0 && effectiveSelectedDate) {
+    if (selectedAgency && lotteryOptions.length > 0 && selectedDate) {
       loadAgencyData();
     }
-  }, [effectiveSelectedAgency, effectiveSelectedDate, lotteryOptions]);
+  }, [selectedAgency, selectedDate, lotteryOptions]);
 
   const loadAgencyData = async () => {
-    if (!user || !effectiveSelectedDate || !effectiveSelectedAgency) return;
+    if (!user || !selectedDate || !selectedAgency) return;
 
-    const dateStr = formatDateForDB(effectiveSelectedDate);
+    const dateStr = formatDateForDB(selectedDate);
     
     try {
       // Inicializar formulario con todos los sistemas
@@ -146,7 +141,7 @@ export const VentasPremiosEncargada = ({ selectedAgency: propSelectedAgency, sel
       const { data: cuadres } = await supabase
         .from('daily_cuadres_summary')
         .select('*')
-        .eq('agency_id', effectiveSelectedAgency)
+        .eq('agency_id', selectedAgency)
         .eq('session_date', dateStr)
         .is('session_id', null); // Solo registros de encargada (sin session_id)
 
@@ -211,9 +206,9 @@ export const VentasPremiosEncargada = ({ selectedAgency: propSelectedAgency, sel
   }, [form]);
 
   const onSubmit = async (data: VentasPremiosForm) => {
-    if (!user || !effectiveSelectedDate || !effectiveSelectedAgency) return;
+    if (!user || !selectedDate || !selectedAgency) return;
 
-    const dateStr = formatDateForDB(effectiveSelectedDate);
+    const dateStr = formatDateForDB(selectedDate);
 
     setLoading(true);
     try {
@@ -222,7 +217,7 @@ export const VentasPremiosEncargada = ({ selectedAgency: propSelectedAgency, sel
         await supabase
           .from('daily_cuadres_summary')
           .delete()
-          .eq('agency_id', effectiveSelectedAgency)
+          .eq('agency_id', selectedAgency)
           .eq('session_date', dateStr)
           .is('session_id', null); // Solo registros de encargada
       }
@@ -248,7 +243,7 @@ export const VentasPremiosEncargada = ({ selectedAgency: propSelectedAgency, sel
       // Preparar datos para insertar (datos completos de la encargada)
       const cuadresData = systemsWithData.map(system => ({
         user_id: user.id,
-        agency_id: effectiveSelectedAgency,
+        agency_id: selectedAgency,
         session_date: dateStr,
         lottery_system_id: system.lottery_system_id,
         session_id: null, // Encargada no tiene session_id
@@ -299,9 +294,69 @@ export const VentasPremiosEncargada = ({ selectedAgency: propSelectedAgency, sel
 
   return (
     <div className="space-y-6">
+      {/* Selectores de Agencia y Fecha */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Building2 className="h-5 w-5 mr-2" />
+              Seleccionar Agencia
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Select value={selectedAgency} onValueChange={setSelectedAgency}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Selecciona una agencia" />
+              </SelectTrigger>
+              <SelectContent>
+                {agencies.map((agency) => (
+                  <SelectItem key={agency.id} value={agency.id}>
+                    {agency.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <CalendarIcon className="h-5 w-5 mr-2" />
+              Seleccionar Fecha
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start text-left font-normal",
+                    !selectedDate && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {selectedDate ? format(selectedDate, "PPP", { locale: es }) : "Seleccionar fecha"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={(date) => date && setSelectedDate(date)}
+                  initialFocus
+                  className={cn("p-3 pointer-events-auto")}
+                />
+              </PopoverContent>
+            </Popover>
+          </CardContent>
+        </Card>
+      </div>
+
       {selectedAgency && (
         <Tabs value={mainTab} onValueChange={setMainTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="ventas-premios" className="flex items-center gap-2">
               <DollarSign className="h-4 w-4" />
               Ventas/Premios
@@ -313,6 +368,10 @@ export const VentasPremiosEncargada = ({ selectedAgency: propSelectedAgency, sel
             <TabsTrigger value="pago-movil" className="flex items-center gap-2">
               <Smartphone className="h-4 w-4" />
               Pago Móvil
+            </TabsTrigger>
+            <TabsTrigger value="prestamos" className="flex items-center gap-2">
+              <HandCoins className="h-4 w-4" />
+              Préstamos
             </TabsTrigger>
             <TabsTrigger value="resumen" className="flex items-center gap-2">
               <CalendarIcon className="h-4 w-4" />
@@ -457,6 +516,17 @@ export const VentasPremiosEncargada = ({ selectedAgency: propSelectedAgency, sel
             </Tabs>
           </TabsContent>
 
+          <TabsContent value="prestamos" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Registrar Préstamo Inter-Agencia</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <InterAgencyLoansForm onSuccess={refreshData} />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           <TabsContent value="resumen" className="space-y-6">
             <Card>
               <CardHeader>
@@ -464,7 +534,7 @@ export const VentasPremiosEncargada = ({ selectedAgency: propSelectedAgency, sel
               </CardHeader>
               <CardContent>
                 <div className="text-center py-8">
-                  <p className="text-muted-foreground">Resumen general para {format(effectiveSelectedDate, "PPP", { locale: es })}</p>
+                  <p className="text-muted-foreground">Resumen general para {format(selectedDate, "PPP", { locale: es })}</p>
                   <p className="text-sm text-muted-foreground mt-2">
                     Esta sección mostrará un resumen completo de todas las transacciones del día
                   </p>
