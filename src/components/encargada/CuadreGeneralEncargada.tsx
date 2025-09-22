@@ -133,6 +133,34 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
         console.log('🔍 CUADRE ENCARGADA DEBUG - Summary fallback (no users):', { summaryRows, summaryError });
         if (summaryError) throw summaryError;
 
+        // Además consultar gastos/deudas a nivel de agencia para el día
+        const { data: expensesFallback, error: expensesFallbackError } = await supabase
+          .from('expenses')
+          .select('amount_bs, amount_usd, category, description, created_at')
+          .eq('agency_id', selectedAgency)
+          .eq('transaction_date', dateStr);
+
+        if (expensesFallbackError) throw expensesFallbackError;
+
+        const gastosList = (expensesFallback || []).filter(e => e.category === 'gasto_operativo');
+        const deudasList = (expensesFallback || []).filter(e => e.category === 'deuda');
+
+        const totalGastosFromExpenses = gastosList.reduce(
+          (acc, item: any) => ({
+            bs: acc.bs + Number(item.amount_bs || 0),
+            usd: acc.usd + Number(item.amount_usd || 0),
+          }),
+          { bs: 0, usd: 0 }
+        );
+
+        const totalDeudasFromExpenses = deudasList.reduce(
+          (acc, item: any) => ({
+            bs: acc.bs + Number(item.amount_bs || 0),
+            usd: acc.usd + Number(item.amount_usd || 0),
+          }),
+          { bs: 0, usd: 0 }
+        );
+
         if ((summaryRows?.length || 0) > 0) {
           const totalSales = summaryRows!.reduce((acc, r: any) => ({
             bs: acc.bs + Number(r.total_sales_bs || 0),
@@ -157,10 +185,14 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
           setCuadre({
             totalSales,
             totalPrizes,
-            totalGastos,
-            totalDeudas: { bs: 0, usd: 0 },
-            gastosDetails: [],
-            deudasDetails: [],
+            // Sumar también los gastos de la tabla expenses (por si el resumen aún no los refleja)
+            totalGastos: {
+              bs: totalGastos.bs + totalGastosFromExpenses.bs,
+              usd: totalGastos.usd + totalGastosFromExpenses.usd,
+            },
+            totalDeudas: totalDeudasFromExpenses,
+            gastosDetails: gastosList as any,
+            deudasDetails: deudasList as any,
             pagoMovilRecibidos,
             pagoMovilPagados: 0,
             totalPointOfSale,
@@ -176,10 +208,10 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
           setCuadre({
             totalSales: { bs: 0, usd: 0 },
             totalPrizes: { bs: 0, usd: 0 },
-            totalGastos: { bs: 0, usd: 0 },
-            totalDeudas: { bs: 0, usd: 0 },
-            gastosDetails: [],
-            deudasDetails: [],
+            totalGastos: totalGastosFromExpenses,
+            totalDeudas: totalDeudasFromExpenses,
+            gastosDetails: gastosList as any,
+            deudasDetails: deudasList as any,
             pagoMovilRecibidos: 0,
             pagoMovilPagados: 0,
             totalPointOfSale: 0,
@@ -236,6 +268,34 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
         console.log('🔍 CUADRE ENCARGADA DEBUG - Summary fallback (no sessions):', { summaryRows, summaryError });
         if (summaryError) throw summaryError;
 
+        // Además consultar gastos/deudas a nivel de agencia para el día
+        const { data: expensesFallback, error: expensesFallbackError } = await supabase
+          .from('expenses')
+          .select('amount_bs, amount_usd, category, description, created_at')
+          .eq('agency_id', selectedAgency)
+          .eq('transaction_date', dateStr);
+
+        if (expensesFallbackError) throw expensesFallbackError;
+
+        const gastosList = (expensesFallback || []).filter(e => e.category === 'gasto_operativo');
+        const deudasList = (expensesFallback || []).filter(e => e.category === 'deuda');
+
+        const totalGastosFromExpenses = gastosList.reduce(
+          (acc, item: any) => ({
+            bs: acc.bs + Number(item.amount_bs || 0),
+            usd: acc.usd + Number(item.amount_usd || 0),
+          }),
+          { bs: 0, usd: 0 }
+        );
+
+        const totalDeudasFromExpenses = deudasList.reduce(
+          (acc, item: any) => ({
+            bs: acc.bs + Number(item.amount_bs || 0),
+            usd: acc.usd + Number(item.amount_usd || 0),
+          }),
+          { bs: 0, usd: 0 }
+        );
+
         if ((summaryRows?.length || 0) > 0) {
           const totalSales = summaryRows!.reduce((acc, r: any) => ({
             bs: acc.bs + Number(r.total_sales_bs || 0),
@@ -260,10 +320,14 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
           setCuadre({
             totalSales,
             totalPrizes,
-            totalGastos,
-            totalDeudas: { bs: 0, usd: 0 },
-            gastosDetails: [],
-            deudasDetails: [],
+            // Sumar también los gastos de la tabla expenses (por si el resumen aún no los refleja)
+            totalGastos: {
+              bs: totalGastos.bs + totalGastosFromExpenses.bs,
+              usd: totalGastos.usd + totalGastosFromExpenses.usd,
+            },
+            totalDeudas: totalDeudasFromExpenses,
+            gastosDetails: gastosList as any,
+            deudasDetails: deudasList as any,
             pagoMovilRecibidos,
             pagoMovilPagados: 0,
             totalPointOfSale,
@@ -279,10 +343,10 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
           setCuadre({
             totalSales: { bs: 0, usd: 0 },
             totalPrizes: { bs: 0, usd: 0 },
-            totalGastos: { bs: 0, usd: 0 },
-            totalDeudas: { bs: 0, usd: 0 },
-            gastosDetails: [],
-            deudasDetails: [],
+            totalGastos: totalGastosFromExpenses,
+            totalDeudas: totalDeudasFromExpenses,
+            gastosDetails: gastosList as any,
+            deudasDetails: deudasList as any,
             pagoMovilRecibidos: 0,
             pagoMovilPagados: 0,
             totalPointOfSale: 0,

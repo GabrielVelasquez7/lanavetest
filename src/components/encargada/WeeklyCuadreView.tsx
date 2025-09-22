@@ -23,6 +23,8 @@ interface WeeklyData {
   total_sales_usd: number;
   total_prizes_bs: number;
   total_prizes_usd: number;
+  total_expenses_bs: number;
+  total_debt_bs: number;
   total_balance_bs: number;
   total_balance_usd: number;
   total_sessions: number;
@@ -37,6 +39,8 @@ interface AgencyWeeklyData {
   total_sales_usd: number;
   total_prizes_bs: number;
   total_prizes_usd: number;
+  total_expenses_bs: number;
+  total_debt_bs: number;
   total_balance_bs: number;
   total_balance_usd: number;
   total_sessions: number;
@@ -197,6 +201,8 @@ export function WeeklyCuadreView() {
       let totalSalesUsd = 0;
       let totalPrizesBs = 0;
       let totalPrizesUsd = 0;
+      let totalExpensesBs = 0;
+      let totalDebtBs = 0;
       let totalSessions = 0;
       let isWeeklyClosed = false;
       let weeklyClosureNotes = '';
@@ -240,6 +246,8 @@ export function WeeklyCuadreView() {
             total_sales_usd: 0,
             total_prizes_bs: 0,
             total_prizes_usd: 0,
+            total_expenses_bs: 0,
+            total_debt_bs: 0,
             total_balance_bs: 0,
             total_balance_usd: 0,
             total_sessions: 0,
@@ -264,6 +272,8 @@ export function WeeklyCuadreView() {
           agencyData[agencyId].total_sales_usd += Number(cuadre.total_sales_usd || 0);
           agencyData[agencyId].total_prizes_bs += Number(cuadre.total_prizes_bs || 0);
           agencyData[agencyId].total_prizes_usd += Number(cuadre.total_prizes_usd || 0);
+          agencyData[agencyId].total_expenses_bs += Number(cuadre.total_expenses_bs || 0);
+          agencyData[agencyId].total_debt_bs += Number(cuadre.total_debt_bs || 0);
           agencyData[agencyId].total_balance_bs += Number(cuadre.balance_bs || 0);
           agencyData[agencyId].total_sessions += 1;
           
@@ -277,6 +287,8 @@ export function WeeklyCuadreView() {
         totalSalesUsd += Number(cuadre.total_sales_usd || 0);
         totalPrizesBs += Number(cuadre.total_prizes_bs || 0);
         totalPrizesUsd += Number(cuadre.total_prizes_usd || 0);
+        totalExpensesBs += Number(cuadre.total_expenses_bs || 0);
+        totalDebtBs += Number(cuadre.total_debt_bs || 0);
         totalSessions += 1;
 
         // Check weekly closure status
@@ -300,6 +312,8 @@ export function WeeklyCuadreView() {
         total_sales_usd: totalSalesUsd,
         total_prizes_bs: totalPrizesBs,
         total_prizes_usd: totalPrizesUsd,
+        total_expenses_bs: totalExpensesBs,
+        total_debt_bs: totalDebtBs,
         total_balance_bs: totalSalesBs - totalPrizesBs,
         total_balance_usd: totalSalesUsd - totalPrizesUsd,
         total_sessions: totalSessions,
@@ -472,6 +486,21 @@ export function WeeklyCuadreView() {
                 <p className="text-sm text-muted-foreground">Premios USD</p>
                 <p className="text-xl font-bold text-red-600">
                   {formatCurrency(weeklyData.total_prizes_usd, 'usd')}
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              <div className="text-center p-4 bg-amber-50 rounded-lg">
+                <p className="text-sm text-muted-foreground">Gastos Bs</p>
+                <p className="text-xl font-bold text-amber-700">
+                  {formatCurrency(weeklyData.total_expenses_bs, 'bs')}
+                </p>
+              </div>
+              <div className="text-center p-4 bg-amber-50 rounded-lg">
+                <p className="text-sm text-muted-foreground">Deudas Bs</p>
+                <p className="text-xl font-bold text-amber-700">
+                  {formatCurrency(weeklyData.total_debt_bs, 'bs')}
                 </p>
               </div>
             </div>
