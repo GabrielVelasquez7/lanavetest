@@ -512,162 +512,93 @@ export function WeeklyCuadreView() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <Tabs value={activeAgencyTab} onValueChange={setActiveAgencyTab} className="space-y-6">
-              <TabsList className="grid w-full grid-cols-5">
-                <TabsTrigger value="resumen" className="flex items-center gap-2">
-                  <Users className="h-4 w-4" />
-                  Resumen
-                </TabsTrigger>
-                <TabsTrigger value="gastos" className="flex items-center gap-2">
-                  <Receipt className="h-4 w-4" />
-                  Gastos
-                </TabsTrigger>
-                <TabsTrigger value="deudas" className="flex items-center gap-2">
-                  <HandCoins className="h-4 w-4" />
-                  Préstamos
-                </TabsTrigger>
-                <TabsTrigger value="pago-recibido" className="flex items-center gap-2">
-                  <CreditCard className="h-4 w-4" />
-                  Pago Recibido
-                </TabsTrigger>
-                <TabsTrigger value="pago-pagado" className="flex items-center gap-2">
-                  <Smartphone className="h-4 w-4" />
-                  Pago Pagado
-                </TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="resumen" className="space-y-4">
-                {/* Filters */}
-                <div className="flex flex-col md:flex-row gap-4">
-                  <div className="flex-1">
-                    <Select value={selectedAgency} onValueChange={setSelectedAgency}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Todas las agencias" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Todas las agencias</SelectItem>
-                        {allAgencies.map((agency) => (
-                          <SelectItem key={agency.id} value={agency.id}>
-                            {agency.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex-1 relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Buscar agencia..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-9"
-                    />
-                  </div>
+            <div className="space-y-4">
+              {/* Filters */}
+              <div className="flex flex-col md:flex-row gap-4">
+                <div className="flex-1">
+                  <Select value={selectedAgency} onValueChange={setSelectedAgency}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Todas las agencias" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas las agencias</SelectItem>
+                      {allAgencies.map((agency) => (
+                        <SelectItem key={agency.id} value={agency.id}>
+                          {agency.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
+                <div className="flex-1 relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar agencia..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+              </div>
 
-                {/* Agency Cards */}
-                <div className="space-y-4">
-                  {filteredAgencies.map((agency) => (
-                    <div key={agency.agency_id} className="border rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-4">
-                        <div>
-                          <h3 className="font-semibold text-lg">{agency.agency_name}</h3>
-                          <p className="text-sm text-muted-foreground">
-                            {agency.total_sessions} registro(s) • {agency.is_weekly_closed ? 'Cerrada' : 'Activa'}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className={`text-sm font-medium ${Number(agency.total_balance_bs) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            Balance: {formatCurrency(agency.total_balance_bs, 'bs')}
-                          </p>
-                          <p className={`text-xs ${Number(agency.total_balance_usd) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            {formatCurrency(agency.total_balance_usd, 'usd')}
-                          </p>
-                        </div>
+              {/* Agency Cards */}
+              <div className="space-y-4">
+                {filteredAgencies.map((agency) => (
+                  <div key={agency.agency_id} className="border rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <h3 className="font-semibold text-lg">{agency.agency_name}</h3>
+                        <p className="text-sm text-muted-foreground">
+                          {agency.total_sessions} registro(s) • {agency.is_weekly_closed ? 'Cerrada' : 'Activa'}
+                        </p>
                       </div>
-                      
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                        <div className="text-center p-3 bg-green-50 rounded-lg">
-                          <p className="text-muted-foreground">Ventas Bs</p>
-                          <p className="font-medium text-green-600">
-                            {formatCurrency(agency.total_sales_bs, 'bs')}
-                          </p>
-                        </div>
-                        <div className="text-center p-3 bg-green-50 rounded-lg">
-                          <p className="text-muted-foreground">Ventas USD</p>
-                          <p className="font-medium text-green-600">
-                            {formatCurrency(agency.total_sales_usd, 'usd')}
-                          </p>
-                        </div>
-                        <div className="text-center p-3 bg-red-50 rounded-lg">
-                          <p className="text-muted-foreground">Premios Bs</p>
-                          <p className="font-medium text-red-600">
-                            {formatCurrency(agency.total_prizes_bs, 'bs')}
-                          </p>
-                        </div>
-                        <div className="text-center p-3 bg-red-50 rounded-lg">
-                          <p className="text-muted-foreground">Premios USD</p>
-                          <p className="font-medium text-red-600">
-                            {formatCurrency(agency.total_prizes_usd, 'usd')}
-                          </p>
-                        </div>
+                      <div className="text-right">
+                        <p className={`text-sm font-medium ${Number(agency.total_balance_bs) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          Balance: {formatCurrency(agency.total_balance_bs, 'bs')}
+                        </p>
+                        <p className={`text-xs ${Number(agency.total_balance_usd) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {formatCurrency(agency.total_balance_usd, 'usd')}
+                        </p>
                       </div>
                     </div>
-                  ))}
-                </div>
-
-                {filteredAgencies.length === 0 && (
-                  <div className="text-center py-8">
-                    <Building2 className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
-                    <p className="text-muted-foreground">No se encontraron agencias</p>
+                    
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                      <div className="text-center p-3 bg-green-50 rounded-lg">
+                        <p className="text-muted-foreground">Ventas Bs</p>
+                        <p className="font-medium text-green-600">
+                          {formatCurrency(agency.total_sales_bs, 'bs')}
+                        </p>
+                      </div>
+                      <div className="text-center p-3 bg-green-50 rounded-lg">
+                        <p className="text-muted-foreground">Ventas USD</p>
+                        <p className="font-medium text-green-600">
+                          {formatCurrency(agency.total_sales_usd, 'usd')}
+                        </p>
+                      </div>
+                      <div className="text-center p-3 bg-red-50 rounded-lg">
+                        <p className="text-muted-foreground">Premios Bs</p>
+                        <p className="font-medium text-red-600">
+                          {formatCurrency(agency.total_prizes_bs, 'bs')}
+                        </p>
+                      </div>
+                      <div className="text-center p-3 bg-red-50 rounded-lg">
+                        <p className="text-muted-foreground">Premios USD</p>
+                        <p className="font-medium text-red-600">
+                          {formatCurrency(agency.total_prizes_usd, 'usd')}
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                )}
-              </TabsContent>
+                ))}
+              </div>
 
-              <TabsContent value="gastos" className="space-y-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Registrar Gasto Operativo</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <GastosOperativosForm onSuccess={fetchWeeklyData} />
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="deudas" className="space-y-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Registrar Préstamo Inter-Agencia</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <InterAgencyLoansForm onSuccess={fetchWeeklyData} />
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="pago-recibido" className="space-y-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Registrar Pago Móvil Recibido</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <PagoMovilRecibidos onSuccess={fetchWeeklyData} />
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="pago-pagado" className="space-y-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Registrar Pago Móvil Pagado</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <PagoMovilPagados onSuccess={fetchWeeklyData} />
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            </Tabs>
+              {filteredAgencies.length === 0 && (
+                <div className="text-center py-8">
+                  <Building2 className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
+                  <p className="text-muted-foreground">No se encontraron agencias</p>
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
       )}

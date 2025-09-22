@@ -13,7 +13,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { VentasPremiosBolivares } from '../taquillera/VentasPremiosBolivares';
 import { VentasPremiosDolares } from '../taquillera/VentasPremiosDolares';
-import { Edit, Building2, CalendarIcon } from 'lucide-react';
+import { GastosOperativosForm } from '../taquillera/GastosOperativosForm';
+import { InterAgencyLoansForm } from './InterAgencyLoansForm';
+import { PagoMovilRecibidos } from '../taquillera/PagoMovilRecibidos';
+import { PagoMovilPagados } from '../taquillera/PagoMovilPagados';
+import { Edit, Building2, CalendarIcon, DollarSign, Receipt, Smartphone, HandCoins, CreditCard } from 'lucide-react';
 import { formatCurrency, cn } from '@/lib/utils';
 import { formatDateForDB } from '@/lib/dateUtils';
 import { format } from 'date-fns';
@@ -51,6 +55,7 @@ interface VentasPremiosEncargadaProps {
 }
 
 export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
+  const [mainTab, setMainTab] = useState('ventas-premios');
   const [activeTab, setActiveTab] = useState('bolivares');
   const [lotteryOptions, setLotteryOptions] = useState<LotterySystem[]>([]);
   const [agencies, setAgencies] = useState<Agency[]>([]);
@@ -280,6 +285,10 @@ export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
     }
   };
 
+  const refreshData = () => {
+    loadAgencyData();
+  };
+
   const totals = calculateTotals();
   const selectedAgencyName = agencies.find(a => a.id === selectedAgency)?.name || '';
 
@@ -346,94 +355,194 @@ export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
       </div>
 
       {selectedAgency && (
-        <>
-          {/* Resumen de totales */}
-          <Card className="bg-muted/50">
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <span>Resumen del Cuadre - {selectedAgencyName} {editMode && <Edit className="h-4 w-4 ml-2" />}</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-                <div>
-                  <p className="text-sm text-muted-foreground">Ventas Bs</p>
-                  <p className="text-xl font-bold text-success">
-                    {formatCurrency(totals.sales_bs, 'VES')}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Premios Bs</p>
-                  <p className="text-xl font-bold text-destructive">
-                    {formatCurrency(totals.prizes_bs, 'VES')}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Ventas USD</p>
-                  <p className="text-xl font-bold text-success">
-                    {formatCurrency(totals.sales_usd, 'USD')}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Premios USD</p>
-                  <p className="text-xl font-bold text-destructive">
-                    {formatCurrency(totals.prizes_usd, 'USD')}
-                  </p>
-                </div>
-              </div>
-              <div className="mt-4 pt-4 border-t">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-center">
+        <Tabs value={mainTab} onValueChange={setMainTab} className="space-y-6">
+          <TabsList className="grid w-full grid-cols-5">
+            <TabsTrigger value="ventas-premios" className="flex items-center gap-2">
+              <DollarSign className="h-4 w-4" />
+              Ventas/Premios
+            </TabsTrigger>
+            <TabsTrigger value="gastos" className="flex items-center gap-2">
+              <Receipt className="h-4 w-4" />
+              Gastos
+            </TabsTrigger>
+            <TabsTrigger value="pago-movil" className="flex items-center gap-2">
+              <Smartphone className="h-4 w-4" />
+              Pago Móvil
+            </TabsTrigger>
+            <TabsTrigger value="prestamos" className="flex items-center gap-2">
+              <HandCoins className="h-4 w-4" />
+              Préstamos
+            </TabsTrigger>
+            <TabsTrigger value="resumen" className="flex items-center gap-2">
+              <CalendarIcon className="h-4 w-4" />
+              Resumen
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="ventas-premios" className="space-y-6">
+            {/* Resumen de totales */}
+            <Card className="bg-muted/50">
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <span>Resumen del Cuadre - {selectedAgencyName} {editMode && <Edit className="h-4 w-4 ml-2" />}</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
                   <div>
-                    <p className="text-sm text-muted-foreground">Cuadre Bs</p>
-                    <p className={`text-2xl font-bold ${(totals.sales_bs - totals.prizes_bs) >= 0 ? 'text-success' : 'text-destructive'}`}>
-                      {formatCurrency(totals.sales_bs - totals.prizes_bs, 'VES')}
+                    <p className="text-sm text-muted-foreground">Ventas Bs</p>
+                    <p className="text-xl font-bold text-success">
+                      {formatCurrency(totals.sales_bs, 'VES')}
                     </p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Cuadre USD</p>
-                    <p className={`text-2xl font-bold ${(totals.sales_usd - totals.prizes_usd) >= 0 ? 'text-success' : 'text-destructive'}`}>
-                      {formatCurrency(totals.sales_usd - totals.prizes_usd, 'USD')}
+                    <p className="text-sm text-muted-foreground">Premios Bs</p>
+                    <p className="text-xl font-bold text-destructive">
+                      {formatCurrency(totals.prizes_bs, 'VES')}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Ventas USD</p>
+                    <p className="text-xl font-bold text-success">
+                      {formatCurrency(totals.sales_usd, 'USD')}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Premios USD</p>
+                    <p className="text-xl font-bold text-destructive">
+                      {formatCurrency(totals.prizes_usd, 'USD')}
                     </p>
                   </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+                <div className="mt-4 pt-4 border-t">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-center">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Cuadre Bs</p>
+                      <p className={`text-2xl font-bold ${(totals.sales_bs - totals.prizes_bs) >= 0 ? 'text-success' : 'text-destructive'}`}>
+                        {formatCurrency(totals.sales_bs - totals.prizes_bs, 'VES')}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Cuadre USD</p>
+                      <p className={`text-2xl font-bold ${(totals.sales_usd - totals.prizes_usd) >= 0 ? 'text-success' : 'text-destructive'}`}>
+                        {formatCurrency(totals.sales_usd - totals.prizes_usd, 'USD')}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-          {/* Tabs para diferentes secciones */}
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="bolivares">Ventas/Premios Bs</TabsTrigger>
-              <TabsTrigger value="dolares">Ventas/Premios USD</TabsTrigger>
-            </TabsList>
+            {/* Sub-tabs para ventas/premios */}
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="bolivares">Ventas/Premios Bs</TabsTrigger>
+                <TabsTrigger value="dolares">Ventas/Premios USD</TabsTrigger>
+              </TabsList>
 
-            <TabsContent value="bolivares" className="space-y-4">
-              <VentasPremiosBolivares 
-                form={form} 
-                lotteryOptions={lotteryOptions}
-              />
-            </TabsContent>
+              <TabsContent value="bolivares" className="space-y-4">
+                <VentasPremiosBolivares 
+                  form={form} 
+                  lotteryOptions={lotteryOptions}
+                />
+              </TabsContent>
 
-            <TabsContent value="dolares" className="space-y-4">
-              <VentasPremiosDolares 
-                form={form} 
-                lotteryOptions={lotteryOptions}
-              />
-            </TabsContent>
-          </Tabs>
+              <TabsContent value="dolares" className="space-y-4">
+                <VentasPremiosDolares 
+                  form={form} 
+                  lotteryOptions={lotteryOptions}
+                />
+              </TabsContent>
+            </Tabs>
 
-          {/* Botón de guardar */}
-          <div className="flex justify-center">
-            <Button 
-              onClick={form.handleSubmit(onSubmit)} 
-              disabled={loading} 
-              size="lg"
-              className="min-w-[200px]"
-            >
-              {loading ? 'Procesando...' : editMode ? 'Actualizar Cuadre' : 'Registrar Cuadre'}
-            </Button>
-          </div>
-        </>
+            {/* Botón de guardar */}
+            <div className="flex justify-center">
+              <Button 
+                onClick={form.handleSubmit(onSubmit)} 
+                disabled={loading} 
+                size="lg"
+                className="min-w-[200px]"
+              >
+                {loading ? 'Procesando...' : editMode ? 'Actualizar Cuadre' : 'Registrar Cuadre'}
+              </Button>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="gastos" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Registrar Gasto Operativo</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <GastosOperativosForm onSuccess={refreshData} />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="pago-movil" className="space-y-6">
+            <Tabs defaultValue="recibidos" className="space-y-4">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="recibidos" className="flex items-center gap-2">
+                  <CreditCard className="h-4 w-4" />
+                  Pagos Recibidos
+                </TabsTrigger>
+                <TabsTrigger value="pagados" className="flex items-center gap-2">
+                  <Smartphone className="h-4 w-4" />
+                  Pagos Pagados
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="recibidos" className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Registrar Pago Móvil Recibido</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <PagoMovilRecibidos onSuccess={refreshData} />
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="pagados" className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Registrar Pago Móvil Pagado</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <PagoMovilPagados onSuccess={refreshData} />
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
+          </TabsContent>
+
+          <TabsContent value="prestamos" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Registrar Préstamo Inter-Agencia</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <InterAgencyLoansForm onSuccess={refreshData} />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="resumen" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Resumen General - {selectedAgencyName}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center py-8">
+                  <p className="text-muted-foreground">Resumen general para {format(selectedDate, "PPP", { locale: es })}</p>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Esta sección mostrará un resumen completo de todas las transacciones del día
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       )}
     </div>
   );
