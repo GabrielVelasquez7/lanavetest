@@ -65,6 +65,7 @@ export function WeeklyCuadreView() {
 
   const getCurrentWeekBoundaries = async () => {
     try {
+      // Use the existing RPC function that handles Venezuela timezone correctly
       const { data, error } = await supabase.rpc('get_current_week_boundaries');
       
       if (error) throw error;
@@ -72,18 +73,42 @@ export function WeeklyCuadreView() {
       if (data && data.length > 0) {
         const weekData = data[0];
         setCurrentWeek({
-          start: new Date(weekData.week_start),
-          end: new Date(weekData.week_end),
+          start: new Date(weekData.week_start + 'T00:00:00'),
+          end: new Date(weekData.week_end + 'T23:59:59'),
           number: weekData.week_number,
           year: weekData.year,
+        });
+      } else {
+        // Fallback to local calculation
+        const now = new Date();
+        const weekStart = startOfWeek(now, { weekStartsOn: 1 }); // Monday
+        const weekEnd = endOfWeek(now, { weekStartsOn: 1 }); // Sunday
+        
+        setCurrentWeek({
+          start: weekStart,
+          end: weekEnd,
+          number: parseInt(format(weekStart, 'w')),
+          year: parseInt(format(weekStart, 'yyyy')),
         });
       }
     } catch (error: any) {
       console.error('Error getting week boundaries:', error);
+      // Fallback to local calculation
+      const now = new Date();
+      const weekStart = startOfWeek(now, { weekStartsOn: 1 }); // Monday
+      const weekEnd = endOfWeek(now, { weekStartsOn: 1 }); // Sunday
+      
+      setCurrentWeek({
+        start: weekStart,
+        end: weekEnd,
+        number: parseInt(format(weekStart, 'w')),
+        year: parseInt(format(weekStart, 'yyyy')),
+      });
+      
       toast({
-        title: "Error",
-        description: "No se pudieron obtener los límites de la semana",
-        variant: "destructive",
+        title: "Advertencia",
+        description: "Usando fechas locales. Puede haber diferencias con el timezone de Venezuela",
+        variant: "default",
       });
     }
   };
@@ -237,10 +262,10 @@ export function WeeklyCuadreView() {
       ? subWeeks(currentWeek.start, 1)
       : addWeeks(currentWeek.start, 1);
     
-    const newEnd = endOfWeek(newStart, { weekStartsOn: 1 });
+    const newEnd = endOfWeek(newStart, { weekStartsOn: 1 }); // Sunday
     
     setCurrentWeek({
-      start: newStart,
+      start: startOfWeek(newStart, { weekStartsOn: 1 }), // Make sure we get Monday
       end: newEnd,
       number: parseInt(format(newStart, 'w')),
       year: parseInt(format(newStart, 'yyyy')),
