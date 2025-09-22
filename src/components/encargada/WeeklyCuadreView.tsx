@@ -196,21 +196,16 @@ export function WeeklyCuadreView() {
   const updateWeeklyTotals = async (weeklySummaryId: string) => {
     if (!currentWeek) return;
 
-    // Get all daily sessions for this week
-    const { data: sessions, error: sessionsError } = await supabase
+    // Get all daily cuadres for this week (from all taquilleras)
+    const { data: dailyCuadres, error: cuadresError } = await supabase
       .from('daily_cuadres_summary')
-      .select(`
-        *,
-        sales_transactions(*),
-        prize_transactions(*)
-      `)
-      .eq('user_id', user?.id)
+      .select('*')
       .gte('session_date', format(currentWeek.start, 'yyyy-MM-dd'))
       .lte('session_date', format(currentWeek.end, 'yyyy-MM-dd'));
 
-    if (sessionsError) throw sessionsError;
+    if (cuadresError) throw cuadresError;
 
-    // Calculate totals
+    // Calculate totals from daily cuadres
     let totalSalesBs = 0;
     let totalSalesUsd = 0;
     let totalPrizesBs = 0;
@@ -218,8 +213,8 @@ export function WeeklyCuadreView() {
 
     const dailyTotals: { [key: string]: any } = {};
 
-    sessions?.forEach(session => {
-      const dateKey = session.session_date;
+    dailyCuadres?.forEach(cuadre => {
+      const dateKey = cuadre.session_date;
       
       if (!dailyTotals[dateKey]) {
         dailyTotals[dateKey] = {
@@ -231,16 +226,16 @@ export function WeeklyCuadreView() {
         };
       }
 
-      dailyTotals[dateKey].sales_bs += Number(session.total_sales_bs || 0);
-      dailyTotals[dateKey].sales_usd += Number(session.total_sales_usd || 0);
-      dailyTotals[dateKey].prizes_bs += Number(session.total_prizes_bs || 0);
-      dailyTotals[dateKey].prizes_usd += Number(session.total_prizes_usd || 0);
+      dailyTotals[dateKey].sales_bs += Number(cuadre.total_sales_bs || 0);
+      dailyTotals[dateKey].sales_usd += Number(cuadre.total_sales_usd || 0);
+      dailyTotals[dateKey].prizes_bs += Number(cuadre.total_prizes_bs || 0);
+      dailyTotals[dateKey].prizes_usd += Number(cuadre.total_prizes_usd || 0);
       dailyTotals[dateKey].sessions_count += 1;
 
-      totalSalesBs += Number(session.total_sales_bs || 0);
-      totalSalesUsd += Number(session.total_sales_usd || 0);
-      totalPrizesBs += Number(session.total_prizes_bs || 0);
-      totalPrizesUsd += Number(session.total_prizes_usd || 0);
+      totalSalesBs += Number(cuadre.total_sales_bs || 0);
+      totalSalesUsd += Number(cuadre.total_sales_usd || 0);
+      totalPrizesBs += Number(cuadre.total_prizes_bs || 0);
+      totalPrizesUsd += Number(cuadre.total_prizes_usd || 0);
     });
 
     // Update weekly summary
@@ -253,7 +248,7 @@ export function WeeklyCuadreView() {
         total_prizes_usd: totalPrizesUsd,
         total_balance_bs: totalSalesBs - totalPrizesBs,
         total_balance_usd: totalSalesUsd - totalPrizesUsd,
-        total_sessions: sessions?.length || 0,
+        total_sessions: dailyCuadres?.length || 0,
       })
       .eq('id', weeklySummaryId);
 
