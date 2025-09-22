@@ -6,7 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Calendar, ChevronLeft, ChevronRight, Lock, Users, Banknote, Trophy, DollarSign, ChevronDown, ChevronUp, Plus, CreditCard, HandCoins, Building2, Search } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Calendar, ChevronLeft, ChevronRight, Lock, Users, Banknote, Trophy, DollarSign, ChevronDown, ChevronUp, Building2, Search, Receipt, HandCoins, CreditCard, Smartphone } from 'lucide-react';
 import { GastosOperativosForm } from '@/components/taquillera/GastosOperativosForm';
 import { InterAgencyLoansForm } from '@/components/encargada/InterAgencyLoansForm';
 import { PagoMovilRecibidos } from '@/components/taquillera/PagoMovilRecibidos';
@@ -76,10 +77,7 @@ export function WeeklyCuadreView() {
   const [selectedAgency, setSelectedAgency] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [isDailyOpen, setIsDailyOpen] = useState(false);
-  const [showGastosForm, setShowGastosForm] = useState(false);
-  const [showDeudasForm, setShowDeudasForm] = useState(false);
-  const [showPagosRecibidos, setShowPagosRecibidos] = useState(false);
-  const [showPagosPagados, setShowPagosPagados] = useState(false);
+  const [activeAgencyTab, setActiveAgencyTab] = useState('resumen');
 
   useEffect(() => {
     if (user) {
@@ -508,139 +506,168 @@ export function WeeklyCuadreView() {
       {agenciesData.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Users className="h-5 w-5" />
-                Desglose por Agencia
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowGastosForm(true)}
-                  className="flex items-center gap-1"
-                >
-                  <Plus className="h-4 w-4" />
-                  Gastos
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowDeudasForm(true)}
-                  className="flex items-center gap-1"
-                >
-                  <HandCoins className="h-4 w-4" />
-                  Deudas
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowPagosRecibidos(true)}
-                  className="flex items-center gap-1"
-                >
-                  <CreditCard className="h-4 w-4" />
-                  Pago Recibido
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowPagosPagados(true)}
-                  className="flex items-center gap-1"
-                >
-                  <CreditCard className="h-4 w-4" />
-                  Pago Pagado
-                </Button>
-              </div>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Desglose por Agencia
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {/* Filters */}
-              <div className="flex flex-col md:flex-row gap-4">
-                <div className="flex-1">
-                  <Select value={selectedAgency} onValueChange={setSelectedAgency}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Todas las agencias" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todas las agencias</SelectItem>
-                      {allAgencies.map((agency) => (
-                        <SelectItem key={agency.id} value={agency.id}>
-                          {agency.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex-1 relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Buscar agencia..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-9"
-                  />
-                </div>
-              </div>
+            <Tabs value={activeAgencyTab} onValueChange={setActiveAgencyTab} className="space-y-6">
+              <TabsList className="grid w-full grid-cols-5">
+                <TabsTrigger value="resumen" className="flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  Resumen
+                </TabsTrigger>
+                <TabsTrigger value="gastos" className="flex items-center gap-2">
+                  <Receipt className="h-4 w-4" />
+                  Gastos
+                </TabsTrigger>
+                <TabsTrigger value="deudas" className="flex items-center gap-2">
+                  <HandCoins className="h-4 w-4" />
+                  Préstamos
+                </TabsTrigger>
+                <TabsTrigger value="pago-recibido" className="flex items-center gap-2">
+                  <CreditCard className="h-4 w-4" />
+                  Pago Recibido
+                </TabsTrigger>
+                <TabsTrigger value="pago-pagado" className="flex items-center gap-2">
+                  <Smartphone className="h-4 w-4" />
+                  Pago Pagado
+                </TabsTrigger>
+              </TabsList>
 
-              {/* Agency Cards */}
-              <div className="space-y-4">
-                {filteredAgencies.map((agency) => (
-                  <div key={agency.agency_id} className="border rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <h3 className="font-semibold text-lg">{agency.agency_name}</h3>
-                        <p className="text-sm text-muted-foreground">
-                          {agency.total_sessions} registro(s) • {agency.is_weekly_closed ? 'Cerrada' : 'Activa'}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className={`text-sm font-medium ${Number(agency.total_balance_bs) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          Balance: {formatCurrency(agency.total_balance_bs, 'bs')}
-                        </p>
-                        <p className={`text-xs ${Number(agency.total_balance_usd) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          {formatCurrency(agency.total_balance_usd, 'usd')}
-                        </p>
-                      </div>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                      <div className="text-center p-3 bg-green-50 rounded-lg">
-                        <p className="text-muted-foreground">Ventas Bs</p>
-                        <p className="font-medium text-green-600">
-                          {formatCurrency(agency.total_sales_bs, 'bs')}
-                        </p>
-                      </div>
-                      <div className="text-center p-3 bg-green-50 rounded-lg">
-                        <p className="text-muted-foreground">Ventas USD</p>
-                        <p className="font-medium text-green-600">
-                          {formatCurrency(agency.total_sales_usd, 'usd')}
-                        </p>
-                      </div>
-                      <div className="text-center p-3 bg-red-50 rounded-lg">
-                        <p className="text-muted-foreground">Premios Bs</p>
-                        <p className="font-medium text-red-600">
-                          {formatCurrency(agency.total_prizes_bs, 'bs')}
-                        </p>
-                      </div>
-                      <div className="text-center p-3 bg-red-50 rounded-lg">
-                        <p className="text-muted-foreground">Premios USD</p>
-                        <p className="font-medium text-red-600">
-                          {formatCurrency(agency.total_prizes_usd, 'usd')}
-                        </p>
-                      </div>
-                    </div>
+              <TabsContent value="resumen" className="space-y-4">
+                {/* Filters */}
+                <div className="flex flex-col md:flex-row gap-4">
+                  <div className="flex-1">
+                    <Select value={selectedAgency} onValueChange={setSelectedAgency}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Todas las agencias" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todas las agencias</SelectItem>
+                        {allAgencies.map((agency) => (
+                          <SelectItem key={agency.id} value={agency.id}>
+                            {agency.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                ))}
-              </div>
-
-              {filteredAgencies.length === 0 && (
-                <div className="text-center py-8">
-                  <Building2 className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
-                  <p className="text-muted-foreground">No se encontraron agencias</p>
+                  <div className="flex-1 relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Buscar agencia..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-9"
+                    />
+                  </div>
                 </div>
-              )}
-            </div>
+
+                {/* Agency Cards */}
+                <div className="space-y-4">
+                  {filteredAgencies.map((agency) => (
+                    <div key={agency.agency_id} className="border rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-4">
+                        <div>
+                          <h3 className="font-semibold text-lg">{agency.agency_name}</h3>
+                          <p className="text-sm text-muted-foreground">
+                            {agency.total_sessions} registro(s) • {agency.is_weekly_closed ? 'Cerrada' : 'Activa'}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className={`text-sm font-medium ${Number(agency.total_balance_bs) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            Balance: {formatCurrency(agency.total_balance_bs, 'bs')}
+                          </p>
+                          <p className={`text-xs ${Number(agency.total_balance_usd) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {formatCurrency(agency.total_balance_usd, 'usd')}
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                        <div className="text-center p-3 bg-green-50 rounded-lg">
+                          <p className="text-muted-foreground">Ventas Bs</p>
+                          <p className="font-medium text-green-600">
+                            {formatCurrency(agency.total_sales_bs, 'bs')}
+                          </p>
+                        </div>
+                        <div className="text-center p-3 bg-green-50 rounded-lg">
+                          <p className="text-muted-foreground">Ventas USD</p>
+                          <p className="font-medium text-green-600">
+                            {formatCurrency(agency.total_sales_usd, 'usd')}
+                          </p>
+                        </div>
+                        <div className="text-center p-3 bg-red-50 rounded-lg">
+                          <p className="text-muted-foreground">Premios Bs</p>
+                          <p className="font-medium text-red-600">
+                            {formatCurrency(agency.total_prizes_bs, 'bs')}
+                          </p>
+                        </div>
+                        <div className="text-center p-3 bg-red-50 rounded-lg">
+                          <p className="text-muted-foreground">Premios USD</p>
+                          <p className="font-medium text-red-600">
+                            {formatCurrency(agency.total_prizes_usd, 'usd')}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {filteredAgencies.length === 0 && (
+                  <div className="text-center py-8">
+                    <Building2 className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
+                    <p className="text-muted-foreground">No se encontraron agencias</p>
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="gastos" className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Registrar Gasto Operativo</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <GastosOperativosForm onSuccess={fetchWeeklyData} />
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="deudas" className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Registrar Préstamo Inter-Agencia</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <InterAgencyLoansForm onSuccess={fetchWeeklyData} />
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="pago-recibido" className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Registrar Pago Móvil Recibido</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <PagoMovilRecibidos onSuccess={fetchWeeklyData} />
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="pago-pagado" className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Registrar Pago Móvil Pagado</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <PagoMovilPagados onSuccess={fetchWeeklyData} />
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
           </CardContent>
         </Card>
       )}
@@ -763,91 +790,6 @@ export function WeeklyCuadreView() {
             </p>
           </CardContent>
         </Card>
-      )}
-
-      {/* Forms Modals */}
-      {showGastosForm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-background rounded-lg w-full max-w-2xl max-h-[90vh] overflow-auto">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold">Registrar Gasto</h2>
-                <Button variant="ghost" size="sm" onClick={() => setShowGastosForm(false)}>
-                  ×
-                </Button>
-              </div>
-              <GastosOperativosForm 
-                onSuccess={() => {
-                  setShowGastosForm(false);
-                  fetchWeeklyData();
-                }}
-              />
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showDeudasForm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-background rounded-lg w-full max-w-2xl max-h-[90vh] overflow-auto">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold">Registrar Préstamo Inter-Agencia</h2>
-                <Button variant="ghost" size="sm" onClick={() => setShowDeudasForm(false)}>
-                  ×
-                </Button>
-              </div>
-              <InterAgencyLoansForm 
-                onSuccess={() => {
-                  setShowDeudasForm(false);
-                  fetchWeeklyData();
-                }}
-              />
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showPagosRecibidos && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-background rounded-lg w-full max-w-2xl max-h-[90vh] overflow-auto">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold">Registrar Pago Móvil Recibido</h2>
-                <Button variant="ghost" size="sm" onClick={() => setShowPagosRecibidos(false)}>
-                  ×
-                </Button>
-              </div>
-              <PagoMovilRecibidos 
-                onSuccess={() => {
-                  setShowPagosRecibidos(false);
-                  fetchWeeklyData();
-                }}
-              />
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showPagosPagados && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-background rounded-lg w-full max-w-2xl max-h-[90vh] overflow-auto">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold">Registrar Pago Móvil Pagado</h2>
-                <Button variant="ghost" size="sm" onClick={() => setShowPagosPagados(false)}>
-                  ×
-                </Button>
-              </div>
-              <PagoMovilPagados 
-                onSuccess={() => {
-                  setShowPagosPagados(false);
-                  fetchWeeklyData();
-                }}
-              />
-            </div>
-          </div>
-        </div>
       )}
     </div>
   );
