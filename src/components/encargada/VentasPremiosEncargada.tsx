@@ -14,7 +14,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { VentasPremiosBolivares } from '../taquillera/VentasPremiosBolivares';
 import { VentasPremiosDolares } from '../taquillera/VentasPremiosDolares';
 import { GastosOperativosForm } from '../taquillera/GastosOperativosForm';
-import { InterAgencyLoansForm } from './InterAgencyLoansForm';
+import { DeudasForm } from '../taquillera/DeudasForm';
+import { GastosHistorial } from '../taquillera/GastosHistorial';
+import { PagoMovilHistorial } from '../taquillera/PagoMovilHistorial';
 import { PagoMovilRecibidos } from '../taquillera/PagoMovilRecibidos';
 import { PagoMovilPagados } from '../taquillera/PagoMovilPagados';
 import { Edit, Building2, CalendarIcon, DollarSign, Receipt, Smartphone, HandCoins, CreditCard } from 'lucide-react';
@@ -356,7 +358,7 @@ export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
 
       {selectedAgency && (
         <Tabs value={mainTab} onValueChange={setMainTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="ventas-premios" className="flex items-center gap-2">
               <DollarSign className="h-4 w-4" />
               Ventas/Premios
@@ -368,10 +370,6 @@ export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
             <TabsTrigger value="pago-movil" className="flex items-center gap-2">
               <Smartphone className="h-4 w-4" />
               Pago Móvil
-            </TabsTrigger>
-            <TabsTrigger value="prestamos" className="flex items-center gap-2">
-              <HandCoins className="h-4 w-4" />
-              Préstamos
             </TabsTrigger>
             <TabsTrigger value="resumen" className="flex items-center gap-2">
               <CalendarIcon className="h-4 w-4" />
@@ -518,18 +516,21 @@ export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
                 </Card>
               </TabsContent>
             </Tabs>
-          </TabsContent>
 
-          <TabsContent value="prestamos" className="space-y-6">
+            {/* Historial de Pagos Móviles */}
             <Card>
               <CardHeader>
-                <CardTitle>Registrar Préstamo Inter-Agencia</CardTitle>
+                <CardTitle>Historial de Pagos Móviles</CardTitle>
               </CardHeader>
               <CardContent>
-                <InterAgencyLoansForm onSuccess={refreshData} />
+                <PagoMovilHistorial 
+                  dateRange={{ from: selectedDate, to: selectedDate }}
+                  refreshKey={Math.random()}
+                />
               </CardContent>
             </Card>
           </TabsContent>
+
 
           <TabsContent value="resumen" className="space-y-6">
             <Card>

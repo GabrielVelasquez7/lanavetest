@@ -1,3 +1,4 @@
+import { format } from 'date-fns';
 import { getTodayVenezuela } from '@/lib/dateUtils';
 
 // Helper function to update daily cuadres summary
@@ -89,9 +90,11 @@ type DeudaForm = z.infer<typeof deudaSchema>;
 
 interface DeudasFormProps {
   onSuccess?: () => void;
+  selectedAgency?: string;
+  selectedDate?: Date;
 }
 
-export const DeudasForm = ({ onSuccess }: DeudasFormProps) => {
+export const DeudasForm = ({ onSuccess, selectedAgency: propSelectedAgency, selectedDate: propSelectedDate }: DeudasFormProps) => {
   const [loading, setLoading] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
@@ -111,43 +114,61 @@ export const DeudasForm = ({ onSuccess }: DeudasFormProps) => {
 
     setLoading(true);
     try {
-      // First, ensure we have a daily session for today
-      const today = getTodayVenezuela();
-      
-      let { data: session, error: sessionError } = await supabase
-        .from('daily_sessions')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('session_date', today)
-        .maybeSingle();
-
-      if (!session) {
-        // Session doesn't exist, create it
-        const { data: newSession, error: createError } = await supabase
-          .from('daily_sessions')
+      // Check if we have props (encargada mode) or need session (taquillera mode)
+      if (propSelectedAgency && propSelectedDate) {
+        // Encargada workflow - insert directly with agency_id and transaction_date
+        const { error } = await supabase
+          .from('expenses')
           .insert({
-            user_id: user.id,
-            session_date: today,
-          })
+            agency_id: propSelectedAgency,
+            transaction_date: format(propSelectedDate, 'yyyy-MM-dd'),
+            category: data.category,
+            description: data.description,
+            amount_bs: data.amount_bs,
+            amount_usd: data.amount_usd,
+            session_id: null, // Encargada doesn't have sessions
+          });
+
+        if (error) throw error;
+      } else {
+        // Taquillera workflow - use session_id (existing logic)
+        const today = getTodayVenezuela();
+        
+        let { data: session, error: sessionError } = await supabase
+          .from('daily_sessions')
           .select('id')
-          .single();
+          .eq('user_id', user.id)
+          .eq('session_date', today)
+          .maybeSingle();
 
-        if (createError) throw createError;
-        session = newSession;
+        if (!session) {
+          // Session doesn't exist, create it
+          const { data: newSession, error: createError } = await supabase
+            .from('daily_sessions')
+            .insert({
+              user_id: user.id,
+              session_date: today,
+            })
+            .select('id')
+            .single();
+
+          if (createError) throw createError;
+          session = newSession;
+        }
+
+        // Now insert the debt
+        const { error } = await supabase
+          .from('expenses')
+          .insert({
+            session_id: session.id,
+            category: data.category,
+            description: data.description,
+            amount_bs: data.amount_bs,
+            amount_usd: data.amount_usd,
+          });
+
+        if (error) throw error;
       }
-
-      // Now insert the debt
-      const { error } = await supabase
-        .from('expenses')
-        .insert({
-          session_id: session.id,
-          category: data.category,
-          description: data.description,
-          amount_bs: data.amount_bs,
-          amount_usd: data.amount_usd,
-        });
-
-      if (error) throw error;
 
       toast({
         title: 'Éxito',
