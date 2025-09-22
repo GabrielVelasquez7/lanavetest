@@ -500,27 +500,40 @@ export type Database = {
       }
       point_of_sale: {
         Row: {
+          agency_id: string | null
           amount_bs: number
           created_at: string
           id: string
           session_id: string
+          transaction_date: string | null
           updated_at: string
         }
         Insert: {
+          agency_id?: string | null
           amount_bs?: number
           created_at?: string
           id?: string
           session_id: string
+          transaction_date?: string | null
           updated_at?: string
         }
         Update: {
+          agency_id?: string | null
           amount_bs?: number
           created_at?: string
           id?: string
           session_id?: string
+          transaction_date?: string | null
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "point_of_sale_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "point_of_sale_session_id_fkey"
             columns: ["session_id"]

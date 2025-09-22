@@ -51,17 +51,21 @@ export const PointOfSaleFormEncargada = ({ selectedAgency, selectedDate, onSucce
     try {
       const dateStr = formatDateForDB(selectedDate);
       
-      const { data: posData, error: posError } = await supabase
+      // Using a more explicit query structure to avoid type issues
+      const query = supabase
         .from('point_of_sale')
         .select('amount_bs')
         .eq('agency_id', selectedAgency)
-        .eq('transaction_date', dateStr)
-        .maybeSingle();
+        .eq('transaction_date', dateStr);
+      
+      const { data: posDataArray, error: posError } = await query;
 
       if (posError && posError.code !== 'PGRST116') {
         console.error('Error fetching POS data:', posError);
         return;
       }
+
+      const posData = posDataArray?.[0];
 
       if (posData) {
         const amount = Number(posData.amount_bs) || 0;
