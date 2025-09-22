@@ -3,7 +3,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, ChevronLeft, ChevronRight, Lock, Users, Banknote, Trophy, DollarSign } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Calendar, ChevronLeft, ChevronRight, Lock, Users, Banknote, Trophy, DollarSign, ChevronDown, ChevronUp, Plus, CreditCard, HandCoins, Building2, Search } from 'lucide-react';
+import { GastosOperativosForm } from '@/components/taquillera/GastosOperativosForm';
+import { InterAgencyLoansForm } from '@/components/encargada/InterAgencyLoansForm';
+import { PagoMovilRecibidos } from '@/components/taquillera/PagoMovilRecibidos';
+import { PagoMovilPagados } from '@/components/taquillera/PagoMovilPagados';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/components/ui/use-toast';
@@ -60,14 +67,24 @@ export function WeeklyCuadreView() {
   const { toast } = useToast();
   const [weeklyData, setWeeklyData] = useState<WeeklyData | null>(null);
   const [agenciesData, setAgenciesData] = useState<AgencyWeeklyData[]>([]);
+  const [filteredAgencies, setFilteredAgencies] = useState<AgencyWeeklyData[]>([]);
   const [dailyDetails, setDailyDetails] = useState<DailyDetail[]>([]);
   const [loading, setLoading] = useState(true);
   const [closureNotes, setClosureNotes] = useState('');
   const [currentWeek, setCurrentWeek] = useState<WeekBoundaries | null>(null);
+  const [allAgencies, setAllAgencies] = useState<{ id: string; name: string }[]>([]);
+  const [selectedAgency, setSelectedAgency] = useState<string>('all');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isDailyOpen, setIsDailyOpen] = useState(false);
+  const [showGastosForm, setShowGastosForm] = useState(false);
+  const [showDeudasForm, setShowDeudasForm] = useState(false);
+  const [showPagosRecibidos, setShowPagosRecibidos] = useState(false);
+  const [showPagosPagados, setShowPagosPagados] = useState(false);
 
   useEffect(() => {
     if (user) {
       getCurrentWeekBoundaries();
+      fetchAgencies();
     }
   }, [user]);
 
@@ -76,6 +93,37 @@ export function WeeklyCuadreView() {
       fetchWeeklyData();
     }
   }, [currentWeek, user]);
+
+  useEffect(() => {
+    let filtered = agenciesData;
+    
+    if (selectedAgency !== 'all') {
+      filtered = filtered.filter(agency => agency.agency_id === selectedAgency);
+    }
+    
+    if (searchTerm) {
+      filtered = filtered.filter(agency => 
+        agency.agency_name.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+    
+    setFilteredAgencies(filtered);
+  }, [agenciesData, selectedAgency, searchTerm]);
+
+  const fetchAgencies = async () => {
+    try {
+      const { data: agencies, error } = await supabase
+        .from('agencies')
+        .select('id, name')
+        .eq('is_active', true)
+        .order('name');
+
+      if (error) throw error;
+      setAllAgencies(agencies || []);
+    } catch (error: any) {
+      console.error('Error fetching agencies:', error);
+    }
+  };
 
   const getCurrentWeekBoundaries = async () => {
     try {
@@ -460,60 +508,138 @@ export function WeeklyCuadreView() {
       {agenciesData.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              Desglose por Agencia
+            <CardTitle className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Desglose por Agencia
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowGastosForm(true)}
+                  className="flex items-center gap-1"
+                >
+                  <Plus className="h-4 w-4" />
+                  Gastos
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowDeudasForm(true)}
+                  className="flex items-center gap-1"
+                >
+                  <HandCoins className="h-4 w-4" />
+                  Deudas
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowPagosRecibidos(true)}
+                  className="flex items-center gap-1"
+                >
+                  <CreditCard className="h-4 w-4" />
+                  Pago Recibido
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowPagosPagados(true)}
+                  className="flex items-center gap-1"
+                >
+                  <CreditCard className="h-4 w-4" />
+                  Pago Pagado
+                </Button>
+              </div>
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {agenciesData.map((agency) => (
-                <div key={agency.agency_id} className="border rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <h3 className="font-semibold text-lg">{agency.agency_name}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {agency.total_sessions} registro(s) • {agency.is_weekly_closed ? 'Cerrada' : 'Activa'}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className={`text-sm font-medium ${Number(agency.total_balance_bs) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        Balance: {formatCurrency(agency.total_balance_bs, 'bs')}
-                      </p>
-                      <p className={`text-xs ${Number(agency.total_balance_usd) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        {formatCurrency(agency.total_balance_usd, 'usd')}
-                      </p>
-                    </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                    <div className="text-center p-3 bg-green-50 rounded-lg">
-                      <p className="text-muted-foreground">Ventas Bs</p>
-                      <p className="font-medium text-green-600">
-                        {formatCurrency(agency.total_sales_bs, 'bs')}
-                      </p>
-                    </div>
-                    <div className="text-center p-3 bg-green-50 rounded-lg">
-                      <p className="text-muted-foreground">Ventas USD</p>
-                      <p className="font-medium text-green-600">
-                        {formatCurrency(agency.total_sales_usd, 'usd')}
-                      </p>
-                    </div>
-                    <div className="text-center p-3 bg-red-50 rounded-lg">
-                      <p className="text-muted-foreground">Premios Bs</p>
-                      <p className="font-medium text-red-600">
-                        {formatCurrency(agency.total_prizes_bs, 'bs')}
-                      </p>
-                    </div>
-                    <div className="text-center p-3 bg-red-50 rounded-lg">
-                      <p className="text-muted-foreground">Premios USD</p>
-                      <p className="font-medium text-red-600">
-                        {formatCurrency(agency.total_prizes_usd, 'usd')}
-                      </p>
-                    </div>
-                  </div>
+              {/* Filters */}
+              <div className="flex flex-col md:flex-row gap-4">
+                <div className="flex-1">
+                  <Select value={selectedAgency} onValueChange={setSelectedAgency}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Todas las agencias" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas las agencias</SelectItem>
+                      {allAgencies.map((agency) => (
+                        <SelectItem key={agency.id} value={agency.id}>
+                          {agency.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-              ))}
+                <div className="flex-1 relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar agencia..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+              </div>
+
+              {/* Agency Cards */}
+              <div className="space-y-4">
+                {filteredAgencies.map((agency) => (
+                  <div key={agency.agency_id} className="border rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <h3 className="font-semibold text-lg">{agency.agency_name}</h3>
+                        <p className="text-sm text-muted-foreground">
+                          {agency.total_sessions} registro(s) • {agency.is_weekly_closed ? 'Cerrada' : 'Activa'}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className={`text-sm font-medium ${Number(agency.total_balance_bs) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          Balance: {formatCurrency(agency.total_balance_bs, 'bs')}
+                        </p>
+                        <p className={`text-xs ${Number(agency.total_balance_usd) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {formatCurrency(agency.total_balance_usd, 'usd')}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                      <div className="text-center p-3 bg-green-50 rounded-lg">
+                        <p className="text-muted-foreground">Ventas Bs</p>
+                        <p className="font-medium text-green-600">
+                          {formatCurrency(agency.total_sales_bs, 'bs')}
+                        </p>
+                      </div>
+                      <div className="text-center p-3 bg-green-50 rounded-lg">
+                        <p className="text-muted-foreground">Ventas USD</p>
+                        <p className="font-medium text-green-600">
+                          {formatCurrency(agency.total_sales_usd, 'usd')}
+                        </p>
+                      </div>
+                      <div className="text-center p-3 bg-red-50 rounded-lg">
+                        <p className="text-muted-foreground">Premios Bs</p>
+                        <p className="font-medium text-red-600">
+                          {formatCurrency(agency.total_prizes_bs, 'bs')}
+                        </p>
+                      </div>
+                      <div className="text-center p-3 bg-red-50 rounded-lg">
+                        <p className="text-muted-foreground">Premios USD</p>
+                        <p className="font-medium text-red-600">
+                          {formatCurrency(agency.total_prizes_usd, 'usd')}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {filteredAgencies.length === 0 && (
+                <div className="text-center py-8">
+                  <Building2 className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
+                  <p className="text-muted-foreground">No se encontraron agencias</p>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -521,65 +647,77 @@ export function WeeklyCuadreView() {
 
       {/* Daily Breakdown */}
       <Card>
-        <CardHeader>
-          <CardTitle>Desglose Diario</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {dailyDetails.map((day) => (
-              <div key={day.day_date} className="border rounded-lg p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-3 h-3 rounded-full ${day.is_completed ? 'bg-green-500' : 'bg-gray-300'}`} />
-                    <div>
-                      <p className="font-medium capitalize">{day.day_name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {format(new Date(day.day_date), 'dd/MM/yyyy')}
-                      </p>
+        <Collapsible open={isDailyOpen} onOpenChange={setIsDailyOpen}>
+          <CardHeader>
+            <CollapsibleTrigger asChild>
+              <Button variant="ghost" className="w-full justify-between p-0 h-auto">
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5" />
+                  Desglose Diario
+                </CardTitle>
+                {isDailyOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </Button>
+            </CollapsibleTrigger>
+          </CardHeader>
+          <CollapsibleContent>
+            <CardContent>
+              <div className="space-y-3">
+                {dailyDetails.map((day) => (
+                  <div key={day.day_date} className="border rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-3 h-3 rounded-full ${day.is_completed ? 'bg-green-500' : 'bg-gray-300'}`} />
+                        <div>
+                          <p className="font-medium capitalize">{day.day_name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {format(new Date(day.day_date), 'dd/MM/yyyy')}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className={`text-sm font-medium ${Number(day.balance_bs) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          Balance: {formatCurrency(day.balance_bs, 'bs')}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {day.sessions_count} registro(s)
+                        </p>
+                      </div>
                     </div>
+                    
+                    {day.is_completed && (
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                        <div>
+                          <p className="text-muted-foreground">Ventas Bs:</p>
+                          <p className="font-medium text-green-600">
+                            {formatCurrency(day.total_sales_bs, 'bs')}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">Ventas USD:</p>
+                          <p className="font-medium text-green-600">
+                            {formatCurrency(day.total_sales_usd, 'usd')}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">Premios Bs:</p>
+                          <p className="font-medium text-red-600">
+                            {formatCurrency(day.total_prizes_bs, 'bs')}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">Premios USD:</p>
+                          <p className="font-medium text-red-600">
+                            {formatCurrency(day.total_prizes_usd, 'usd')}
+                          </p>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <div className="text-right">
-                    <p className={`text-sm font-medium ${Number(day.balance_bs) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      Balance: {formatCurrency(day.balance_bs, 'bs')}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {day.sessions_count} registro(s)
-                    </p>
-                  </div>
-                </div>
-                
-                {day.is_completed && (
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                    <div>
-                      <p className="text-muted-foreground">Ventas Bs:</p>
-                      <p className="font-medium text-green-600">
-                        {formatCurrency(day.total_sales_bs, 'bs')}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Ventas USD:</p>
-                      <p className="font-medium text-green-600">
-                        {formatCurrency(day.total_sales_usd, 'usd')}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Premios Bs:</p>
-                      <p className="font-medium text-red-600">
-                        {formatCurrency(day.total_prizes_bs, 'bs')}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Premios USD:</p>
-                      <p className="font-medium text-red-600">
-                        {formatCurrency(day.total_prizes_usd, 'usd')}
-                      </p>
-                    </div>
-                  </div>
-                )}
+                ))}
               </div>
-            ))}
-          </div>
-        </CardContent>
+            </CardContent>
+          </CollapsibleContent>
+        </Collapsible>
       </Card>
 
       {/* Close Week */}
@@ -625,6 +763,91 @@ export function WeeklyCuadreView() {
             </p>
           </CardContent>
         </Card>
+      )}
+
+      {/* Forms Modals */}
+      {showGastosForm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-background rounded-lg w-full max-w-2xl max-h-[90vh] overflow-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold">Registrar Gasto</h2>
+                <Button variant="ghost" size="sm" onClick={() => setShowGastosForm(false)}>
+                  ×
+                </Button>
+              </div>
+              <GastosOperativosForm 
+                onSuccess={() => {
+                  setShowGastosForm(false);
+                  fetchWeeklyData();
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDeudasForm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-background rounded-lg w-full max-w-2xl max-h-[90vh] overflow-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold">Registrar Préstamo Inter-Agencia</h2>
+                <Button variant="ghost" size="sm" onClick={() => setShowDeudasForm(false)}>
+                  ×
+                </Button>
+              </div>
+              <InterAgencyLoansForm 
+                onSuccess={() => {
+                  setShowDeudasForm(false);
+                  fetchWeeklyData();
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showPagosRecibidos && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-background rounded-lg w-full max-w-2xl max-h-[90vh] overflow-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold">Registrar Pago Móvil Recibido</h2>
+                <Button variant="ghost" size="sm" onClick={() => setShowPagosRecibidos(false)}>
+                  ×
+                </Button>
+              </div>
+              <PagoMovilRecibidos 
+                onSuccess={() => {
+                  setShowPagosRecibidos(false);
+                  fetchWeeklyData();
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showPagosPagados && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-background rounded-lg w-full max-w-2xl max-h-[90vh] overflow-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold">Registrar Pago Móvil Pagado</h2>
+                <Button variant="ghost" size="sm" onClick={() => setShowPagosPagados(false)}>
+                  ×
+                </Button>
+              </div>
+              <PagoMovilPagados 
+                onSuccess={() => {
+                  setShowPagosPagados(false);
+                  fetchWeeklyData();
+                }}
+              />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
