@@ -102,7 +102,42 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
 
       console.log('🔍 CUADRE ENCARGADA DEBUG - Fechas:', { dateStr, selectedAgency });
 
-      // Get sessions for the agency on the selected date
+      // First get users from the selected agency
+      const { data: agencyUsers, error: usersError } = await supabase
+        .from('profiles')
+        .select('user_id')
+        .eq('agency_id', selectedAgency);
+
+      console.log('🔍 CUADRE ENCARGADA DEBUG - Agency users:', { agencyUsers, usersError });
+
+      if (usersError) throw usersError;
+
+      const userIds = agencyUsers?.map(u => u.user_id) || [];
+      
+      if (userIds.length === 0) {
+        setCuadre({
+          totalSales: { bs: 0, usd: 0 },
+          totalPrizes: { bs: 0, usd: 0 },
+          totalGastos: { bs: 0, usd: 0 },
+          totalDeudas: { bs: 0, usd: 0 },
+          gastosDetails: [],
+          deudasDetails: [],
+          pagoMovilRecibidos: 0,
+          pagoMovilPagados: 0,
+          totalPointOfSale: 0,
+          cashAvailable: 0,
+          cashAvailableUsd: 0,
+          closureConfirmed: false,
+          closureNotes: '',
+          premiosPorPagar: 0,
+          exchangeRate: 36.00,
+          sessionsCount: 0,
+        });
+        setLoading(false);
+        return;
+      }
+
+      // Get sessions for the agency users on the selected date
       const { data: sessions, error: sessionsError } = await supabase
         .from('daily_sessions')
         .select(`
@@ -112,10 +147,9 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
           daily_closure_confirmed, 
           closure_notes, 
           exchange_rate,
-          user_id,
-          profiles!inner(agency_id)
+          user_id
         `)
-        .eq('profiles.agency_id', selectedAgency)
+        .in('user_id', userIds)
         .eq('session_date', dateStr);
 
       console.log('🔍 CUADRE ENCARGADA DEBUG - Sessions query:', { sessions, sessionsError });
