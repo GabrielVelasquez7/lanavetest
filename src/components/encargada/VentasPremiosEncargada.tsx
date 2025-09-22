@@ -15,6 +15,8 @@ import { VentasPremiosBolivares } from '../taquillera/VentasPremiosBolivares';
 import { VentasPremiosDolares } from '../taquillera/VentasPremiosDolares';
 import { GastosManagerEncargada } from './GastosManagerEncargada';
 import { PagoMovilManagerEncargada } from './PagoMovilManagerEncargada';
+import { PointOfSaleFormEncargada } from './PointOfSaleFormEncargada';
+import { CuadreGeneralEncargada } from './CuadreGeneralEncargada';
 import { Edit, Building2, CalendarIcon, DollarSign, Receipt, Smartphone, HandCoins, CreditCard } from 'lucide-react';
 import { formatCurrency, cn } from '@/lib/utils';
 import { formatDateForDB } from '@/lib/dateUtils';
@@ -354,7 +356,7 @@ export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
 
       {selectedAgency && (
         <Tabs value={mainTab} onValueChange={setMainTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="ventas-premios" className="flex items-center gap-2">
               <DollarSign className="h-4 w-4" />
               Ventas/Premios
@@ -366,6 +368,10 @@ export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
             <TabsTrigger value="pago-movil" className="flex items-center gap-2">
               <Smartphone className="h-4 w-4" />
               Pago Móvil
+            </TabsTrigger>
+            <TabsTrigger value="punto-venta" className="flex items-center gap-2">
+              <CreditCard className="h-4 w-4" />
+              Punto Venta
             </TabsTrigger>
             <TabsTrigger value="resumen" className="flex items-center gap-2">
               <CalendarIcon className="h-4 w-4" />
@@ -479,20 +485,20 @@ export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
           </TabsContent>
 
 
+          <TabsContent value="punto-venta" className="space-y-6">
+            <PointOfSaleFormEncargada 
+              selectedAgency={selectedAgency}
+              selectedDate={selectedDate}
+              onSuccess={refreshData}
+            />
+          </TabsContent>
+
           <TabsContent value="resumen" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Resumen General - {selectedAgencyName}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-8">
-                  <p className="text-muted-foreground">Resumen general para {format(selectedDate, "PPP", { locale: es })}</p>
-                  <p className="text-sm text-muted-foreground mt-2">
-                    Esta sección mostrará un resumen completo de todas las transacciones del día
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+            <CuadreGeneralEncargada 
+              selectedAgency={selectedAgency}
+              selectedDate={selectedDate}
+              refreshKey={Math.random()}
+            />
           </TabsContent>
         </Tabs>
       )}
