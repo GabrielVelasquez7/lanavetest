@@ -115,24 +115,83 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
       const userIds = agencyUsers?.map(u => u.user_id) || [];
       
       if (userIds.length === 0) {
-        setCuadre({
-          totalSales: { bs: 0, usd: 0 },
-          totalPrizes: { bs: 0, usd: 0 },
-          totalGastos: { bs: 0, usd: 0 },
-          totalDeudas: { bs: 0, usd: 0 },
-          gastosDetails: [],
-          deudasDetails: [],
-          pagoMovilRecibidos: 0,
-          pagoMovilPagados: 0,
-          totalPointOfSale: 0,
-          cashAvailable: 0,
-          cashAvailableUsd: 0,
-          closureConfirmed: false,
-          closureNotes: '',
-          premiosPorPagar: 0,
-          exchangeRate: 36.00,
-          sessionsCount: 0,
-        });
+        // No users found for agency; fallback to daily_cuadres_summary
+        const { data: summaryRows, error: summaryError } = await supabase
+          .from('daily_cuadres_summary')
+          .select(`
+            total_sales_bs, total_sales_usd,
+            total_prizes_bs, total_prizes_usd,
+            total_expenses_bs, total_expenses_usd,
+            total_mobile_payments_bs, total_pos_bs,
+            cash_available_bs, cash_available_usd,
+            exchange_rate, daily_closure_confirmed, closure_notes
+          `)
+          .eq('agency_id', selectedAgency)
+          .eq('session_date', dateStr)
+          .is('session_id', null);
+
+        console.log('🔍 CUADRE ENCARGADA DEBUG - Summary fallback (no users):', { summaryRows, summaryError });
+        if (summaryError) throw summaryError;
+
+        if ((summaryRows?.length || 0) > 0) {
+          const totalSales = summaryRows!.reduce((acc, r: any) => ({
+            bs: acc.bs + Number(r.total_sales_bs || 0),
+            usd: acc.usd + Number(r.total_sales_usd || 0),
+          }), { bs: 0, usd: 0 });
+          const totalPrizes = summaryRows!.reduce((acc, r: any) => ({
+            bs: acc.bs + Number(r.total_prizes_bs || 0),
+            usd: acc.usd + Number(r.total_prizes_usd || 0),
+          }), { bs: 0, usd: 0 });
+          const totalGastos = summaryRows!.reduce((acc, r: any) => ({
+            bs: acc.bs + Number(r.total_expenses_bs || 0),
+            usd: acc.usd + Number(r.total_expenses_usd || 0),
+          }), { bs: 0, usd: 0 });
+          const pagoMovilRecibidos = summaryRows!.reduce((sum, r: any) => sum + Number(r.total_mobile_payments_bs || 0), 0);
+          const totalPointOfSale = summaryRows!.reduce((sum, r: any) => sum + Number(r.total_pos_bs || 0), 0);
+          const cashAvailable = summaryRows!.reduce((sum, r: any) => sum + Number(r.cash_available_bs || 0), 0);
+          const cashAvailableUsd = summaryRows!.reduce((sum, r: any) => sum + Number(r.cash_available_usd || 0), 0);
+          const averageExchangeRate = summaryRows!.reduce((sum, r: any) => sum + Number(r.exchange_rate || 36), 0) / summaryRows!.length;
+          const closureConfirmed = summaryRows!.every((r: any) => !!r.daily_closure_confirmed);
+          const closureNotes = summaryRows!.map((r: any) => r.closure_notes).filter(Boolean).join(' | ');
+
+          setCuadre({
+            totalSales,
+            totalPrizes,
+            totalGastos,
+            totalDeudas: { bs: 0, usd: 0 },
+            gastosDetails: [],
+            deudasDetails: [],
+            pagoMovilRecibidos,
+            pagoMovilPagados: 0,
+            totalPointOfSale,
+            cashAvailable,
+            cashAvailableUsd,
+            closureConfirmed,
+            closureNotes,
+            premiosPorPagar: 0,
+            exchangeRate: averageExchangeRate,
+            sessionsCount: 0,
+          });
+        } else {
+          setCuadre({
+            totalSales: { bs: 0, usd: 0 },
+            totalPrizes: { bs: 0, usd: 0 },
+            totalGastos: { bs: 0, usd: 0 },
+            totalDeudas: { bs: 0, usd: 0 },
+            gastosDetails: [],
+            deudasDetails: [],
+            pagoMovilRecibidos: 0,
+            pagoMovilPagados: 0,
+            totalPointOfSale: 0,
+            cashAvailable: 0,
+            cashAvailableUsd: 0,
+            closureConfirmed: false,
+            closureNotes: '',
+            premiosPorPagar: 0,
+            exchangeRate: 36.00,
+            sessionsCount: 0,
+          });
+        }
         setLoading(false);
         return;
       }
@@ -159,28 +218,85 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
       const sessionIds = sessions?.map(s => s.id) || [];
       console.log('🔍 CUADRE ENCARGADA DEBUG - Session IDs to query:', sessionIds);
 
-      if (sessionIds.length === 0) {
-        setCuadre({
-          totalSales: { bs: 0, usd: 0 },
-          totalPrizes: { bs: 0, usd: 0 },
-          totalGastos: { bs: 0, usd: 0 },
-          totalDeudas: { bs: 0, usd: 0 },
-          gastosDetails: [],
-          deudasDetails: [],
-          pagoMovilRecibidos: 0,
-          pagoMovilPagados: 0,
-          totalPointOfSale: 0,
-          cashAvailable: 0,
-          cashAvailableUsd: 0,
-          closureConfirmed: false,
-          closureNotes: '',
-          premiosPorPagar: 0,
-          exchangeRate: 36.00,
-          sessionsCount: 0,
-        });
+        // No sessions found; fallback to daily_cuadres_summary (agency-level)
+        const { data: summaryRows, error: summaryError } = await supabase
+          .from('daily_cuadres_summary')
+          .select(`
+            total_sales_bs, total_sales_usd,
+            total_prizes_bs, total_prizes_usd,
+            total_expenses_bs, total_expenses_usd,
+            total_mobile_payments_bs, total_pos_bs,
+            cash_available_bs, cash_available_usd,
+            exchange_rate, daily_closure_confirmed, closure_notes
+          `)
+          .eq('agency_id', selectedAgency)
+          .eq('session_date', dateStr)
+          .is('session_id', null);
+
+        console.log('🔍 CUADRE ENCARGADA DEBUG - Summary fallback (no sessions):', { summaryRows, summaryError });
+        if (summaryError) throw summaryError;
+
+        if ((summaryRows?.length || 0) > 0) {
+          const totalSales = summaryRows!.reduce((acc, r: any) => ({
+            bs: acc.bs + Number(r.total_sales_bs || 0),
+            usd: acc.usd + Number(r.total_sales_usd || 0),
+          }), { bs: 0, usd: 0 });
+          const totalPrizes = summaryRows!.reduce((acc, r: any) => ({
+            bs: acc.bs + Number(r.total_prizes_bs || 0),
+            usd: acc.usd + Number(r.total_prizes_usd || 0),
+          }), { bs: 0, usd: 0 });
+          const totalGastos = summaryRows!.reduce((acc, r: any) => ({
+            bs: acc.bs + Number(r.total_expenses_bs || 0),
+            usd: acc.usd + Number(r.total_expenses_usd || 0),
+          }), { bs: 0, usd: 0 });
+          const pagoMovilRecibidos = summaryRows!.reduce((sum, r: any) => sum + Number(r.total_mobile_payments_bs || 0), 0);
+          const totalPointOfSale = summaryRows!.reduce((sum, r: any) => sum + Number(r.total_pos_bs || 0), 0);
+          const cashAvailable = summaryRows!.reduce((sum, r: any) => sum + Number(r.cash_available_bs || 0), 0);
+          const cashAvailableUsd = summaryRows!.reduce((sum, r: any) => sum + Number(r.cash_available_usd || 0), 0);
+          const averageExchangeRate = summaryRows!.reduce((sum, r: any) => sum + Number(r.exchange_rate || 36), 0) / summaryRows!.length;
+          const closureConfirmed = summaryRows!.every((r: any) => !!r.daily_closure_confirmed);
+          const closureNotes = summaryRows!.map((r: any) => r.closure_notes).filter(Boolean).join(' | ');
+
+          setCuadre({
+            totalSales,
+            totalPrizes,
+            totalGastos,
+            totalDeudas: { bs: 0, usd: 0 },
+            gastosDetails: [],
+            deudasDetails: [],
+            pagoMovilRecibidos,
+            pagoMovilPagados: 0,
+            totalPointOfSale,
+            cashAvailable,
+            cashAvailableUsd,
+            closureConfirmed,
+            closureNotes,
+            premiosPorPagar: 0,
+            exchangeRate: averageExchangeRate,
+            sessionsCount: 0,
+          });
+        } else {
+          setCuadre({
+            totalSales: { bs: 0, usd: 0 },
+            totalPrizes: { bs: 0, usd: 0 },
+            totalGastos: { bs: 0, usd: 0 },
+            totalDeudas: { bs: 0, usd: 0 },
+            gastosDetails: [],
+            deudasDetails: [],
+            pagoMovilRecibidos: 0,
+            pagoMovilPagados: 0,
+            totalPointOfSale: 0,
+            cashAvailable: 0,
+            cashAvailableUsd: 0,
+            closureConfirmed: false,
+            closureNotes: '',
+            premiosPorPagar: 0,
+            exchangeRate: 36.00,
+            sessionsCount: 0,
+          });
+        }
         setLoading(false);
         return;
-      }
 
       // Fetch all data in parallel
       const [
