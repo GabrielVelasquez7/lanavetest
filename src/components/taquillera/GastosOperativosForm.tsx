@@ -64,7 +64,8 @@ const updateDailyCuadresSummary = async (sessionId: string, userId: string, sess
       balance_bs: balanceBs
     }, { onConflict: 'session_id' });
 };
-import { useState } from 'react';
+
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -73,10 +74,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { Plus } from 'lucide-react';
+import { Plus, CalendarIcon } from 'lucide-react';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 
 const gastoSchema = z.object({
   category: z.literal('gasto_operativo'),
@@ -93,6 +99,10 @@ interface GastosOperativosFormProps {
 
 export const GastosOperativosForm = ({ onSuccess }: GastosOperativosFormProps) => {
   const [loading, setLoading] = useState(false);
+  const [userProfile, setUserProfile] = useState<any>(null);
+  const [agencies, setAgencies] = useState<any[]>([]);
+  const [selectedAgency, setSelectedAgency] = useState<string>('');
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -106,55 +116,115 @@ export const GastosOperativosForm = ({ onSuccess }: GastosOperativosFormProps) =
     },
   });
 
+  // Load user profile and agencies for encargadas
+  useEffect(() => {
+    const loadUserData = async () => {
+      if (!user) return;
+
+      // Get user profile to check role
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role, agency_id')
+        .eq('user_id', user.id)
+        .single();
+
+      setUserProfile(profile);
+
+      // If user is encargada, load agencies
+      if (profile?.role === 'encargada') {
+        const { data: agenciesData } = await supabase
+          .from('agencies')
+          .select('id, name')
+          .eq('is_active', true)
+          .order('name');
+        
+        setAgencies(agenciesData || []);
+        
+        // Set default agency if user has one assigned
+        if (profile.agency_id) {
+          setSelectedAgency(profile.agency_id);
+        }
+      }
+    };
+
+    loadUserData();
+  }, [user]);
+
   const onSubmit = async (data: GastoForm) => {
-    if (!user) return;
+    if (!user || !userProfile) return;
 
     setLoading(true);
     try {
-      // First, ensure we have a daily session for today
-      const today = getTodayVenezuela();
+      const isEncargada = userProfile.role === 'encargada';
       
-      let { data: session, error: sessionError } = await supabase
-        .from('daily_sessions')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('session_date', today)
-        .maybeSingle();
+      if (isEncargada) {
+        // Encargada workflow - insert directly with agency_id and transaction_date
+        if (!selectedAgency) {
+          toast({
+            title: 'Error',
+            description: 'Debes seleccionar una agencia',
+            variant: 'destructive',
+          });
+          return;
+        }
 
-      if (!session) {
-        // Session doesn't exist, create it
-        const { data: newSession, error: createError } = await supabase
-          .from('daily_sessions')
+        const { error } = await supabase
+          .from('expenses')
           .insert({
-            user_id: user.id,
-            session_date: today,
-          })
+            agency_id: selectedAgency,
+            transaction_date: format(selectedDate, 'yyyy-MM-dd'),
+            category: data.category,
+            description: data.description,
+            amount_bs: data.amount_bs,
+            amount_usd: data.amount_usd,
+            session_id: null, // Encargada doesn't have sessions
+          });
+
+        if (error) throw error;
+      } else {
+        // Taquillera workflow - use session_id (existing logic)
+        const today = getTodayVenezuela();
+        
+        let { data: session, error: sessionError } = await supabase
+          .from('daily_sessions')
           .select('id')
-          .single();
+          .eq('user_id', user.id)
+          .eq('session_date', today)
+          .maybeSingle();
 
-        if (createError) throw createError;
-        session = newSession;
+        if (!session) {
+          const { data: newSession, error: createError } = await supabase
+            .from('daily_sessions')
+            .insert({
+              user_id: user.id,
+              session_date: today,
+            })
+            .select('id')
+            .single();
+
+          if (createError) throw createError;
+          session = newSession;
+        }
+
+        const { error } = await supabase
+          .from('expenses')
+          .insert({
+            session_id: session.id,
+            category: data.category,
+            description: data.description,
+            amount_bs: data.amount_bs,
+            amount_usd: data.amount_usd,
+          });
+
+        if (error) throw error;
       }
-
-      // Now insert the expense
-      const { error } = await supabase
-        .from('expenses')
-        .insert({
-          session_id: session.id,
-          category: data.category,
-          description: data.description,
-          amount_bs: data.amount_bs,
-          amount_usd: data.amount_usd,
-        });
-
-      if (error) throw error;
 
       toast({
         title: 'Éxito',
         description: 'Gasto operativo registrado correctamente',
       });
 
-      // Reset only description and amounts, keep category
+      // Reset form
       form.reset({
         category: 'gasto_operativo',
         description: '',
@@ -184,6 +254,54 @@ export const GastosOperativosForm = ({ onSuccess }: GastosOperativosFormProps) =
 
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      {/* Agency and Date selection for Encargada */}
+      {userProfile?.role === 'encargada' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-2">
+            <Label>Agencia</Label>
+            <Select value={selectedAgency} onValueChange={setSelectedAgency}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecciona una agencia" />
+              </SelectTrigger>
+              <SelectContent>
+                {agencies.map((agency) => (
+                  <SelectItem key={agency.id} value={agency.id}>
+                    {agency.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Fecha</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start text-left font-normal",
+                    !selectedDate && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {selectedDate ? format(selectedDate, "PPP", { locale: es }) : "Seleccionar fecha"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={(date) => date && setSelectedDate(date)}
+                  initialFocus
+                  className={cn("p-3 pointer-events-auto")}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-2">
           <Label htmlFor="subcategory">Tipo de Gasto</Label>

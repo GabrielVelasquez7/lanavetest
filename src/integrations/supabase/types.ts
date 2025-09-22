@@ -236,6 +236,7 @@ export type Database = {
       }
       expenses: {
         Row: {
+          agency_id: string | null
           amount_bs: number
           amount_usd: number
           category: Database["public"]["Enums"]["expense_category"]
@@ -243,9 +244,11 @@ export type Database = {
           description: string
           id: string
           session_id: string
+          transaction_date: string | null
           updated_at: string
         }
         Insert: {
+          agency_id?: string | null
           amount_bs?: number
           amount_usd?: number
           category: Database["public"]["Enums"]["expense_category"]
@@ -253,9 +256,11 @@ export type Database = {
           description: string
           id?: string
           session_id: string
+          transaction_date?: string | null
           updated_at?: string
         }
         Update: {
+          agency_id?: string | null
           amount_bs?: number
           amount_usd?: number
           category?: Database["public"]["Enums"]["expense_category"]
@@ -263,9 +268,17 @@ export type Database = {
           description?: string
           id?: string
           session_id?: string
+          transaction_date?: string | null
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "expenses_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "expenses_session_id_fkey"
             columns: ["session_id"]
@@ -406,33 +419,46 @@ export type Database = {
       }
       mobile_payments: {
         Row: {
+          agency_id: string | null
           amount_bs: number
           created_at: string
           description: string | null
           id: string
           reference_number: string
           session_id: string
+          transaction_date: string | null
           updated_at: string
         }
         Insert: {
+          agency_id?: string | null
           amount_bs?: number
           created_at?: string
           description?: string | null
           id?: string
           reference_number: string
           session_id: string
+          transaction_date?: string | null
           updated_at?: string
         }
         Update: {
+          agency_id?: string | null
           amount_bs?: number
           created_at?: string
           description?: string | null
           id?: string
           reference_number?: string
           session_id?: string
+          transaction_date?: string | null
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "mobile_payments_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "mobile_payments_session_id_fkey"
             columns: ["session_id"]

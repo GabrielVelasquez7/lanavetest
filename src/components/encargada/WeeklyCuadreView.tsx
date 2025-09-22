@@ -22,6 +22,19 @@ interface WeeklyData {
   weekly_closure_notes: string;
 }
 
+interface AgencyWeeklyData {
+  agency_id: string;
+  agency_name: string;
+  total_sales_bs: number;
+  total_sales_usd: number;
+  total_prizes_bs: number;
+  total_prizes_usd: number;
+  total_balance_bs: number;
+  total_balance_usd: number;
+  total_sessions: number;
+  is_weekly_closed: boolean;
+}
+
 interface DailyDetail {
   day_date: string;
   day_name: string;
@@ -46,6 +59,7 @@ export function WeeklyCuadreView() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [weeklyData, setWeeklyData] = useState<WeeklyData | null>(null);
+  const [agenciesData, setAgenciesData] = useState<AgencyWeeklyData[]>([]);
   const [dailyDetails, setDailyDetails] = useState<DailyDetail[]>([]);
   const [loading, setLoading] = useState(true);
   const [closureNotes, setClosureNotes] = useState('');
@@ -121,7 +135,10 @@ export function WeeklyCuadreView() {
       // Get all daily cuadres for this week (only from encargada - official data)
       const { data: dailyCuadres, error: cuadresError } = await supabase
         .from('daily_cuadres_summary')
-        .select('*')
+        .select(`
+          *,
+          agencies(name)
+        `)
         .eq('user_id', user?.id)
         .is('session_id', null) // Solo datos de encargada
         .gte('session_date', format(currentWeek.start, 'yyyy-MM-dd'))
@@ -129,7 +146,7 @@ export function WeeklyCuadreView() {
 
       if (cuadresError) throw cuadresError;
 
-      // Calculate weekly totals
+      // Calculate weekly totals and agency breakdown
       let totalSalesBs = 0;
       let totalSalesUsd = 0;
       let totalPrizesBs = 0;
@@ -137,6 +154,9 @@ export function WeeklyCuadreView() {
       let totalSessions = 0;
       let isWeeklyClosed = false;
       let weeklyClosureNotes = '';
+
+      // Agency data tracking
+      const agencyData: { [key: string]: AgencyWeeklyData } = {};
 
       // Process daily data
       const dailyData: { [key: string]: DailyDetail } = {};
@@ -162,7 +182,26 @@ export function WeeklyCuadreView() {
       // Process cuadres data
       dailyCuadres?.forEach(cuadre => {
         const dayKey = cuadre.session_date;
+        const agencyId = cuadre.agency_id;
+        const agencyName = (cuadre.agencies as any)?.name || 'Agencia desconocida';
         
+        // Initialize agency data if not exists
+        if (agencyId && !agencyData[agencyId]) {
+          agencyData[agencyId] = {
+            agency_id: agencyId,
+            agency_name: agencyName,
+            total_sales_bs: 0,
+            total_sales_usd: 0,
+            total_prizes_bs: 0,
+            total_prizes_usd: 0,
+            total_balance_bs: 0,
+            total_balance_usd: 0,
+            total_sessions: 0,
+            is_weekly_closed: false,
+          };
+        }
+
+        // Update daily data
         if (dailyData[dayKey]) {
           dailyData[dayKey].total_sales_bs += Number(cuadre.total_sales_bs || 0);
           dailyData[dayKey].total_sales_usd += Number(cuadre.total_sales_usd || 0);
@@ -171,6 +210,20 @@ export function WeeklyCuadreView() {
           dailyData[dayKey].balance_bs += Number(cuadre.balance_bs || 0);
           dailyData[dayKey].sessions_count += 1;
           dailyData[dayKey].is_completed = true;
+        }
+
+        // Update agency data
+        if (agencyId && agencyData[agencyId]) {
+          agencyData[agencyId].total_sales_bs += Number(cuadre.total_sales_bs || 0);
+          agencyData[agencyId].total_sales_usd += Number(cuadre.total_sales_usd || 0);
+          agencyData[agencyId].total_prizes_bs += Number(cuadre.total_prizes_bs || 0);
+          agencyData[agencyId].total_prizes_usd += Number(cuadre.total_prizes_usd || 0);
+          agencyData[agencyId].total_balance_bs += Number(cuadre.balance_bs || 0);
+          agencyData[agencyId].total_sessions += 1;
+          
+          if (cuadre.is_weekly_closed) {
+            agencyData[agencyId].is_weekly_closed = true;
+          }
         }
 
         // Weekly totals
@@ -187,9 +240,13 @@ export function WeeklyCuadreView() {
         }
       });
 
-      // Calculate balance USD for daily data
+      // Calculate balance USD for daily data and agency data
       Object.values(dailyData).forEach(day => {
         day.balance_usd = day.total_sales_usd - day.total_prizes_usd;
+      });
+
+      Object.values(agencyData).forEach(agency => {
+        agency.total_balance_usd = agency.total_sales_usd - agency.total_prizes_usd;
       });
 
       setWeeklyData({
@@ -204,6 +261,7 @@ export function WeeklyCuadreView() {
         weekly_closure_notes: weeklyClosureNotes,
       });
 
+      setAgenciesData(Object.values(agencyData));
       setDailyDetails(Object.values(dailyData));
       setClosureNotes(weeklyClosureNotes);
 
@@ -393,6 +451,69 @@ export function WeeklyCuadreView() {
                 <p className="text-sm text-muted-foreground">Total de Registros</p>
               </div>
               <p className="text-2xl font-semibold">{weeklyData.total_sessions}</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Agency Breakdown */}
+      {agenciesData.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Desglose por Agencia
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {agenciesData.map((agency) => (
+                <div key={agency.agency_id} className="border rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h3 className="font-semibold text-lg">{agency.agency_name}</h3>
+                      <p className="text-sm text-muted-foreground">
+                        {agency.total_sessions} registro(s) • {agency.is_weekly_closed ? 'Cerrada' : 'Activa'}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className={`text-sm font-medium ${Number(agency.total_balance_bs) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        Balance: {formatCurrency(agency.total_balance_bs, 'bs')}
+                      </p>
+                      <p className={`text-xs ${Number(agency.total_balance_usd) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {formatCurrency(agency.total_balance_usd, 'usd')}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                    <div className="text-center p-3 bg-green-50 rounded-lg">
+                      <p className="text-muted-foreground">Ventas Bs</p>
+                      <p className="font-medium text-green-600">
+                        {formatCurrency(agency.total_sales_bs, 'bs')}
+                      </p>
+                    </div>
+                    <div className="text-center p-3 bg-green-50 rounded-lg">
+                      <p className="text-muted-foreground">Ventas USD</p>
+                      <p className="font-medium text-green-600">
+                        {formatCurrency(agency.total_sales_usd, 'usd')}
+                      </p>
+                    </div>
+                    <div className="text-center p-3 bg-red-50 rounded-lg">
+                      <p className="text-muted-foreground">Premios Bs</p>
+                      <p className="font-medium text-red-600">
+                        {formatCurrency(agency.total_prizes_bs, 'bs')}
+                      </p>
+                    </div>
+                    <div className="text-center p-3 bg-red-50 rounded-lg">
+                      <p className="text-muted-foreground">Premios USD</p>
+                      <p className="font-medium text-red-600">
+                        {formatCurrency(agency.total_prizes_usd, 'usd')}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>
