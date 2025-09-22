@@ -1,21 +1,16 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Calendar, ChevronLeft, ChevronRight, CheckCircle2, XCircle } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { Calendar, ChevronLeft, ChevronRight, Lock, Users, Banknote, Trophy, DollarSign } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/components/ui/use-toast';
-import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
-import { format } from 'date-fns';
+import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 interface WeeklyData {
-  id: string;
-  week_start_date: string;
-  week_end_date: string;
-  week_number: number;
-  year: number;
   total_sales_bs: number;
   total_sales_usd: number;
   total_prizes_bs: number;
@@ -23,8 +18,8 @@ interface WeeklyData {
   total_balance_bs: number;
   total_balance_usd: number;
   total_sessions: number;
-  is_closed: boolean;
-  closure_notes: string;
+  is_weekly_closed: boolean;
+  weekly_closure_notes: string;
 }
 
 interface DailyDetail {
@@ -40,6 +35,13 @@ interface DailyDetail {
   is_completed: boolean;
 }
 
+interface WeekBoundaries {
+  start: Date;
+  end: Date;
+  number: number;
+  year: number;
+}
+
 export function WeeklyCuadreView() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -47,12 +49,7 @@ export function WeeklyCuadreView() {
   const [dailyDetails, setDailyDetails] = useState<DailyDetail[]>([]);
   const [loading, setLoading] = useState(true);
   const [closureNotes, setClosureNotes] = useState('');
-  const [currentWeek, setCurrentWeek] = useState<{
-    start: Date;
-    end: Date;
-    number: number;
-    year: number;
-  } | null>(null);
+  const [currentWeek, setCurrentWeek] = useState<WeekBoundaries | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -61,14 +58,15 @@ export function WeeklyCuadreView() {
   }, [user]);
 
   useEffect(() => {
-    if (currentWeek) {
+    if (currentWeek && user) {
       fetchWeeklyData();
     }
-  }, [currentWeek]);
+  }, [currentWeek, user]);
 
   const getCurrentWeekBoundaries = async () => {
     try {
       const { data, error } = await supabase.rpc('get_current_week_boundaries');
+      
       if (error) throw error;
       
       if (data && data.length > 0) {
@@ -77,7 +75,7 @@ export function WeeklyCuadreView() {
           start: new Date(weekData.week_start),
           end: new Date(weekData.week_end),
           number: weekData.week_number,
-          year: weekData.year
+          year: weekData.year,
         });
       }
     } catch (error: any) {
@@ -95,65 +93,94 @@ export function WeeklyCuadreView() {
     
     setLoading(true);
     try {
-      // Get or create weekly summary
-      let { data: weeklySum, error: weeklyError } = await supabase
-        .from('weekly_cuadres_summary')
+      // Get all daily cuadres for this week (only from encargada - official data)
+      const { data: dailyCuadres, error: cuadresError } = await supabase
+        .from('daily_cuadres_summary')
         .select('*')
-        .eq('encargada_id', user?.id)
-        .eq('week_start_date', format(currentWeek.start, 'yyyy-MM-dd'))
-        .eq('week_end_date', format(currentWeek.end, 'yyyy-MM-dd'))
-        .maybeSingle();
+        .eq('user_id', user?.id)
+        .is('session_id', null) // Solo datos de encargada
+        .gte('session_date', format(currentWeek.start, 'yyyy-MM-dd'))
+        .lte('session_date', format(currentWeek.end, 'yyyy-MM-dd'));
 
-      if (weeklyError && weeklyError.code !== 'PGRST116') {
-        throw weeklyError;
-      }
+      if (cuadresError) throw cuadresError;
 
-      // If no weekly summary exists, create it
-      if (!weeklySum) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('agency_id')
-          .eq('user_id', user?.id)
-          .single();
+      // Calculate weekly totals
+      let totalSalesBs = 0;
+      let totalSalesUsd = 0;
+      let totalPrizesBs = 0;
+      let totalPrizesUsd = 0;
+      let totalSessions = 0;
+      let isWeeklyClosed = false;
+      let weeklyClosureNotes = '';
 
-        const { data: newWeekly, error: createError } = await supabase
-          .from('weekly_cuadres_summary')
-          .insert({
-            encargada_id: user?.id,
-            agency_id: profile?.agency_id,
-            week_start_date: format(currentWeek.start, 'yyyy-MM-dd'),
-            week_end_date: format(currentWeek.end, 'yyyy-MM-dd'),
-            week_number: currentWeek.number,
-            year: currentWeek.year,
-          })
-          .select()
-          .single();
+      // Process daily data
+      const dailyData: { [key: string]: DailyDetail } = {};
+      const weekDays = eachDayOfInterval({ start: currentWeek.start, end: currentWeek.end });
 
-        if (createError) throw createError;
-        weeklySum = newWeekly;
-      }
+      // Initialize all days of the week
+      weekDays.forEach(day => {
+        const dayKey = format(day, 'yyyy-MM-dd');
+        dailyData[dayKey] = {
+          day_date: dayKey,
+          day_name: format(day, 'EEEE', { locale: es }),
+          total_sales_bs: 0,
+          total_sales_usd: 0,
+          total_prizes_bs: 0,
+          total_prizes_usd: 0,
+          balance_bs: 0,
+          balance_usd: 0,
+          sessions_count: 0,
+          is_completed: false,
+        };
+      });
 
-      setWeeklyData(weeklySum);
-      setClosureNotes(weeklySum.closure_notes || '');
+      // Process cuadres data
+      dailyCuadres?.forEach(cuadre => {
+        const dayKey = cuadre.session_date;
+        
+        if (dailyData[dayKey]) {
+          dailyData[dayKey].total_sales_bs += Number(cuadre.total_sales_bs || 0);
+          dailyData[dayKey].total_sales_usd += Number(cuadre.total_sales_usd || 0);
+          dailyData[dayKey].total_prizes_bs += Number(cuadre.total_prizes_bs || 0);
+          dailyData[dayKey].total_prizes_usd += Number(cuadre.total_prizes_usd || 0);
+          dailyData[dayKey].balance_bs += Number(cuadre.balance_bs || 0);
+          dailyData[dayKey].sessions_count += 1;
+          dailyData[dayKey].is_completed = true;
+        }
 
-      // Get daily details
-      const { data: details, error: detailsError } = await supabase
-        .from('weekly_cuadres_details')
-        .select('*')
-        .eq('weekly_summary_id', weeklySum.id)
-        .order('day_date');
+        // Weekly totals
+        totalSalesBs += Number(cuadre.total_sales_bs || 0);
+        totalSalesUsd += Number(cuadre.total_sales_usd || 0);
+        totalPrizesBs += Number(cuadre.total_prizes_bs || 0);
+        totalPrizesUsd += Number(cuadre.total_prizes_usd || 0);
+        totalSessions += 1;
 
-      if (detailsError) throw detailsError;
+        // Check weekly closure status
+        if (cuadre.is_weekly_closed) {
+          isWeeklyClosed = true;
+          weeklyClosureNotes = cuadre.weekly_closure_notes || '';
+        }
+      });
 
-      // If no details exist, create them for the week
-      if (!details || details.length === 0) {
-        await createWeeklyDetails(weeklySum.id);
-      } else {
-        setDailyDetails(details);
-      }
+      // Calculate balance USD for daily data
+      Object.values(dailyData).forEach(day => {
+        day.balance_usd = day.total_sales_usd - day.total_prizes_usd;
+      });
 
-      // Update weekly totals based on actual daily sessions
-      await updateWeeklyTotals(weeklySum.id);
+      setWeeklyData({
+        total_sales_bs: totalSalesBs,
+        total_sales_usd: totalSalesUsd,
+        total_prizes_bs: totalPrizesBs,
+        total_prizes_usd: totalPrizesUsd,
+        total_balance_bs: totalSalesBs - totalPrizesBs,
+        total_balance_usd: totalSalesUsd - totalPrizesUsd,
+        total_sessions: totalSessions,
+        is_weekly_closed: isWeeklyClosed,
+        weekly_closure_notes: weeklyClosureNotes,
+      });
+
+      setDailyDetails(Object.values(dailyData));
+      setClosureNotes(weeklyClosureNotes);
 
     } catch (error: any) {
       console.error('Error fetching weekly data:', error);
@@ -167,124 +194,23 @@ export function WeeklyCuadreView() {
     }
   };
 
-  const createWeeklyDetails = async (weeklySummaryId: string) => {
-    if (!currentWeek) return;
-
-    const dayNames = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
-    const details: any[] = [];
-
-    for (let i = 0; i < 7; i++) {
-      const dayDate = new Date(currentWeek.start);
-      dayDate.setDate(dayDate.getDate() + i);
-      
-      details.push({
-        weekly_summary_id: weeklySummaryId,
-        day_date: format(dayDate, 'yyyy-MM-dd'),
-        day_name: dayNames[i],
-      });
-    }
-
-    const { data, error } = await supabase
-      .from('weekly_cuadres_details')
-      .insert(details)
-      .select();
-
-    if (error) throw error;
-    setDailyDetails(data);
-  };
-
-  const updateWeeklyTotals = async (weeklySummaryId: string) => {
-    if (!currentWeek) return;
-
-    // Get all daily cuadres for this week (from all taquilleras)
-    const { data: dailyCuadres, error: cuadresError } = await supabase
-      .from('daily_cuadres_summary')
-      .select('*')
-      .gte('session_date', format(currentWeek.start, 'yyyy-MM-dd'))
-      .lte('session_date', format(currentWeek.end, 'yyyy-MM-dd'));
-
-    if (cuadresError) throw cuadresError;
-
-    // Calculate totals from daily cuadres
-    let totalSalesBs = 0;
-    let totalSalesUsd = 0;
-    let totalPrizesBs = 0;
-    let totalPrizesUsd = 0;
-
-    const dailyTotals: { [key: string]: any } = {};
-
-    dailyCuadres?.forEach(cuadre => {
-      const dateKey = cuadre.session_date;
-      
-      if (!dailyTotals[dateKey]) {
-        dailyTotals[dateKey] = {
-          sales_bs: 0,
-          sales_usd: 0,
-          prizes_bs: 0,
-          prizes_usd: 0,
-          sessions_count: 0
-        };
-      }
-
-      dailyTotals[dateKey].sales_bs += Number(cuadre.total_sales_bs || 0);
-      dailyTotals[dateKey].sales_usd += Number(cuadre.total_sales_usd || 0);
-      dailyTotals[dateKey].prizes_bs += Number(cuadre.total_prizes_bs || 0);
-      dailyTotals[dateKey].prizes_usd += Number(cuadre.total_prizes_usd || 0);
-      dailyTotals[dateKey].sessions_count += 1;
-
-      totalSalesBs += Number(cuadre.total_sales_bs || 0);
-      totalSalesUsd += Number(cuadre.total_sales_usd || 0);
-      totalPrizesBs += Number(cuadre.total_prizes_bs || 0);
-      totalPrizesUsd += Number(cuadre.total_prizes_usd || 0);
-    });
-
-    // Update weekly summary
-    await supabase
-      .from('weekly_cuadres_summary')
-      .update({
-        total_sales_bs: totalSalesBs,
-        total_sales_usd: totalSalesUsd,
-        total_prizes_bs: totalPrizesBs,
-        total_prizes_usd: totalPrizesUsd,
-        total_balance_bs: totalSalesBs - totalPrizesBs,
-        total_balance_usd: totalSalesUsd - totalPrizesUsd,
-        total_sessions: dailyCuadres?.length || 0,
-      })
-      .eq('id', weeklySummaryId);
-
-    // Update daily details
-    for (const [dateKey, totals] of Object.entries(dailyTotals)) {
-      await supabase
-        .from('weekly_cuadres_details')
-        .update({
-          total_sales_bs: totals.sales_bs,
-          total_sales_usd: totals.sales_usd,
-          total_prizes_bs: totals.prizes_bs,
-          total_prizes_usd: totals.prizes_usd,
-          balance_bs: totals.sales_bs - totals.prizes_bs,
-          balance_usd: totals.sales_usd - totals.prizes_usd,
-          sessions_count: totals.sessions_count,
-          is_completed: totals.sessions_count > 0,
-        })
-        .eq('weekly_summary_id', weeklySummaryId)
-        .eq('day_date', dateKey);
-    }
-
-    // Refresh data
-    await fetchWeeklyData();
-  };
-
   const closeWeek = async () => {
-    if (!weeklyData) return;
-
+    if (!weeklyData || !currentWeek) return;
+    
     try {
+      // Mark all daily cuadres for this week as weekly closed
       const { error } = await supabase
-        .from('weekly_cuadres_summary')
-        .update({
-          is_closed: true,
-          closure_notes: closureNotes,
+        .from('daily_cuadres_summary')
+        .update({ 
+          is_weekly_closed: true,
+          weekly_closure_notes: closureNotes,
+          week_start_date: format(currentWeek.start, 'yyyy-MM-dd'),
+          week_end_date: format(currentWeek.end, 'yyyy-MM-dd')
         })
-        .eq('id', weeklyData.id);
+        .eq('user_id', user?.id)
+        .is('session_id', null) // Solo datos de encargada
+        .gte('session_date', format(currentWeek.start, 'yyyy-MM-dd'))
+        .lte('session_date', format(currentWeek.end, 'yyyy-MM-dd'));
 
       if (error) throw error;
 
@@ -295,6 +221,7 @@ export function WeeklyCuadreView() {
 
       await fetchWeeklyData();
     } catch (error: any) {
+      console.error('Error closing week:', error);
       toast({
         title: "Error",
         description: "No se pudo cerrar la semana",
@@ -305,32 +232,30 @@ export function WeeklyCuadreView() {
 
   const navigateWeek = (direction: 'prev' | 'next') => {
     if (!currentWeek) return;
-
-    const newStart = new Date(currentWeek.start);
-    const newEnd = new Date(currentWeek.end);
-
-    if (direction === 'prev') {
-      newStart.setDate(newStart.getDate() - 7);
-      newEnd.setDate(newEnd.getDate() - 7);
-    } else {
-      newStart.setDate(newStart.getDate() + 7);
-      newEnd.setDate(newEnd.getDate() + 7);
-    }
-
-    // Calculate week number and year
-    const tempDate = new Date(newStart);
-    const week = Math.ceil(((tempDate.getTime() - new Date(tempDate.getFullYear(), 0, 1).getTime()) / 86400000 + new Date(tempDate.getFullYear(), 0, 1).getDay() + 1) / 7);
-
+    
+    const newStart = direction === 'prev' 
+      ? subWeeks(currentWeek.start, 1)
+      : addWeeks(currentWeek.start, 1);
+    
+    const newEnd = endOfWeek(newStart, { weekStartsOn: 1 });
+    
     setCurrentWeek({
       start: newStart,
       end: newEnd,
-      number: week,
-      year: newStart.getFullYear()
+      number: parseInt(format(newStart, 'w')),
+      year: parseInt(format(newStart, 'yyyy')),
     });
   };
 
+  const formatCurrency = (amount: number, currency: 'bs' | 'usd') => {
+    if (currency === 'usd') {
+      return `$${Number(amount).toLocaleString('es-VE')}`;
+    }
+    return `${Number(amount).toLocaleString('es-VE')} Bs`;
+  };
+
   if (loading) {
-    return <div className="p-6">Cargando cuadre semanal...</div>;
+    return <div className="p-6">Cargando datos semanales...</div>;
   }
 
   return (
@@ -338,61 +263,86 @@ export function WeeklyCuadreView() {
       {/* Week Navigation */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
               <Calendar className="h-5 w-5" />
-              Cuadre Semanal
-            </CardTitle>
+              <span>Cuadre Semanal</span>
+              {weeklyData?.is_weekly_closed && (
+                <Badge variant="secondary" className="flex items-center gap-1">
+                  <Lock className="h-3 w-3" />
+                  Cerrada
+                </Badge>
+              )}
+            </div>
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" onClick={() => navigateWeek('prev')}>
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              <span className="text-sm font-medium">
-                {currentWeek && format(currentWeek.start, 'dd MMM', { locale: es })} - {currentWeek && format(currentWeek.end, 'dd MMM yyyy', { locale: es })}
-              </span>
               <Button variant="outline" size="sm" onClick={() => navigateWeek('next')}>
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
-          </div>
+          </CardTitle>
         </CardHeader>
+        <CardContent>
+          {currentWeek && (
+            <div className="text-center">
+              <p className="text-xl font-semibold">
+                Semana {currentWeek.number} - {currentWeek.year}
+              </p>
+              <p className="text-muted-foreground">
+                {format(currentWeek.start, 'dd MMM', { locale: es })} - {format(currentWeek.end, 'dd MMM yyyy', { locale: es })}
+              </p>
+            </div>
+          )}
+        </CardContent>
       </Card>
 
       {/* Weekly Summary */}
       {weeklyData && (
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Resumen Semanal</CardTitle>
-              <Badge variant={weeklyData.is_closed ? "default" : "secondary"}>
-                {weeklyData.is_closed ? "Cerrada" : "Activa"}
-              </Badge>
-            </div>
+            <CardTitle className="flex items-center gap-2">
+              <Banknote className="h-5 w-5" />
+              Resumen Semanal
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-              <div className="text-center">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              <div className="text-center p-4 bg-green-50 rounded-lg">
+                <div className="flex justify-center mb-2">
+                  <DollarSign className="h-6 w-6 text-green-600" />
+                </div>
                 <p className="text-sm text-muted-foreground">Ventas Bs</p>
-                <p className="text-2xl font-bold text-green-600">
-                  {Number(weeklyData.total_sales_bs).toLocaleString('es-VE')}
+                <p className="text-xl font-bold text-green-600">
+                  {formatCurrency(weeklyData.total_sales_bs, 'bs')}
                 </p>
               </div>
-              <div className="text-center">
+              <div className="text-center p-4 bg-green-50 rounded-lg">
+                <div className="flex justify-center mb-2">
+                  <DollarSign className="h-6 w-6 text-green-600" />
+                </div>
                 <p className="text-sm text-muted-foreground">Ventas USD</p>
-                <p className="text-2xl font-bold text-green-600">
-                  ${Number(weeklyData.total_sales_usd).toLocaleString('es-VE')}
+                <p className="text-xl font-bold text-green-600">
+                  {formatCurrency(weeklyData.total_sales_usd, 'usd')}
                 </p>
               </div>
-              <div className="text-center">
+              <div className="text-center p-4 bg-red-50 rounded-lg">
+                <div className="flex justify-center mb-2">
+                  <Trophy className="h-6 w-6 text-red-600" />
+                </div>
                 <p className="text-sm text-muted-foreground">Premios Bs</p>
-                <p className="text-2xl font-bold text-red-600">
-                  {Number(weeklyData.total_prizes_bs).toLocaleString('es-VE')}
+                <p className="text-xl font-bold text-red-600">
+                  {formatCurrency(weeklyData.total_prizes_bs, 'bs')}
                 </p>
               </div>
-              <div className="text-center">
+              <div className="text-center p-4 bg-red-50 rounded-lg">
+                <div className="flex justify-center mb-2">
+                  <Trophy className="h-6 w-6 text-red-600" />
+                </div>
                 <p className="text-sm text-muted-foreground">Premios USD</p>
-                <p className="text-2xl font-bold text-red-600">
-                  ${Number(weeklyData.total_prizes_usd).toLocaleString('es-VE')}
+                <p className="text-xl font-bold text-red-600">
+                  {formatCurrency(weeklyData.total_prizes_usd, 'usd')}
                 </p>
               </div>
             </div>
@@ -401,20 +351,23 @@ export function WeeklyCuadreView() {
               <div className="text-center p-4 bg-muted rounded-lg">
                 <p className="text-sm text-muted-foreground">Balance Bs</p>
                 <p className={`text-3xl font-bold ${Number(weeklyData.total_balance_bs) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {Number(weeklyData.total_balance_bs).toLocaleString('es-VE')}
+                  {formatCurrency(weeklyData.total_balance_bs, 'bs')}
                 </p>
               </div>
               <div className="text-center p-4 bg-muted rounded-lg">
                 <p className="text-sm text-muted-foreground">Balance USD</p>
                 <p className={`text-3xl font-bold ${Number(weeklyData.total_balance_usd) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  ${Number(weeklyData.total_balance_usd).toLocaleString('es-VE')}
+                  {formatCurrency(weeklyData.total_balance_usd, 'usd')}
                 </p>
               </div>
             </div>
 
-            <div className="text-center mb-4">
-              <p className="text-sm text-muted-foreground">Total de Sesiones</p>
-              <p className="text-xl font-semibold">{weeklyData.total_sessions}</p>
+            <div className="text-center">
+              <div className="flex justify-center items-center gap-2 mb-2">
+                <Users className="h-5 w-5 text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">Total de Registros</p>
+              </div>
+              <p className="text-2xl font-semibold">{weeklyData.total_sessions}</p>
             </div>
           </CardContent>
         </Card>
@@ -426,60 +379,104 @@ export function WeeklyCuadreView() {
           <CardTitle>Desglose Diario</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-2">
+          <div className="space-y-3">
             {dailyDetails.map((day) => (
-              <div key={day.day_date} className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                <div className="flex items-center gap-3">
-                  {day.is_completed ? (
-                    <CheckCircle2 className="h-5 w-5 text-green-500" />
-                  ) : (
-                    <XCircle className="h-5 w-5 text-red-500" />
-                  )}
-                  <div>
-                    <p className="font-medium">{day.day_name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {format(new Date(day.day_date), 'dd/MM/yyyy')}
+              <div key={day.day_date} className="border rounded-lg p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-3 h-3 rounded-full ${day.is_completed ? 'bg-green-500' : 'bg-gray-300'}`} />
+                    <div>
+                      <p className="font-medium capitalize">{day.day_name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {format(new Date(day.day_date), 'dd/MM/yyyy')}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className={`text-sm font-medium ${Number(day.balance_bs) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      Balance: {formatCurrency(day.balance_bs, 'bs')}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {day.sessions_count} registro(s)
                     </p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-sm">
-                    Ventas: {Number(day.total_sales_bs).toLocaleString('es-VE')} Bs | 
-                    ${Number(day.total_sales_usd).toLocaleString('es-VE')}
-                  </p>
-                  <p className="text-sm">
-                    Premios: {Number(day.total_prizes_bs).toLocaleString('es-VE')} Bs | 
-                    ${Number(day.total_prizes_usd).toLocaleString('es-VE')}
-                  </p>
-                  <p className={`text-sm font-medium ${Number(day.balance_bs) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    Balance: {Number(day.balance_bs).toLocaleString('es-VE')} Bs | 
-                    ${Number(day.balance_usd).toLocaleString('es-VE')}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {day.sessions_count} sesión(es)
-                  </p>
-                </div>
+                
+                {day.is_completed && (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                    <div>
+                      <p className="text-muted-foreground">Ventas Bs:</p>
+                      <p className="font-medium text-green-600">
+                        {formatCurrency(day.total_sales_bs, 'bs')}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Ventas USD:</p>
+                      <p className="font-medium text-green-600">
+                        {formatCurrency(day.total_sales_usd, 'usd')}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Premios Bs:</p>
+                      <p className="font-medium text-red-600">
+                        {formatCurrency(day.total_prizes_bs, 'bs')}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Premios USD:</p>
+                      <p className="font-medium text-red-600">
+                        {formatCurrency(day.total_prizes_usd, 'usd')}
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
         </CardContent>
       </Card>
 
-      {/* Close Week Section */}
-      {weeklyData && !weeklyData.is_closed && (
+      {/* Close Week */}
+      {weeklyData && !weeklyData.is_weekly_closed && weeklyData.total_sessions > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Cerrar Semana</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Lock className="h-5 w-5" />
+              Cerrar Semana
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Textarea
-              placeholder="Notas de cierre (opcional)"
-              value={closureNotes}
-              onChange={(e) => setClosureNotes(e.target.value)}
-            />
-            <Button className="w-full" onClick={closeWeek}>
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Notas de Cierre (Opcional)
+              </label>
+              <Textarea
+                value={closureNotes}
+                onChange={(e) => setClosureNotes(e.target.value)}
+                placeholder="Agregar observaciones sobre la semana..."
+                rows={3}
+              />
+            </div>
+            <Button onClick={closeWeek} className="w-full">
               Cerrar Semana
             </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Closed Week Notes */}
+      {weeklyData?.is_weekly_closed && weeklyData.weekly_closure_notes && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Lock className="h-5 w-5" />
+              Notas de Cierre
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm bg-muted p-3 rounded-lg">
+              {weeklyData.weekly_closure_notes}
+            </p>
           </CardContent>
         </Card>
       )}

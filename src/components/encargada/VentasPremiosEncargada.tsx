@@ -132,12 +132,13 @@ export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
         prizes_usd: 0,
       }));
 
-      // Buscar cuadres existentes para la agencia en la fecha seleccionada
+      // Buscar cuadres existentes para la agencia en la fecha seleccionada (datos de encargada)
       const { data: cuadres } = await supabase
-        .from('daily_system_cuadres')
+        .from('daily_cuadres_summary')
         .select('*')
         .eq('agency_id', selectedAgency)
-        .eq('cuadre_date', dateStr);
+        .eq('session_date', dateStr)
+        .is('session_id', null); // Solo registros de encargada (sin session_id)
 
       if (cuadres && cuadres.length > 0) {
         // Agrupar por sistema de lotería y sumar los montos
@@ -146,10 +147,10 @@ export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
           
           return {
             ...system,
-            sales_bs: systemCuadres.reduce((sum, c) => sum + Number(c.amount_bs || 0), 0),
-            sales_usd: systemCuadres.reduce((sum, c) => sum + Number(c.amount_usd || 0), 0),
-            prizes_bs: 0, // Los cuadres solo tienen montos netos, no separamos premios
-            prizes_usd: 0,
+            sales_bs: systemCuadres.reduce((sum, c) => sum + Number(c.total_sales_bs || 0), 0),
+            sales_usd: systemCuadres.reduce((sum, c) => sum + Number(c.total_sales_usd || 0), 0),
+            prizes_bs: systemCuadres.reduce((sum, c) => sum + Number(c.total_prizes_bs || 0), 0),
+            prizes_usd: systemCuadres.reduce((sum, c) => sum + Number(c.total_prizes_usd || 0), 0),
           };
         });
 
@@ -209,10 +210,11 @@ export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
       // Si estamos en modo edición, eliminar cuadres existentes para esta fecha y agencia
       if (editMode) {
         await supabase
-          .from('daily_system_cuadres')
+          .from('daily_cuadres_summary')
           .delete()
           .eq('agency_id', selectedAgency)
-          .eq('cuadre_date', dateStr);
+          .eq('session_date', dateStr)
+          .is('session_id', null); // Solo registros de encargada
       }
 
       // Filtrar sistemas con datos (cuadre neto = ventas - premios)
@@ -233,19 +235,26 @@ export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
         return;
       }
 
-      // Preparar datos para insertar (guardamos el cuadre neto)
+      // Preparar datos para insertar (datos completos de la encargada)
       const cuadresData = systemsWithData.map(system => ({
         user_id: user.id,
         agency_id: selectedAgency,
-        cuadre_date: dateStr,
+        session_date: dateStr,
         lottery_system_id: system.lottery_system_id,
-        amount_bs: system.sales_bs - system.prizes_bs, // Cuadre neto en Bs
-        amount_usd: system.sales_usd - system.prizes_usd, // Cuadre neto en USD
+        session_id: null, // Encargada no tiene session_id
+        total_sales_bs: system.sales_bs,
+        total_sales_usd: system.sales_usd,
+        total_prizes_bs: system.prizes_bs,
+        total_prizes_usd: system.prizes_usd,
+        balance_bs: system.sales_bs - system.prizes_bs,
+        cash_available_bs: 0,
+        cash_available_usd: 0,
+        exchange_rate: 36,
       }));
 
       // Insertar nuevos cuadres
       const { error: insertError } = await supabase
-        .from('daily_system_cuadres')
+        .from('daily_cuadres_summary')
         .insert(cuadresData);
 
       if (insertError) throw insertError;

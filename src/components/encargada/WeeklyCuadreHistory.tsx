@@ -19,11 +19,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { ChevronDown } from 'lucide-react';
 
 interface WeeklyHistory {
-  id: string;
   week_start_date: string;
   week_end_date: string;
-  week_number: number;
-  year: number;
   total_sales_bs: number;
   total_sales_usd: number;
   total_prizes_bs: number;
@@ -31,22 +28,20 @@ interface WeeklyHistory {
   total_balance_bs: number;
   total_balance_usd: number;
   total_sessions: number;
-  is_closed: boolean;
-  closure_notes: string;
+  is_weekly_closed: boolean;
+  weekly_closure_notes: string;
   created_at: string;
 }
 
 interface DailyDetail {
-  day_date: string;
-  day_name: string;
+  session_date: string;
   total_sales_bs: number;
   total_sales_usd: number;
   total_prizes_bs: number;
   total_prizes_usd: number;
   balance_bs: number;
-  balance_usd: number;
-  sessions_count: number;
-  is_completed: boolean;
+  lottery_system_id: string;
+  lottery_system_name?: string;
 }
 
 export function WeeklyCuadreHistory() {
@@ -67,14 +62,65 @@ export function WeeklyCuadreHistory() {
   const fetchHistory = async () => {
     setLoading(true);
     try {
+      // Get all closed weeks from daily_cuadres_summary
       const { data, error } = await supabase
-        .from('weekly_cuadres_summary')
-        .select('*')
-        .eq('encargada_id', user?.id)
+        .from('daily_cuadres_summary')
+        .select(`
+          week_start_date,
+          week_end_date,
+          weekly_closure_notes,
+          total_sales_bs,
+          total_sales_usd,
+          total_prizes_bs,
+          total_prizes_usd,
+          balance_bs,
+          created_at
+        `)
+        .eq('user_id', user?.id)
+        .eq('is_weekly_closed', true)
+        .is('session_id', null) // Solo datos de encargada
+        .not('week_start_date', 'is', null)
         .order('week_start_date', { ascending: false });
 
       if (error) throw error;
-      setHistory(data || []);
+
+      // Group by week and calculate totals
+      const weeklyData: { [key: string]: WeeklyHistory } = {};
+      
+      data?.forEach(cuadre => {
+        const weekKey = `${cuadre.week_start_date}_${cuadre.week_end_date}`;
+        
+        if (!weeklyData[weekKey]) {
+          weeklyData[weekKey] = {
+            week_start_date: cuadre.week_start_date,
+            week_end_date: cuadre.week_end_date,
+            total_sales_bs: 0,
+            total_sales_usd: 0,
+            total_prizes_bs: 0,
+            total_prizes_usd: 0,
+            total_balance_bs: 0,
+            total_balance_usd: 0,
+            total_sessions: 0,
+            is_weekly_closed: true,
+            weekly_closure_notes: cuadre.weekly_closure_notes || '',
+            created_at: cuadre.created_at,
+          };
+        }
+        
+        weeklyData[weekKey].total_sales_bs += Number(cuadre.total_sales_bs || 0);
+        weeklyData[weekKey].total_sales_usd += Number(cuadre.total_sales_usd || 0);
+        weeklyData[weekKey].total_prizes_bs += Number(cuadre.total_prizes_bs || 0);
+        weeklyData[weekKey].total_prizes_usd += Number(cuadre.total_prizes_usd || 0);
+        weeklyData[weekKey].total_balance_bs += Number(cuadre.balance_bs || 0);
+        weeklyData[weekKey].total_sessions += 1;
+      });
+
+      // Calculate balance USD
+      Object.values(weeklyData).forEach(week => {
+        week.total_balance_usd = week.total_sales_usd - week.total_prizes_usd;
+      });
+
+      setHistory(Object.values(weeklyData));
     } catch (error: any) {
       console.error('Error fetching history:', error);
       toast({
@@ -87,17 +133,41 @@ export function WeeklyCuadreHistory() {
     }
   };
 
-  const fetchWeekDetails = async (weekId: string) => {
+  const fetchWeekDetails = async (week: WeeklyHistory) => {
     setLoadingDetails(true);
     try {
       const { data, error } = await supabase
-        .from('weekly_cuadres_details')
-        .select('*')
-        .eq('weekly_summary_id', weekId)
-        .order('day_date');
+        .from('daily_cuadres_summary')
+        .select(`
+          session_date,
+          total_sales_bs,
+          total_sales_usd,
+          total_prizes_bs,
+          total_prizes_usd,
+          balance_bs,
+          lottery_system_id,
+          lottery_systems(name)
+        `)
+        .eq('user_id', user?.id)
+        .is('session_id', null) // Solo datos de encargada
+        .eq('week_start_date', week.week_start_date)
+        .eq('week_end_date', week.week_end_date)
+        .order('session_date');
 
       if (error) throw error;
-      setWeekDetails(data || []);
+
+      const details: DailyDetail[] = (data || []).map(item => ({
+        session_date: item.session_date,
+        total_sales_bs: Number(item.total_sales_bs || 0),
+        total_sales_usd: Number(item.total_sales_usd || 0),
+        total_prizes_bs: Number(item.total_prizes_bs || 0),
+        total_prizes_usd: Number(item.total_prizes_usd || 0),
+        balance_bs: Number(item.balance_bs || 0),
+        lottery_system_id: item.lottery_system_id,
+        lottery_system_name: (item.lottery_systems as any)?.name || 'Sistema desconocido',
+      }));
+
+      setWeekDetails(details);
     } catch (error: any) {
       console.error('Error fetching week details:', error);
       toast({
@@ -112,7 +182,7 @@ export function WeeklyCuadreHistory() {
 
   const openWeekDetails = (week: WeeklyHistory) => {
     setSelectedWeek(week);
-    fetchWeekDetails(week.id);
+    fetchWeekDetails(week);
   };
 
   const formatCurrency = (amount: number, currency: 'bs' | 'usd') => {
@@ -142,21 +212,21 @@ export function WeeklyCuadreHistory() {
             </p>
           ) : (
             <div className="space-y-4">
-              {history.map((week) => (
-                <Card key={week.id} className="border-l-4 border-l-primary">
+              {history.map((week, index) => (
+                <Card key={`${week.week_start_date}_${week.week_end_date}_${index}`} className="border-l-4 border-l-primary">
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between mb-4">
                       <div>
                         <h3 className="font-semibold">
-                          Semana {week.week_number} - {week.year}
+                          Semana del {format(new Date(week.week_start_date), 'dd MMM', { locale: es })} al {format(new Date(week.week_end_date), 'dd MMM yyyy', { locale: es })}
                         </h3>
                         <p className="text-sm text-muted-foreground">
-                          {format(new Date(week.week_start_date), 'dd MMM', { locale: es })} - {format(new Date(week.week_end_date), 'dd MMM yyyy', { locale: es })}
+                          {week.total_sessions} sistema(s) registrado(s)
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Badge variant={week.is_closed ? "default" : "secondary"}>
-                          {week.is_closed ? "Cerrada" : "Activa"}
+                        <Badge variant="default">
+                          Cerrada
                         </Badge>
                         <Dialog>
                           <DialogTrigger asChild>
@@ -168,7 +238,7 @@ export function WeeklyCuadreHistory() {
                           <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
                             <DialogHeader>
                               <DialogTitle>
-                                Detalles - Semana {selectedWeek?.week_number} - {selectedWeek?.year}
+                                Detalles - Semana del {selectedWeek && format(new Date(selectedWeek.week_start_date), 'dd MMM', { locale: es })} al {selectedWeek && format(new Date(selectedWeek.week_end_date), 'dd MMM yyyy', { locale: es })}
                               </DialogTitle>
                             </DialogHeader>
                             {selectedWeek && (
@@ -221,15 +291,10 @@ export function WeeklyCuadreHistory() {
                                       </div>
                                     </div>
 
-                                    <div className="text-center">
-                                      <p className="text-sm text-muted-foreground">Total de Sesiones</p>
-                                      <p className="text-lg font-semibold">{selectedWeek.total_sessions}</p>
-                                    </div>
-
-                                    {selectedWeek.closure_notes && (
+                                    {selectedWeek.weekly_closure_notes && (
                                       <div className="mt-4 p-3 bg-muted rounded-lg">
                                         <p className="text-sm text-muted-foreground mb-1">Notas de Cierre:</p>
-                                        <p className="text-sm">{selectedWeek.closure_notes}</p>
+                                        <p className="text-sm">{selectedWeek.weekly_closure_notes}</p>
                                       </div>
                                     )}
                                   </CardContent>
@@ -238,70 +303,43 @@ export function WeeklyCuadreHistory() {
                                 {/* Daily Details */}
                                 <Card>
                                   <CardHeader>
-                                    <CardTitle className="text-lg">Desglose Diario</CardTitle>
+                                    <CardTitle className="text-lg">Desglose por Sistema y Fecha</CardTitle>
                                   </CardHeader>
                                   <CardContent>
                                     {loadingDetails ? (
                                       <p className="text-center py-4">Cargando detalles...</p>
                                     ) : (
                                       <div className="space-y-2">
-                                        {weekDetails.map((day) => (
-                                          <Collapsible key={day.day_date}>
-                                            <CollapsibleTrigger className="w-full">
-                                              <div className="flex items-center justify-between p-3 bg-muted rounded-lg hover:bg-muted/80 transition-colors">
-                                                <div className="flex items-center gap-3">
-                                                  <div className={`w-3 h-3 rounded-full ${day.is_completed ? 'bg-green-500' : 'bg-red-500'}`} />
-                                                  <div className="text-left">
-                                                    <p className="font-medium">{day.day_name}</p>
-                                                    <p className="text-sm text-muted-foreground">
-                                                      {format(new Date(day.day_date), 'dd/MM/yyyy')}
-                                                    </p>
-                                                  </div>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                  <div className="text-right">
-                                                    <p className={`text-sm font-medium ${Number(day.balance_bs) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                                      Balance: {formatCurrency(day.balance_bs, 'bs')}
-                                                    </p>
-                                                    <p className="text-xs text-muted-foreground">
-                                                      {day.sessions_count} sesión(es)
-                                                    </p>
-                                                  </div>
-                                                  <ChevronDown className="h-4 w-4" />
-                                                </div>
+                                        {weekDetails.map((detail, idx) => (
+                                          <div key={idx} className="p-3 bg-muted rounded-lg">
+                                            <div className="flex items-center justify-between mb-2">
+                                              <div>
+                                                <p className="font-medium">{detail.lottery_system_name}</p>
+                                                <p className="text-sm text-muted-foreground">
+                                                  {format(new Date(detail.session_date), 'dd/MM/yyyy')}
+                                                </p>
                                               </div>
-                                            </CollapsibleTrigger>
-                                            <CollapsibleContent>
-                                              <div className="ml-6 mr-2 mt-2 p-3 bg-background border rounded-lg">
-                                                <div className="grid grid-cols-2 gap-4 text-sm">
-                                                  <div>
-                                                    <p className="text-muted-foreground">Ventas Bs:</p>
-                                                    <p className="font-medium text-green-600">
-                                                      {formatCurrency(day.total_sales_bs, 'bs')}
-                                                    </p>
-                                                  </div>
-                                                  <div>
-                                                    <p className="text-muted-foreground">Ventas USD:</p>
-                                                    <p className="font-medium text-green-600">
-                                                      {formatCurrency(day.total_sales_usd, 'usd')}
-                                                    </p>
-                                                  </div>
-                                                  <div>
-                                                    <p className="text-muted-foreground">Premios Bs:</p>
-                                                    <p className="font-medium text-red-600">
-                                                      {formatCurrency(day.total_prizes_bs, 'bs')}
-                                                    </p>
-                                                  </div>
-                                                  <div>
-                                                    <p className="text-muted-foreground">Premios USD:</p>
-                                                    <p className="font-medium text-red-600">
-                                                      {formatCurrency(day.total_prizes_usd, 'usd')}
-                                                    </p>
-                                                  </div>
-                                                </div>
+                                              <div className="text-right">
+                                                <p className={`text-sm font-medium ${Number(detail.balance_bs) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                                  Balance: {formatCurrency(detail.balance_bs, 'bs')}
+                                                </p>
                                               </div>
-                                            </CollapsibleContent>
-                                          </Collapsible>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-4 text-sm">
+                                              <div>
+                                                <p className="text-muted-foreground">Ventas:</p>
+                                                <p className="font-medium text-green-600">
+                                                  {formatCurrency(detail.total_sales_bs, 'bs')} / {formatCurrency(detail.total_sales_usd, 'usd')}
+                                                </p>
+                                              </div>
+                                              <div>
+                                                <p className="text-muted-foreground">Premios:</p>
+                                                <p className="font-medium text-red-600">
+                                                  {formatCurrency(detail.total_prizes_bs, 'bs')} / {formatCurrency(detail.total_prizes_usd, 'usd')}
+                                                </p>
+                                              </div>
+                                            </div>
+                                          </div>
                                         ))}
                                       </div>
                                     )}
@@ -347,13 +385,6 @@ export function WeeklyCuadreHistory() {
                         <p className={`text-xs ${Number(week.total_balance_usd) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                           {formatCurrency(week.total_balance_usd, 'usd')}
                         </p>
-                      </div>
-                    </div>
-
-                    <div className="mt-3 pt-3 border-t">
-                      <div className="flex justify-between items-center text-xs text-muted-foreground">
-                        <span>{week.total_sessions} sesión(es) registradas</span>
-                        <span>Creado: {format(new Date(week.created_at), 'dd/MM/yyyy HH:mm')}</span>
                       </div>
                     </div>
                   </CardContent>

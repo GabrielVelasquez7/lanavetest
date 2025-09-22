@@ -63,10 +63,12 @@ export type Database = {
           exchange_rate: number
           id: string
           is_closed: boolean
+          is_weekly_closed: boolean | null
+          lottery_system_id: string | null
           notes: string | null
           pending_prizes: number
           session_date: string
-          session_id: string
+          session_id: string | null
           total_debt_bs: number | null
           total_debt_usd: number | null
           total_expenses_bs: number
@@ -79,6 +81,9 @@ export type Database = {
           total_sales_usd: number
           updated_at: string
           user_id: string
+          week_end_date: string | null
+          week_start_date: string | null
+          weekly_closure_notes: string | null
         }
         Insert: {
           agency_id?: string | null
@@ -98,10 +103,12 @@ export type Database = {
           exchange_rate?: number
           id?: string
           is_closed?: boolean
+          is_weekly_closed?: boolean | null
+          lottery_system_id?: string | null
           notes?: string | null
           pending_prizes?: number
           session_date: string
-          session_id: string
+          session_id?: string | null
           total_debt_bs?: number | null
           total_debt_usd?: number | null
           total_expenses_bs?: number
@@ -114,6 +121,9 @@ export type Database = {
           total_sales_usd?: number
           updated_at?: string
           user_id: string
+          week_end_date?: string | null
+          week_start_date?: string | null
+          weekly_closure_notes?: string | null
         }
         Update: {
           agency_id?: string | null
@@ -133,10 +143,12 @@ export type Database = {
           exchange_rate?: number
           id?: string
           is_closed?: boolean
+          is_weekly_closed?: boolean | null
+          lottery_system_id?: string | null
           notes?: string | null
           pending_prizes?: number
           session_date?: string
-          session_id?: string
+          session_id?: string | null
           total_debt_bs?: number | null
           total_debt_usd?: number | null
           total_expenses_bs?: number
@@ -149,6 +161,9 @@ export type Database = {
           total_sales_usd?: number
           updated_at?: string
           user_id?: string
+          week_end_date?: string | null
+          week_start_date?: string | null
+          weekly_closure_notes?: string | null
         }
         Relationships: [
           {
@@ -156,6 +171,13 @@ export type Database = {
             columns: ["agency_id"]
             isOneToOne: false
             referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "daily_cuadres_summary_lottery_system_id_fkey"
+            columns: ["lottery_system_id"]
+            isOneToOne: false
+            referencedRelation: "lottery_systems"
             referencedColumns: ["id"]
           },
           {
@@ -211,57 +233,6 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
-      }
-      daily_system_cuadres: {
-        Row: {
-          agency_id: string | null
-          amount_bs: number
-          amount_usd: number
-          created_at: string
-          cuadre_date: string
-          id: string
-          lottery_system_id: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          agency_id?: string | null
-          amount_bs?: number
-          amount_usd?: number
-          created_at?: string
-          cuadre_date: string
-          id?: string
-          lottery_system_id: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          agency_id?: string | null
-          amount_bs?: number
-          amount_usd?: number
-          created_at?: string
-          cuadre_date?: string
-          id?: string
-          lottery_system_id?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "daily_system_cuadres_agency_id_fkey"
-            columns: ["agency_id"]
-            isOneToOne: false
-            referencedRelation: "agencies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "daily_system_cuadres_lottery_system_id_fkey"
-            columns: ["lottery_system_id"]
-            isOneToOne: false
-            referencedRelation: "lottery_systems"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       expenses: {
         Row: {
@@ -694,128 +665,6 @@ export type Database = {
           ip_address?: unknown | null
           user_agent?: string | null
           user_id?: string | null
-        }
-        Relationships: []
-      }
-      weekly_cuadres_details: {
-        Row: {
-          balance_bs: number
-          balance_usd: number
-          created_at: string
-          day_date: string
-          day_name: string
-          id: string
-          is_completed: boolean
-          sessions_count: number
-          total_prizes_bs: number
-          total_prizes_usd: number
-          total_sales_bs: number
-          total_sales_usd: number
-          updated_at: string
-          weekly_summary_id: string
-        }
-        Insert: {
-          balance_bs?: number
-          balance_usd?: number
-          created_at?: string
-          day_date: string
-          day_name: string
-          id?: string
-          is_completed?: boolean
-          sessions_count?: number
-          total_prizes_bs?: number
-          total_prizes_usd?: number
-          total_sales_bs?: number
-          total_sales_usd?: number
-          updated_at?: string
-          weekly_summary_id: string
-        }
-        Update: {
-          balance_bs?: number
-          balance_usd?: number
-          created_at?: string
-          day_date?: string
-          day_name?: string
-          id?: string
-          is_completed?: boolean
-          sessions_count?: number
-          total_prizes_bs?: number
-          total_prizes_usd?: number
-          total_sales_bs?: number
-          total_sales_usd?: number
-          updated_at?: string
-          weekly_summary_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "weekly_cuadres_details_weekly_summary_id_fkey"
-            columns: ["weekly_summary_id"]
-            isOneToOne: false
-            referencedRelation: "weekly_cuadres_summary"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      weekly_cuadres_summary: {
-        Row: {
-          agency_id: string
-          closure_notes: string | null
-          created_at: string
-          encargada_id: string
-          id: string
-          is_closed: boolean
-          total_balance_bs: number
-          total_balance_usd: number
-          total_prizes_bs: number
-          total_prizes_usd: number
-          total_sales_bs: number
-          total_sales_usd: number
-          total_sessions: number
-          updated_at: string
-          week_end_date: string
-          week_number: number
-          week_start_date: string
-          year: number
-        }
-        Insert: {
-          agency_id: string
-          closure_notes?: string | null
-          created_at?: string
-          encargada_id: string
-          id?: string
-          is_closed?: boolean
-          total_balance_bs?: number
-          total_balance_usd?: number
-          total_prizes_bs?: number
-          total_prizes_usd?: number
-          total_sales_bs?: number
-          total_sales_usd?: number
-          total_sessions?: number
-          updated_at?: string
-          week_end_date: string
-          week_number: number
-          week_start_date: string
-          year: number
-        }
-        Update: {
-          agency_id?: string
-          closure_notes?: string | null
-          created_at?: string
-          encargada_id?: string
-          id?: string
-          is_closed?: boolean
-          total_balance_bs?: number
-          total_balance_usd?: number
-          total_prizes_bs?: number
-          total_prizes_usd?: number
-          total_sales_bs?: number
-          total_sales_usd?: number
-          total_sessions?: number
-          updated_at?: string
-          week_end_date?: string
-          week_number?: number
-          week_start_date?: string
-          year?: number
         }
         Relationships: []
       }
