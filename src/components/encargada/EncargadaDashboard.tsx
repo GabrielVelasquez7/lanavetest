@@ -9,6 +9,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 import { InterAgencyManager } from "./InterAgencyManager";
+import { WeeklyCuadreView } from "./WeeklyCuadreView";
+import { WeeklyCuadreHistory } from "./WeeklyCuadreHistory";
 
 export function EncargadaDashboard() {
   const { user, signOut } = useAuth();
@@ -82,8 +84,14 @@ export function EncargadaDashboard() {
   <main className="container mx-auto p-6">
     <div className="space-y-6">
       {/* Main Content */}
-      <Tabs defaultValue="cuadre-agencias" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3">
+      <Tabs defaultValue="cuadre-semanal" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="cuadre-semanal">
+            Cuadre Semanal
+          </TabsTrigger>
+          <TabsTrigger value="historico-semanal">
+            Histórico Semanal
+          </TabsTrigger>
           <TabsTrigger value="cuadre-agencias">
             Cuadre por Agencias
           </TabsTrigger>
@@ -94,6 +102,14 @@ export function EncargadaDashboard() {
             Préstamos y Deudas
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="cuadre-semanal" className="space-y-4">
+          <WeeklyCuadreView />
+        </TabsContent>
+
+        <TabsContent value="historico-semanal" className="space-y-4">
+          <WeeklyCuadreHistory />
+        </TabsContent>
 
         <TabsContent value="cuadre-agencias" className="space-y-4">
           <VentasPremiosEncargada />

@@ -697,6 +697,128 @@ export type Database = {
         }
         Relationships: []
       }
+      weekly_cuadres_details: {
+        Row: {
+          balance_bs: number
+          balance_usd: number
+          created_at: string
+          day_date: string
+          day_name: string
+          id: string
+          is_completed: boolean
+          sessions_count: number
+          total_prizes_bs: number
+          total_prizes_usd: number
+          total_sales_bs: number
+          total_sales_usd: number
+          updated_at: string
+          weekly_summary_id: string
+        }
+        Insert: {
+          balance_bs?: number
+          balance_usd?: number
+          created_at?: string
+          day_date: string
+          day_name: string
+          id?: string
+          is_completed?: boolean
+          sessions_count?: number
+          total_prizes_bs?: number
+          total_prizes_usd?: number
+          total_sales_bs?: number
+          total_sales_usd?: number
+          updated_at?: string
+          weekly_summary_id: string
+        }
+        Update: {
+          balance_bs?: number
+          balance_usd?: number
+          created_at?: string
+          day_date?: string
+          day_name?: string
+          id?: string
+          is_completed?: boolean
+          sessions_count?: number
+          total_prizes_bs?: number
+          total_prizes_usd?: number
+          total_sales_bs?: number
+          total_sales_usd?: number
+          updated_at?: string
+          weekly_summary_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "weekly_cuadres_details_weekly_summary_id_fkey"
+            columns: ["weekly_summary_id"]
+            isOneToOne: false
+            referencedRelation: "weekly_cuadres_summary"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      weekly_cuadres_summary: {
+        Row: {
+          agency_id: string
+          closure_notes: string | null
+          created_at: string
+          encargada_id: string
+          id: string
+          is_closed: boolean
+          total_balance_bs: number
+          total_balance_usd: number
+          total_prizes_bs: number
+          total_prizes_usd: number
+          total_sales_bs: number
+          total_sales_usd: number
+          total_sessions: number
+          updated_at: string
+          week_end_date: string
+          week_number: number
+          week_start_date: string
+          year: number
+        }
+        Insert: {
+          agency_id: string
+          closure_notes?: string | null
+          created_at?: string
+          encargada_id: string
+          id?: string
+          is_closed?: boolean
+          total_balance_bs?: number
+          total_balance_usd?: number
+          total_prizes_bs?: number
+          total_prizes_usd?: number
+          total_sales_bs?: number
+          total_sales_usd?: number
+          total_sessions?: number
+          updated_at?: string
+          week_end_date: string
+          week_number: number
+          week_start_date: string
+          year: number
+        }
+        Update: {
+          agency_id?: string
+          closure_notes?: string | null
+          created_at?: string
+          encargada_id?: string
+          id?: string
+          is_closed?: boolean
+          total_balance_bs?: number
+          total_balance_usd?: number
+          total_prizes_bs?: number
+          total_prizes_usd?: number
+          total_sales_bs?: number
+          total_sales_usd?: number
+          total_sessions?: number
+          updated_at?: string
+          week_end_date?: string
+          week_number?: number
+          week_start_date?: string
+          year?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -709,6 +831,15 @@ export type Database = {
       get_current_user_role: {
         Args: Record<PropertyKey, never>
         Returns: Database["public"]["Enums"]["user_role"]
+      }
+      get_current_week_boundaries: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          week_end: string
+          week_number: number
+          week_start: string
+          year: number
+        }[]
       }
       get_user_role: {
         Args: { user_id: string }
