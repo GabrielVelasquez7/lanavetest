@@ -24,7 +24,9 @@ interface WeeklyData {
   total_prizes_bs: number;
   total_prizes_usd: number;
   total_expenses_bs: number;
+  total_expenses_usd: number;
   total_debt_bs: number;
+  total_debt_usd: number;
   total_bank_bs: number;
   total_balance_bs: number;
   total_balance_usd: number;
@@ -41,7 +43,9 @@ interface AgencyWeeklyData {
   total_prizes_bs: number;
   total_prizes_usd: number;
   total_expenses_bs: number;
+  total_expenses_usd: number;
   total_debt_bs: number;
+  total_debt_usd: number;
   total_bank_bs: number;
   total_balance_bs: number;
   total_balance_usd: number;
@@ -204,7 +208,9 @@ export function WeeklyCuadreView() {
       let totalPrizesBs = 0;
       let totalPrizesUsd = 0;
       let totalExpensesBs = 0;
+      let totalExpensesUsd = 0;
       let totalDebtBs = 0;
+      let totalDebtUsd = 0;
       let totalBankBs = 0;
       let totalSessions = 0;
       let isWeeklyClosed = false;
@@ -250,7 +256,9 @@ export function WeeklyCuadreView() {
             total_prizes_bs: 0,
             total_prizes_usd: 0,
             total_expenses_bs: 0,
+            total_expenses_usd: 0,
             total_debt_bs: 0,
+            total_debt_usd: 0,
             total_bank_bs: 0,
             total_balance_bs: 0,
             total_balance_usd: 0,
@@ -277,12 +285,9 @@ export function WeeklyCuadreView() {
           agencyData[agencyId].total_prizes_bs += Number(cuadre.total_prizes_bs || 0);
           agencyData[agencyId].total_prizes_usd += Number(cuadre.total_prizes_usd || 0);
           agencyData[agencyId].total_expenses_bs += Number(cuadre.total_expenses_bs || 0);
+          agencyData[agencyId].total_expenses_usd += Number(cuadre.total_expenses_usd || 0);
           agencyData[agencyId].total_debt_bs += Number(cuadre.total_debt_bs || 0);
-          
-          // Calculate banco total for agency: pago_movil_recibidos - pago_movil_pagados + pos
-          // En daily_cuadres_summary, total_mobile_payments_bs ya incluye el neto, y total_pos_bs es punto de venta
-          const agencyBankTotal = Number(cuadre.total_mobile_payments_bs || 0) + Number(cuadre.total_pos_bs || 0);
-          agencyData[agencyId].total_bank_bs += agencyBankTotal;
+          agencyData[agencyId].total_debt_usd += Number(cuadre.total_debt_usd || 0);
           
           agencyData[agencyId].total_balance_bs += Number(cuadre.balance_bs || 0);
           agencyData[agencyId].total_sessions += 1;
@@ -298,11 +303,9 @@ export function WeeklyCuadreView() {
         totalPrizesBs += Number(cuadre.total_prizes_bs || 0);
         totalPrizesUsd += Number(cuadre.total_prizes_usd || 0);
         totalExpensesBs += Number(cuadre.total_expenses_bs || 0);
+        totalExpensesUsd += Number(cuadre.total_expenses_usd || 0);
         totalDebtBs += Number(cuadre.total_debt_bs || 0);
-        
-        // Calculate banco total: pago_movil_recibidos - pago_movil_pagados + pos
-        const weeklyBankTotal = Number(cuadre.total_mobile_payments_bs || 0) + Number(cuadre.total_pos_bs || 0);
-        totalBankBs += weeklyBankTotal;
+        totalDebtUsd += Number(cuadre.total_debt_usd || 0);
         
         totalSessions += 1;
 
@@ -311,6 +314,103 @@ export function WeeklyCuadreView() {
           isWeeklyClosed = true;
           weeklyClosureNotes = cuadre.weekly_closure_notes || '';
         }
+      });
+
+      // Aggregate expenses (taquillera + encargada) from expenses table within week by agency
+      const startStr = format(currentWeek.start, 'yyyy-MM-dd');
+      const endStr = format(currentWeek.end, 'yyyy-MM-dd');
+
+      const { data: weeklyExpenses, error: expErr } = await supabase
+        .from('expenses')
+        .select('agency_id, amount_bs, amount_usd, category, transaction_date')
+        .gte('transaction_date', startStr)
+        .lte('transaction_date', endStr);
+      if (expErr) throw expErr;
+
+      (weeklyExpenses || []).forEach((e: any) => {
+        const agId = e.agency_id;
+        if (!agId) return;
+        if (!agencyData[agId]) {
+          agencyData[agId] = {
+            agency_id: agId,
+            agency_name: (allAgencies.find(a => a.id === agId)?.name) || 'Agencia',
+            total_sales_bs: 0,
+            total_sales_usd: 0,
+            total_prizes_bs: 0,
+            total_prizes_usd: 0,
+            total_expenses_bs: 0,
+            total_expenses_usd: 0,
+            total_debt_bs: 0,
+            total_debt_usd: 0,
+            total_bank_bs: 0,
+            total_balance_bs: 0,
+            total_balance_usd: 0,
+            total_sessions: 0,
+            is_weekly_closed: false,
+          };
+        }
+        const bs = Number(e.amount_bs || 0);
+        const usd = Number(e.amount_usd || 0);
+        if (e.category === 'gasto_operativo') {
+          agencyData[agId].total_expenses_bs += bs;
+          agencyData[agId].total_expenses_usd += usd;
+          totalExpensesBs += bs;
+          totalExpensesUsd += usd;
+        } else if (e.category === 'deuda') {
+          agencyData[agId].total_debt_bs += bs;
+          agencyData[agId].total_debt_usd += usd;
+          totalDebtBs += bs;
+          totalDebtUsd += usd;
+        }
+      });
+
+      // Aggregate bank totals from mobile_payments (net) and point_of_sale by agency
+      const [{ data: weeklyMobile, error: mobErr }, { data: weeklyPOS, error: posErr }] = await Promise.all([
+        supabase
+          .from('mobile_payments')
+          .select('agency_id, amount_bs, transaction_date')
+          .gte('transaction_date', startStr)
+          .lte('transaction_date', endStr),
+        supabase
+          .from('point_of_sale')
+          .select('agency_id, amount_bs, transaction_date')
+          .gte('transaction_date', startStr)
+          .lte('transaction_date', endStr),
+      ]);
+      if (mobErr) throw mobErr;
+      if (posErr) throw posErr;
+
+      const bankByAgency = new Map<string, number>();
+      (weeklyMobile || []).forEach((m: any) => {
+        if (!m.agency_id) return;
+        bankByAgency.set(m.agency_id, (bankByAgency.get(m.agency_id) || 0) + Number(m.amount_bs || 0));
+      });
+      (weeklyPOS || []).forEach((p: any) => {
+        if (!p.agency_id) return;
+        bankByAgency.set(p.agency_id, (bankByAgency.get(p.agency_id) || 0) + Number(p.amount_bs || 0));
+      });
+      bankByAgency.forEach((val, agId) => {
+        if (!agencyData[agId]) {
+          agencyData[agId] = {
+            agency_id: agId,
+            agency_name: (allAgencies.find(a => a.id === agId)?.name) || 'Agencia',
+            total_sales_bs: 0,
+            total_sales_usd: 0,
+            total_prizes_bs: 0,
+            total_prizes_usd: 0,
+            total_expenses_bs: 0,
+            total_expenses_usd: 0,
+            total_debt_bs: 0,
+            total_debt_usd: 0,
+            total_bank_bs: 0,
+            total_balance_bs: 0,
+            total_balance_usd: 0,
+            total_sessions: 0,
+            is_weekly_closed: false,
+          };
+        }
+        agencyData[agId].total_bank_bs += val;
+        totalBankBs += val;
       });
 
       // Calculate balance USD for daily data and agency data
@@ -328,7 +428,9 @@ export function WeeklyCuadreView() {
         total_prizes_bs: totalPrizesBs,
         total_prizes_usd: totalPrizesUsd,
         total_expenses_bs: totalExpensesBs,
+        total_expenses_usd: totalExpensesUsd,
         total_debt_bs: totalDebtBs,
+        total_debt_usd: totalDebtUsd,
         total_bank_bs: totalBankBs,
         total_balance_bs: totalSalesBs - totalPrizesBs,
         total_balance_usd: totalSalesUsd - totalPrizesUsd,
