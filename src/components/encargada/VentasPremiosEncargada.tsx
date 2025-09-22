@@ -474,7 +474,11 @@ export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
                 <CardTitle>Registrar Gasto Operativo</CardTitle>
               </CardHeader>
               <CardContent>
-                <GastosOperativosForm onSuccess={refreshData} />
+                <GastosOperativosForm 
+                  onSuccess={refreshData} 
+                  selectedAgency={selectedAgency}
+                  selectedDate={selectedDate}
+                />
               </CardContent>
             </Card>
           </TabsContent>

@@ -95,14 +95,18 @@ type GastoForm = z.infer<typeof gastoSchema>;
 
 interface GastosOperativosFormProps {
   onSuccess?: () => void;
+  selectedAgency?: string;
+  selectedDate?: Date;
 }
 
-export const GastosOperativosForm = ({ onSuccess }: GastosOperativosFormProps) => {
+export const GastosOperativosForm = ({ onSuccess, selectedAgency: propSelectedAgency, selectedDate: propSelectedDate }: GastosOperativosFormProps) => {
   const [loading, setLoading] = useState(false);
   const [userProfile, setUserProfile] = useState<any>(null);
   const [agencies, setAgencies] = useState<any[]>([]);
-  const [selectedAgency, setSelectedAgency] = useState<string>('');
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  
+  // Use props if provided, otherwise fallback to internal state
+  const selectedAgency = propSelectedAgency || '';
+  const selectedDate = propSelectedDate || new Date();
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -140,10 +144,7 @@ export const GastosOperativosForm = ({ onSuccess }: GastosOperativosFormProps) =
         
         setAgencies(agenciesData || []);
         
-        // Set default agency if user has one assigned
-        if (profile.agency_id) {
-          setSelectedAgency(profile.agency_id);
-        }
+        // Note: Agency selection is handled by parent component when props are provided
       }
     };
 
@@ -254,53 +255,6 @@ export const GastosOperativosForm = ({ onSuccess }: GastosOperativosFormProps) =
 
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-      {/* Agency and Date selection for Encargada */}
-      {userProfile?.role === 'encargada' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-2">
-            <Label>Agencia</Label>
-            <Select value={selectedAgency} onValueChange={setSelectedAgency}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecciona una agencia" />
-              </SelectTrigger>
-              <SelectContent>
-                {agencies.map((agency) => (
-                  <SelectItem key={agency.id} value={agency.id}>
-                    {agency.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Fecha</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-full justify-start text-left font-normal",
-                    !selectedDate && "text-muted-foreground"
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {selectedDate ? format(selectedDate, "PPP", { locale: es }) : "Seleccionar fecha"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={selectedDate}
-                  onSelect={(date) => date && setSelectedDate(date)}
-                  initialFocus
-                  className={cn("p-3 pointer-events-auto")}
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
-        </div>
-      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-2">
