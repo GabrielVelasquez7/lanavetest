@@ -243,7 +243,7 @@ export type Database = {
           created_at: string
           description: string
           id: string
-          session_id: string
+          session_id: string | null
           transaction_date: string | null
           updated_at: string
         }
@@ -255,7 +255,7 @@ export type Database = {
           created_at?: string
           description: string
           id?: string
-          session_id: string
+          session_id?: string | null
           transaction_date?: string | null
           updated_at?: string
         }
@@ -267,7 +267,7 @@ export type Database = {
           created_at?: string
           description?: string
           id?: string
-          session_id?: string
+          session_id?: string | null
           transaction_date?: string | null
           updated_at?: string
         }
@@ -425,7 +425,7 @@ export type Database = {
           description: string | null
           id: string
           reference_number: string
-          session_id: string
+          session_id: string | null
           transaction_date: string | null
           updated_at: string
         }
@@ -436,7 +436,7 @@ export type Database = {
           description?: string | null
           id?: string
           reference_number: string
-          session_id: string
+          session_id?: string | null
           transaction_date?: string | null
           updated_at?: string
         }
@@ -447,7 +447,7 @@ export type Database = {
           description?: string | null
           id?: string
           reference_number?: string
-          session_id?: string
+          session_id?: string | null
           transaction_date?: string | null
           updated_at?: string
         }
