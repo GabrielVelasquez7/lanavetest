@@ -90,14 +90,18 @@ interface PagoRecibido {
 
 interface PagoMovilRecibidosProps {
   onSuccess?: () => void;
+  selectedAgency?: string;
+  selectedDate?: Date;
 }
 
-export const PagoMovilRecibidos = ({ onSuccess }: PagoMovilRecibidosProps) => {
+export const PagoMovilRecibidos = ({ onSuccess, selectedAgency: propSelectedAgency, selectedDate: propSelectedDate }: PagoMovilRecibidosProps) => {
   const [loading, setLoading] = useState(false);
   const [userProfile, setUserProfile] = useState<any>(null);
   const [agencies, setAgencies] = useState<any[]>([]);
-  const [selectedAgency, setSelectedAgency] = useState<string>('');
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  
+  // Use props if provided, otherwise fallback to internal state
+  const selectedAgency = propSelectedAgency || '';
+  const selectedDate = propSelectedDate || new Date();
   const [pagos, setPagos] = useState<PagoRecibido[]>([
     { id: '1', amount_bs: '', reference_number: '', description: '' }
   ]);
@@ -128,10 +132,7 @@ export const PagoMovilRecibidos = ({ onSuccess }: PagoMovilRecibidosProps) => {
         
         setAgencies(agenciesData || []);
         
-        // Set default agency if user has one assigned
-        if (profile.agency_id) {
-          setSelectedAgency(profile.agency_id);
-        }
+        // Note: Agency selection is handled by parent component when props are provided
       }
     };
 
@@ -273,12 +274,12 @@ export const PagoMovilRecibidos = ({ onSuccess }: PagoMovilRecibidosProps) => {
 
   return (
     <div className="space-y-6">
-      {/* Agency and Date selection for Encargada */}
-      {userProfile?.role === 'encargada' && (
+      {/* Only show agency and date selectors if not provided as props (taquillera mode) */}
+      {!propSelectedAgency && userProfile?.role === 'encargada' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2">
             <Label>Agencia</Label>
-            <Select value={selectedAgency} onValueChange={setSelectedAgency}>
+            <Select value={selectedAgency} onValueChange={() => {}}>
               <SelectTrigger>
                 <SelectValue placeholder="Selecciona una agencia" />
               </SelectTrigger>
@@ -311,7 +312,7 @@ export const PagoMovilRecibidos = ({ onSuccess }: PagoMovilRecibidosProps) => {
                 <Calendar
                   mode="single"
                   selected={selectedDate}
-                  onSelect={(date) => date && setSelectedDate(date)}
+                  onSelect={(date) => {}}
                   initialFocus
                   className={cn("p-3 pointer-events-auto")}
                 />

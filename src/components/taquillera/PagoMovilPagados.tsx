@@ -84,13 +84,16 @@ interface PagoPagado {
 
 interface PagoMovilPagadosProps {
   onSuccess?: () => void;
+  selectedAgency?: string;
+  selectedDate?: Date;
 }
 
-export const PagoMovilPagados = ({ onSuccess }: PagoMovilPagadosProps) => {
+export const PagoMovilPagados = ({ onSuccess, selectedAgency: propSelectedAgency, selectedDate: propSelectedDate }: PagoMovilPagadosProps) => {
   const [loading, setLoading] = useState(false);
   const [pagos, setPagos] = useState<PagoPagado[]>([
     { id: '1', amount_bs: '', reference_number: '', description: '' }
   ]);
+  
   const { user } = useAuth();
   const { toast } = useToast();
 

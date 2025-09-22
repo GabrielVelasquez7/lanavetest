@@ -13,12 +13,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { VentasPremiosBolivares } from '../taquillera/VentasPremiosBolivares';
 import { VentasPremiosDolares } from '../taquillera/VentasPremiosDolares';
-import { GastosOperativosForm } from '../taquillera/GastosOperativosForm';
-import { DeudasForm } from '../taquillera/DeudasForm';
-import { GastosHistorial } from '../taquillera/GastosHistorial';
-import { PagoMovilHistorial } from '../taquillera/PagoMovilHistorial';
-import { PagoMovilRecibidos } from '../taquillera/PagoMovilRecibidos';
-import { PagoMovilPagados } from '../taquillera/PagoMovilPagados';
+import { GastosManagerEncargada } from './GastosManagerEncargada';
+import { PagoMovilManagerEncargada } from './PagoMovilManagerEncargada';
 import { Edit, Building2, CalendarIcon, DollarSign, Receipt, Smartphone, HandCoins, CreditCard } from 'lucide-react';
 import { formatCurrency, cn } from '@/lib/utils';
 import { formatDateForDB } from '@/lib/dateUtils';
@@ -467,68 +463,19 @@ export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
           </TabsContent>
 
           <TabsContent value="gastos" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Registrar Gasto Operativo</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <GastosOperativosForm 
-                  onSuccess={refreshData} 
-                  selectedAgency={selectedAgency}
-                  selectedDate={selectedDate}
-                />
-              </CardContent>
-            </Card>
+            <GastosManagerEncargada 
+              onSuccess={refreshData} 
+              selectedAgency={selectedAgency}
+              selectedDate={selectedDate}
+            />
           </TabsContent>
 
           <TabsContent value="pago-movil" className="space-y-6">
-            <Tabs defaultValue="recibidos" className="space-y-4">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="recibidos" className="flex items-center gap-2">
-                  <CreditCard className="h-4 w-4" />
-                  Pagos Recibidos
-                </TabsTrigger>
-                <TabsTrigger value="pagados" className="flex items-center gap-2">
-                  <Smartphone className="h-4 w-4" />
-                  Pagos Pagados
-                </TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="recibidos" className="space-y-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Registrar Pago Móvil Recibido</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <PagoMovilRecibidos onSuccess={refreshData} />
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="pagados" className="space-y-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Registrar Pago Móvil Pagado</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <PagoMovilPagados onSuccess={refreshData} />
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            </Tabs>
-
-            {/* Historial de Pagos Móviles */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Historial de Pagos Móviles</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <PagoMovilHistorial 
-                  dateRange={{ from: selectedDate, to: selectedDate }}
-                  refreshKey={Math.random()}
-                />
-              </CardContent>
-            </Card>
+            <PagoMovilManagerEncargada 
+              onSuccess={refreshData} 
+              selectedAgency={selectedAgency}
+              selectedDate={selectedDate}
+            />
           </TabsContent>
 
 
