@@ -556,7 +556,7 @@ export function WeeklyCuadreView() {
       };
 
       setWeeklyData(finalWeeklyData);
-      setAgenciesData(Object.values(agencyData).filter(agency => agency.total_sessions > 0 || agency.totalGastos.bs > 0 || agency.totalDeudas.bs > 0));
+      setAgenciesData(Object.values(agencyData));
       setDailyDetails(Object.values(dailyData));
       
     } catch (error: any) {
@@ -632,8 +632,24 @@ export function WeeklyCuadreView() {
     }
     
     const agency = agenciesData.find(a => a.agency_id === selectedAgency);
-    if (!agency) return weeklyData;
-
+    if (!agency) {
+      return {
+        totalSales: { bs: 0, usd: 0 },
+        totalPrizes: { bs: 0, usd: 0 },
+        totalGastos: { bs: 0, usd: 0 },
+        totalDeudas: { bs: 0, usd: 0 },
+        pagoMovilRecibidos: 0,
+        pagoMovilPagados: 0,
+        totalPointOfSale: 0,
+        totalCashAvailable: 0,
+        totalCashAvailableUsd: 0,
+        premiosPorPagar: 0,
+        averageExchangeRate: weeklyData?.averageExchangeRate || 36,
+        gastosDetails: [],
+        deudasDetails: [],
+      } as WeeklyData;
+    }
+    
     // Filter gastos and deudas details by selected agency
     const selectedAgencyName = allAgencies.find(a => a.id === selectedAgency)?.name || '';
     
