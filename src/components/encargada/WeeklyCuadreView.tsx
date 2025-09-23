@@ -445,7 +445,9 @@ export function WeeklyCuadreView() {
       });
 
       // Aggregate encargada data by agency
+      console.log('Debug: encargadaData:', encargadaData);
       encargadaData?.forEach(cuadre => {
+        console.log('Debug: Processing cuadre for agency:', cuadre.agency_id, 'Sales BS:', cuadre.total_sales_bs, 'Prizes BS:', cuadre.total_prizes_bs);
         if (cuadre.agency_id && agencyData[cuadre.agency_id]) {
           const agency = agencyData[cuadre.agency_id];
           agency.totalSales.bs += Number(cuadre.total_sales_bs || 0);
@@ -462,6 +464,11 @@ export function WeeklyCuadreView() {
           agency.is_weekly_closed = cuadre.is_weekly_closed || false;
         }
       });
+      console.log('Debug: Final agencyData:', Object.values(agencyData).map(a => ({ 
+        name: a.agency_name, 
+        totalSales: a.totalSales, 
+        totalPrizes: a.totalPrizes 
+      })));
 
       // Add expenses by agency (both encargada and taquillera)
       allGastos.forEach(gasto => {
