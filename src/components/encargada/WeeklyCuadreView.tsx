@@ -604,6 +604,17 @@ export function WeeklyCuadreView() {
     
     const agency = agenciesData.find(a => a.agency_id === selectedAgency);
     if (!agency) return weeklyData;
+
+    // Filter gastos and deudas details by selected agency
+    const selectedAgencyName = allAgencies.find(a => a.id === selectedAgency)?.name || '';
+    
+    const filteredGastosDetails = weeklyData?.gastosDetails.filter(gasto => 
+      gasto.agency_name === selectedAgencyName
+    ) || [];
+    
+    const filteredDeudasDetails = weeklyData?.deudasDetails.filter(deuda => 
+      deuda.agency_name === selectedAgencyName
+    ) || [];
     
     return {
       totalSales: agency.totalSales,
@@ -617,8 +628,8 @@ export function WeeklyCuadreView() {
       totalCashAvailableUsd: agency.totalCashAvailableUsd,
       premiosPorPagar: agency.premiosPorPagar,
       averageExchangeRate: agency.averageExchangeRate,
-      gastosDetails: weeklyData?.gastosDetails || [],
-      deudasDetails: weeklyData?.deudasDetails || [],
+      gastosDetails: filteredGastosDetails,
+      deudasDetails: filteredDeudasDetails,
     };
   };
 
