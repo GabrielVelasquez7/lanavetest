@@ -118,10 +118,10 @@ export function WeeklyCuadreView() {
   }, [user]);
 
   useEffect(() => {
-    if (currentWeek && user) {
+    if (currentWeek && user && allAgencies.length > 0) {
       fetchWeeklyData();
     }
-  }, [currentWeek, user]);
+  }, [currentWeek, user, allAgencies.length]);
 
   useEffect(() => {
     let filtered = agenciesData;
