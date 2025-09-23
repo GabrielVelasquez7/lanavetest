@@ -95,14 +95,11 @@ export function WeeklyCuadreView() {
   const { toast } = useToast();
   const [weeklyData, setWeeklyData] = useState<WeeklyData | null>(null);
   const [agenciesData, setAgenciesData] = useState<AgencyWeeklyData[]>([]);
-  const [filteredAgencies, setFilteredAgencies] = useState<AgencyWeeklyData[]>([]);
   const [dailyDetails, setDailyDetails] = useState<DailyDetail[]>([]);
   const [loading, setLoading] = useState(true);
   const [closureNotes, setClosureNotes] = useState('');
   const [currentWeek, setCurrentWeek] = useState<WeekBoundaries | null>(null);
   const [allAgencies, setAllAgencies] = useState<{ id: string; name: string }[]>([]);
-  const [selectedAgency, setSelectedAgency] = useState<string>('all');
-  const [searchTerm, setSearchTerm] = useState('');
   const [isDailyOpen, setIsDailyOpen] = useState(false);
   const [activeAgencyTab, setActiveAgencyTab] = useState('resumen');
   
@@ -122,22 +119,6 @@ export function WeeklyCuadreView() {
       fetchWeeklyData();
     }
   }, [currentWeek, user, allAgencies.length]);
-
-  useEffect(() => {
-    let filtered = agenciesData;
-    
-    if (selectedAgency !== 'all') {
-      filtered = filtered.filter(agency => agency.agency_id === selectedAgency);
-    }
-    
-    if (searchTerm) {
-      filtered = filtered.filter(agency => 
-        agency.agency_name.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-    
-    setFilteredAgencies(filtered);
-  }, [agenciesData, selectedAgency, searchTerm]);
 
   const fetchAgencies = async () => {
     try {
@@ -445,9 +426,7 @@ export function WeeklyCuadreView() {
       });
 
       // Aggregate encargada data by agency
-      console.log('Debug: encargadaData:', encargadaData);
       encargadaData?.forEach(cuadre => {
-        console.log('Debug: Processing cuadre for agency:', cuadre.agency_id, 'Sales BS:', cuadre.total_sales_bs, 'Prizes BS:', cuadre.total_prizes_bs);
         if (cuadre.agency_id && agencyData[cuadre.agency_id]) {
           const agency = agencyData[cuadre.agency_id];
           agency.totalSales.bs += Number(cuadre.total_sales_bs || 0);
@@ -464,11 +443,6 @@ export function WeeklyCuadreView() {
           agency.is_weekly_closed = cuadre.is_weekly_closed || false;
         }
       });
-      console.log('Debug: Final agencyData:', Object.values(agencyData).map(a => ({ 
-        name: a.agency_name, 
-        totalSales: a.totalSales, 
-        totalPrizes: a.totalPrizes 
-      })));
 
       // Add expenses by agency (both encargada and taquillera)
       allGastos.forEach(gasto => {
@@ -626,57 +600,6 @@ export function WeeklyCuadreView() {
     }
   };
 
-  const getFilteredSummary = () => {
-    if (selectedAgency === 'all') {
-      return weeklyData;
-    }
-    
-    const agency = agenciesData.find(a => a.agency_id === selectedAgency);
-    if (!agency) {
-      return {
-        totalSales: { bs: 0, usd: 0 },
-        totalPrizes: { bs: 0, usd: 0 },
-        totalGastos: { bs: 0, usd: 0 },
-        totalDeudas: { bs: 0, usd: 0 },
-        pagoMovilRecibidos: 0,
-        pagoMovilPagados: 0,
-        totalPointOfSale: 0,
-        totalCashAvailable: 0,
-        totalCashAvailableUsd: 0,
-        premiosPorPagar: 0,
-        averageExchangeRate: weeklyData?.averageExchangeRate || 36,
-        gastosDetails: [],
-        deudasDetails: [],
-      } as WeeklyData;
-    }
-    
-    // Filter gastos and deudas details by selected agency
-    const selectedAgencyName = allAgencies.find(a => a.id === selectedAgency)?.name || '';
-    
-    const filteredGastosDetails = weeklyData?.gastosDetails.filter(gasto => 
-      gasto.agency_name === selectedAgencyName
-    ) || [];
-    
-    const filteredDeudasDetails = weeklyData?.deudasDetails.filter(deuda => 
-      deuda.agency_name === selectedAgencyName
-    ) || [];
-    
-    return {
-      totalSales: agency.totalSales,
-      totalPrizes: agency.totalPrizes,
-      totalGastos: agency.totalGastos,
-      totalDeudas: agency.totalDeudas,
-      pagoMovilRecibidos: agency.pagoMovilRecibidos,
-      pagoMovilPagados: agency.pagoMovilPagados,
-      totalPointOfSale: agency.totalPointOfSale,
-      totalCashAvailable: agency.totalCashAvailable,
-      totalCashAvailableUsd: agency.totalCashAvailableUsd,
-      premiosPorPagar: agency.premiosPorPagar,
-      averageExchangeRate: agency.averageExchangeRate,
-      gastosDetails: filteredGastosDetails,
-      deudasDetails: filteredDeudasDetails,
-    };
-  };
 
   if (loading) {
     return (
@@ -700,10 +623,10 @@ export function WeeklyCuadreView() {
     );
   }
 
-  const summary = getFilteredSummary();
+  const summary = weeklyData;
   if (!summary) return null;
 
-  // Calculate main cuadre (Sales - Prizes) for the filtered data
+  // Calculate main cuadre (Sales - Prizes) for the total data
   const cuadreVentasPremios = {
     bs: summary.totalSales.bs - summary.totalPrizes.bs,
     usd: summary.totalSales.usd - summary.totalPrizes.usd,
@@ -755,36 +678,15 @@ export function WeeklyCuadreView() {
             </div>
           )}
         </div>
-        
-        <div className="flex items-center gap-2">
-          <Select value={selectedAgency} onValueChange={setSelectedAgency}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Filtrar por agencia" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas las agencias</SelectItem>
-              {allAgencies.map(agency => (
-                <SelectItem key={agency.id} value={agency.id}>
-                  {agency.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
       </div>
 
       {currentWeek && (
         <div className="text-sm text-muted-foreground">
           {format(currentWeek.start, 'dd/MM/yyyy', { locale: es })} - {format(currentWeek.end, 'dd/MM/yyyy', { locale: es })}
-          {selectedAgency !== 'all' && (
-            <span className="ml-2">
-              • Filtrado por: {allAgencies.find(a => a.id === selectedAgency)?.name}
-            </span>
-          )}
         </div>
       )}
 
-      {/* Main Summary Cards - identical structure to CuadreGeneral */}
+      {/* Main Summary Cards - Total for all agencies */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Sales Card */}
         <Card>
@@ -864,6 +766,228 @@ export function WeeklyCuadreView() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Agency Breakdown Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Building2 className="h-5 w-5" />
+            Desglose por Agencias
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {agenciesData.map((agency, index) => {
+            const agencyCuadre = {
+              bs: agency.totalSales.bs - agency.totalPrizes.bs,
+              usd: agency.totalSales.usd - agency.totalPrizes.usd,
+            };
+            const agencyBanco = agency.pagoMovilRecibidos + agency.totalPointOfSale - agency.pagoMovilPagados;
+            const agencyExcessUsd = agency.totalCashAvailableUsd - agencyCuadre.usd;
+            const agencySumatoria = 
+              agency.totalCashAvailable + 
+              agencyBanco + 
+              agency.totalDeudas.bs + 
+              agency.totalGastos.bs + 
+              (agencyExcessUsd * agency.averageExchangeRate);
+            const agencyDiferencia = agencySumatoria - agencyCuadre.bs;
+            const agencyFinal = agencyDiferencia - agency.premiosPorPagar;
+            const agencyBalanced = Math.abs(agencyFinal) <= 100;
+
+            return (
+              <Collapsible key={agency.agency_id}>
+                <CollapsibleTrigger className="flex w-full items-center justify-between p-4 hover:bg-muted/50 rounded-lg border">
+                  <div className="flex items-center gap-3">
+                    <Building2 className="h-4 w-4" />
+                    <span className="font-medium">{agency.agency_name}</span>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <div className="text-sm font-medium">
+                        {formatCurrency(agencyCuadre.bs, 'VES')}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {formatCurrency(agencyCuadre.usd, 'USD')}
+                      </div>
+                    </div>
+                    <Badge variant={agencyBalanced ? 'default' : 'destructive'} className="text-xs">
+                      {agencyBalanced ? 'Cuadrado' : 'Diferencia'}
+                    </Badge>
+                    <ChevronDown className="h-4 w-4" />
+                  </div>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="px-4 pb-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+                    {/* Agency Sales */}
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium flex items-center gap-2">
+                          <TrendingUp className="h-3 w-3 text-green-600" />
+                          Ventas
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-1">
+                          <div className="text-lg font-bold text-green-600">
+                            {formatCurrency(agency.totalSales.bs, 'VES')}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {formatCurrency(agency.totalSales.usd, 'USD')}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Agency Prizes */}
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium flex items-center gap-2">
+                          <TrendingDown className="h-3 w-3 text-red-600" />
+                          Premios
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-1">
+                          <div className="text-lg font-bold text-red-600">
+                            {formatCurrency(agency.totalPrizes.bs, 'VES')}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {formatCurrency(agency.totalPrizes.usd, 'USD')}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Agency Expenses */}
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium flex items-center gap-2">
+                          <HandCoins className="h-3 w-3 text-orange-600" />
+                          Gastos
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-1">
+                          <div className="text-lg font-bold text-orange-600">
+                            {formatCurrency(agency.totalGastos.bs, 'VES')}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {formatCurrency(agency.totalGastos.usd, 'USD')}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Agency Debts */}
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium flex items-center gap-2">
+                          <Receipt className="h-3 w-3 text-purple-600" />
+                          Deudas
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-1">
+                          <div className="text-lg font-bold text-purple-600">
+                            {formatCurrency(agency.totalDeudas.bs, 'VES')}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {formatCurrency(agency.totalDeudas.usd, 'USD')}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Agency Mobile Payments */}
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium flex items-center gap-2">
+                          <Smartphone className="h-3 w-3 text-blue-600" />
+                          Pago Móvil
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-1">
+                          <div className="text-sm">
+                            <span className="text-green-600">+{formatCurrency(agency.pagoMovilRecibidos, 'VES')}</span>
+                          </div>
+                          <div className="text-sm">
+                            <span className="text-red-600">-{formatCurrency(agency.pagoMovilPagados, 'VES')}</span>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Agency POS */}
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium flex items-center gap-2">
+                          <CreditCard className="h-3 w-3 text-indigo-600" />
+                          Punto Venta
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-lg font-bold text-indigo-600">
+                          {formatCurrency(agency.totalPointOfSale, 'VES')}
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Agency Cash */}
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium flex items-center gap-2">
+                          <DollarSign className="h-3 w-3 text-green-700" />
+                          Efectivo
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-1">
+                          <div className="text-lg font-bold text-green-700">
+                            {formatCurrency(agency.totalCashAvailable, 'VES')}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {formatCurrency(agency.totalCashAvailableUsd, 'USD')}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Agency Final Balance */}
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium flex items-center gap-2">
+                          {agencyBalanced ? (
+                            <CheckCircle2 className="h-3 w-3 text-green-600" />
+                          ) : (
+                            <XCircle className="h-3 w-3 text-red-600" />
+                          )}
+                          Balance Final
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-1">
+                          <div className={`text-lg font-bold ${agencyBalanced ? 'text-green-600' : 'text-red-600'}`}>
+                            {formatCurrency(agencyFinal, 'VES')}
+                          </div>
+                          <Badge variant={agencyBalanced ? 'default' : 'destructive'} className="text-xs">
+                            {agencyBalanced ? 'Cuadrado' : 'Con diferencia'}
+                          </Badge>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+            );
+          })}
+          
+          {agenciesData.length === 0 && (
+            <div className="text-center text-muted-foreground py-8">
+              No hay datos de agencias para mostrar
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Mobile Payments and POS Section */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1064,84 +1188,6 @@ export function WeeklyCuadreView() {
           </div>
         </CardContent>
       </Card>
-
-      {/* Agency Breakdown */}
-      {selectedAgency === 'all' && agenciesData.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Building2 className="h-5 w-5" />
-              Desglose por Agencias
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center gap-4">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Buscar agencia..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-9"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                {filteredAgencies.map((agency) => {
-                  const agencyCuadre = agency.totalSales.bs - agency.totalPrizes.bs;
-                  const agencyBanco = agency.pagoMovilRecibidos + agency.totalPointOfSale - agency.pagoMovilPagados;
-                  const agencyExcess = agency.totalCashAvailableUsd - (agency.totalSales.usd - agency.totalPrizes.usd);
-                  const agencySumatoria = 
-                    agency.totalCashAvailable + 
-                    agencyBanco + 
-                    agency.totalDeudas.bs + 
-                    agency.totalGastos.bs + 
-                    (agencyExcess * agency.averageExchangeRate);
-                  const agencyDiferencia = agencySumatoria - agencyCuadre;
-                  const agencyFinal = agencyDiferencia - agency.premiosPorPagar;
-                  const agencyBalanced = Math.abs(agencyFinal) <= 100;
-
-                  return (
-                    <div key={agency.agency_id} className="p-4 border rounded-lg space-y-2">
-                      <div className="flex items-center justify-between">
-                        <h4 className="font-semibold">{agency.agency_name}</h4>
-                        <div className="flex items-center gap-2">
-                          <Badge variant={agencyBalanced ? 'default' : 'destructive'} className="text-xs">
-                            {agencyBalanced ? 'Cuadrado' : 'Con diferencia'}
-                          </Badge>
-                          <span className={`font-mono text-sm ${agencyBalanced ? 'text-green-600' : 'text-red-600'}`}>
-                            {formatCurrency(agencyFinal, 'VES')}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
-                        <div>
-                          <span className="text-muted-foreground">Ventas:</span>
-                          <div className="font-mono">{formatCurrency(agency.totalSales.bs, 'VES')}</div>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground">Premios:</span>
-                          <div className="font-mono">{formatCurrency(agency.totalPrizes.bs, 'VES')}</div>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground">Efectivo:</span>
-                          <div className="font-mono">{formatCurrency(agency.totalCashAvailable, 'VES')}</div>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground">Sesiones:</span>
-                          <div className="font-mono">{agency.total_sessions}</div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Daily Breakdown */}
       <Card>
