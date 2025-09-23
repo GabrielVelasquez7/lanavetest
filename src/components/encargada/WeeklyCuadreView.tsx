@@ -775,7 +775,7 @@ export function WeeklyCuadreView() {
             Desglose por Agencias
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-3">
           {agenciesData.map((agency, index) => {
             const agencyCuadre = {
               bs: agency.totalSales.bs - agency.totalPrizes.bs,
@@ -795,188 +795,148 @@ export function WeeklyCuadreView() {
 
             return (
               <Collapsible key={agency.agency_id}>
-                <CollapsibleTrigger className="flex w-full items-center justify-between p-4 hover:bg-muted/50 rounded-lg border">
-                  <div className="flex items-center gap-3">
-                    <Building2 className="h-4 w-4" />
-                    <span className="font-medium">{agency.agency_name}</span>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="text-right">
-                      <div className="text-sm font-medium">
-                        {formatCurrency(agencyCuadre.bs, 'VES')}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {formatCurrency(agencyCuadre.usd, 'USD')}
-                      </div>
-                    </div>
-                    <Badge variant={agencyBalanced ? 'default' : 'destructive'} className="text-xs">
-                      {agencyBalanced ? 'Cuadrado' : 'Diferencia'}
-                    </Badge>
-                    <ChevronDown className="h-4 w-4" />
-                  </div>
-                </CollapsibleTrigger>
-                <CollapsibleContent className="px-4 pb-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
-                    {/* Agency Sales */}
-                    <Card>
-                      <CardHeader className="pb-2">
+                <Card className="shadow-sm">
+                  <CollapsibleTrigger asChild>
+                    <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors py-3">
+                      <div className="flex items-center justify-between">
                         <CardTitle className="text-sm font-medium flex items-center gap-2">
-                          <TrendingUp className="h-3 w-3 text-green-600" />
-                          Ventas
+                          <Building2 className="h-4 w-4" />
+                          {agency.agency_name}
                         </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-1">
-                          <div className="text-lg font-bold text-green-600">
-                            {formatCurrency(agency.totalSales.bs, 'VES')}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            {formatCurrency(agency.totalSales.usd, 'USD')}
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    {/* Agency Prizes */}
-                    <Card>
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium flex items-center gap-2">
-                          <TrendingDown className="h-3 w-3 text-red-600" />
-                          Premios
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-1">
-                          <div className="text-lg font-bold text-red-600">
-                            {formatCurrency(agency.totalPrizes.bs, 'VES')}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            {formatCurrency(agency.totalPrizes.usd, 'USD')}
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    {/* Agency Expenses */}
-                    <Card>
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium flex items-center gap-2">
-                          <HandCoins className="h-3 w-3 text-orange-600" />
-                          Gastos
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-1">
-                          <div className="text-lg font-bold text-orange-600">
-                            {formatCurrency(agency.totalGastos.bs, 'VES')}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            {formatCurrency(agency.totalGastos.usd, 'USD')}
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    {/* Agency Debts */}
-                    <Card>
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium flex items-center gap-2">
-                          <Receipt className="h-3 w-3 text-purple-600" />
-                          Deudas
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-1">
-                          <div className="text-lg font-bold text-purple-600">
-                            {formatCurrency(agency.totalDeudas.bs, 'VES')}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            {formatCurrency(agency.totalDeudas.usd, 'USD')}
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    {/* Agency Mobile Payments */}
-                    <Card>
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium flex items-center gap-2">
-                          <Smartphone className="h-3 w-3 text-blue-600" />
-                          Pago Móvil
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-1">
-                          <div className="text-sm">
-                            <span className="text-green-600">+{formatCurrency(agency.pagoMovilRecibidos, 'VES')}</span>
-                          </div>
-                          <div className="text-sm">
-                            <span className="text-red-600">-{formatCurrency(agency.pagoMovilPagados, 'VES')}</span>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    {/* Agency POS */}
-                    <Card>
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium flex items-center gap-2">
-                          <CreditCard className="h-3 w-3 text-indigo-600" />
-                          Punto Venta
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="text-lg font-bold text-indigo-600">
-                          {formatCurrency(agency.totalPointOfSale, 'VES')}
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    {/* Agency Cash */}
-                    <Card>
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium flex items-center gap-2">
-                          <DollarSign className="h-3 w-3 text-green-700" />
-                          Efectivo
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-1">
-                          <div className="text-lg font-bold text-green-700">
-                            {formatCurrency(agency.totalCashAvailable, 'VES')}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            {formatCurrency(agency.totalCashAvailableUsd, 'USD')}
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    {/* Agency Final Balance */}
-                    <Card>
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium flex items-center gap-2">
-                          {agencyBalanced ? (
-                            <CheckCircle2 className="h-3 w-3 text-green-600" />
-                          ) : (
-                            <XCircle className="h-3 w-3 text-red-600" />
-                          )}
-                          Balance Final
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-1">
-                          <div className={`text-lg font-bold ${agencyBalanced ? 'text-green-600' : 'text-red-600'}`}>
-                            {formatCurrency(agencyFinal, 'VES')}
+                        <div className="flex items-center gap-3">
+                          <div className="text-right">
+                            <div className={`text-sm font-medium ${agencyBalanced ? 'text-success' : 'text-destructive'}`}>
+                              {formatCurrency(agencyFinal, 'VES')}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              Balance Final
+                            </div>
                           </div>
                           <Badge variant={agencyBalanced ? 'default' : 'destructive'} className="text-xs">
-                            {agencyBalanced ? 'Cuadrado' : 'Con diferencia'}
+                            {agencyBalanced ? 'Cuadrado' : 'Diferencia'}
                           </Badge>
+                          <ChevronDown className="h-4 w-4 transition-transform [&[data-state=open]]:rotate-180" />
                         </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-                </CollapsibleContent>
+                      </div>
+                    </CardHeader>
+                  </CollapsibleTrigger>
+                  
+                  <CollapsibleContent>
+                    <CardContent className="pt-0 pb-4">
+                      <div className="grid md:grid-cols-2 gap-6">
+                        {/* Bolivares Section */}
+                        <div className="space-y-3">
+                          <h4 className="font-medium text-sm text-center border-b pb-2">Bolívares</h4>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="text-center p-2 bg-muted/30 rounded">
+                              <p className="text-xs text-muted-foreground">Ventas</p>
+                              <p className="text-sm font-semibold text-success">
+                                {formatCurrency(agency.totalSales.bs, 'VES')}
+                              </p>
+                            </div>
+                            <div className="text-center p-2 bg-muted/30 rounded">
+                              <p className="text-xs text-muted-foreground">Premios</p>
+                              <p className="text-sm font-semibold text-destructive">
+                                {formatCurrency(agency.totalPrizes.bs, 'VES')}
+                              </p>
+                            </div>
+                            <div className="text-center p-2 bg-muted/30 rounded">
+                              <p className="text-xs text-muted-foreground">Gastos</p>
+                              <p className="text-sm font-semibold text-destructive">
+                                {formatCurrency(agency.totalGastos.bs, 'VES')}
+                              </p>
+                            </div>
+                            <div className="text-center p-2 bg-muted/30 rounded">
+                              <p className="text-xs text-muted-foreground">Deudas</p>
+                              <p className="text-sm font-semibold text-destructive">
+                                {formatCurrency(agency.totalDeudas.bs, 'VES')}
+                              </p>
+                            </div>
+                            <div className="text-center p-2 bg-muted/30 rounded">
+                              <p className="text-xs text-muted-foreground">Pago Móvil</p>
+                              <p className="text-sm font-semibold text-success">
+                                {formatCurrency(agency.pagoMovilRecibidos, 'VES')}
+                              </p>
+                            </div>
+                            <div className="text-center p-2 bg-muted/30 rounded">
+                              <p className="text-xs text-muted-foreground">POS</p>
+                              <p className="text-sm font-semibold text-success">
+                                {formatCurrency(agency.totalPointOfSale, 'VES')}
+                              </p>
+                            </div>
+                            <div className="text-center p-2 bg-muted/30 rounded">
+                              <p className="text-xs text-muted-foreground">Efectivo</p>
+                              <p className="text-sm font-semibold">
+                                {formatCurrency(agency.totalCashAvailable, 'VES')}
+                              </p>
+                            </div>
+                            <div className="text-center p-2 bg-primary/10 rounded border border-primary/20">
+                              <p className="text-xs text-muted-foreground">Balance Final</p>
+                              <p className={`text-sm font-bold ${agencyBalanced ? 'text-success' : 'text-destructive'}`}>
+                                {formatCurrency(agencyFinal, 'VES')}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Dólares Section */}
+                        <div className="space-y-3">
+                          <h4 className="font-medium text-sm text-center border-b pb-2">Dólares</h4>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="text-center p-2 bg-muted/30 rounded">
+                              <p className="text-xs text-muted-foreground">Ventas</p>
+                              <p className="text-sm font-semibold text-success">
+                                {formatCurrency(agency.totalSales.usd, 'USD')}
+                              </p>
+                            </div>
+                            <div className="text-center p-2 bg-muted/30 rounded">
+                              <p className="text-xs text-muted-foreground">Premios</p>
+                              <p className="text-sm font-semibold text-destructive">
+                                {formatCurrency(agency.totalPrizes.usd, 'USD')}
+                              </p>
+                            </div>
+                            <div className="text-center p-2 bg-muted/30 rounded">
+                              <p className="text-xs text-muted-foreground">Gastos</p>
+                              <p className="text-sm font-semibold text-destructive">
+                                {formatCurrency(agency.totalGastos.usd, 'USD')}
+                              </p>
+                            </div>
+                            <div className="text-center p-2 bg-muted/30 rounded">
+                              <p className="text-xs text-muted-foreground">Deudas</p>
+                              <p className="text-sm font-semibold text-destructive">
+                                {formatCurrency(agency.totalDeudas.usd, 'USD')}
+                              </p>
+                            </div>
+                            <div className="text-center p-2 bg-muted/30 rounded">
+                              <p className="text-xs text-muted-foreground">Pago Móvil</p>
+                              <p className="text-sm font-semibold text-muted-foreground">
+                                N/A
+                              </p>
+                            </div>
+                            <div className="text-center p-2 bg-muted/30 rounded">
+                              <p className="text-xs text-muted-foreground">POS</p>
+                              <p className="text-sm font-semibold text-muted-foreground">
+                                N/A
+                              </p>
+                            </div>
+                            <div className="text-center p-2 bg-muted/30 rounded">
+                              <p className="text-xs text-muted-foreground">Efectivo</p>
+                              <p className="text-sm font-semibold">
+                                {formatCurrency(agency.totalCashAvailableUsd, 'USD')}
+                              </p>
+                            </div>
+                            <div className="text-center p-2 bg-primary/10 rounded border border-primary/20">
+                              <p className="text-xs text-muted-foreground">Cuadre</p>
+                              <p className={`text-sm font-bold ${agencyCuadre.usd >= 0 ? 'text-success' : 'text-destructive'}`}>
+                                {formatCurrency(agencyCuadre.usd, 'USD')}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </CollapsibleContent>
+                </Card>
               </Collapsible>
             );
           })}
