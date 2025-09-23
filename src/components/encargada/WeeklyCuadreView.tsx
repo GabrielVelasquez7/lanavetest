@@ -320,6 +320,32 @@ export function WeeklyCuadreView() {
       const startStr = format(currentWeek.start, 'yyyy-MM-dd');
       const endStr = format(currentWeek.end, 'yyyy-MM-dd');
 
+      // Build a session -> agency mapping to attribute taquillera entries (which only have session_id)
+      const { data: weekSessions, error: sesErr } = await supabase
+        .from('daily_sessions')
+        .select('id, user_id')
+        .gte('session_date', startStr)
+        .lte('session_date', endStr);
+      if (sesErr) throw sesErr;
+
+      const userIds = Array.from(new Set((weekSessions || []).map((s: any) => s.user_id).filter(Boolean)));
+      const sessionAgencyMap = new Map<string, string>();
+      if (userIds.length > 0) {
+        const { data: profiles, error: profErr } = await supabase
+          .from('profiles')
+          .select('user_id, agency_id')
+          .in('user_id', userIds);
+        if (profErr) throw profErr;
+        const userToAgency = new Map<string, string>();
+        (profiles || []).forEach((p: any) => {
+          if (p.agency_id) userToAgency.set(p.user_id, p.agency_id);
+        });
+        (weekSessions || []).forEach((s: any) => {
+          const ag = userToAgency.get(s.user_id);
+          if (ag) sessionAgencyMap.set(s.id, ag);
+        });
+      }
+
       // Get all expenses from both taquilleras and encargada within the week range
       const { data: weeklyExpenses, error: expErr } = await supabase
         .from('expenses')
@@ -328,46 +354,69 @@ export function WeeklyCuadreView() {
         .lte('transaction_date', endStr);
       if (expErr) throw expErr;
 
-      console.log('Weekly expenses found:', weeklyExpenses?.length || 0);
+      console.log('Weekly expenses found:', weeklyExpenses?.length || 0, 'Sessions:', weekSessions?.length || 0, 'Session->Agency mapped:', sessionAgencyMap.size);
+      const unmappedExpenses = (weeklyExpenses || []).filter((e: any) => !e.agency_id && e.session_id && !sessionAgencyMap.get(e.session_id)).length;
+      console.log('Expenses unmapped to agency:', unmappedExpenses);
 
       (weeklyExpenses || []).forEach((e: any) => {
-        const agId = e.agency_id;
-        if (!agId) return;
-        
-        // Initialize agency data if not exists
-        if (!agencyData[agId]) {
-          const agencyName = allAgencies.find(a => a.id === agId)?.name || 'Agencia';
-          agencyData[agId] = {
-            agency_id: agId,
-            agency_name: agencyName,
-            total_sales_bs: 0,
-            total_sales_usd: 0,
-            total_prizes_bs: 0,
-            total_prizes_usd: 0,
-            total_expenses_bs: 0,
-            total_expenses_usd: 0,
-            total_debt_bs: 0,
-            total_debt_usd: 0,
-            total_bank_bs: 0,
-            total_balance_bs: 0,
-            total_balance_usd: 0,
-            total_sessions: 0,
-            is_weekly_closed: false,
-          };
-        }
-        
+        // Prefer explicit agency_id, otherwise derive from session
+        const derivedAgId = e.agency_id || (e.session_id ? sessionAgencyMap.get(e.session_id) : undefined);
         const bs = Number(e.amount_bs || 0);
         const usd = Number(e.amount_usd || 0);
-        
+
         // Sum all expense types (including both taquillera and encargada entries)
         if (e.category === 'gasto_operativo' || e.category === 'operativo' || e.category === 'gasto') {
-          agencyData[agId].total_expenses_bs += bs;
-          agencyData[agId].total_expenses_usd += usd;
+          if (derivedAgId) {
+            if (!agencyData[derivedAgId]) {
+              const agencyName = allAgencies.find(a => a.id === derivedAgId)?.name || 'Agencia';
+              agencyData[derivedAgId] = {
+                agency_id: derivedAgId,
+                agency_name: agencyName,
+                total_sales_bs: 0,
+                total_sales_usd: 0,
+                total_prizes_bs: 0,
+                total_prizes_usd: 0,
+                total_expenses_bs: 0,
+                total_expenses_usd: 0,
+                total_debt_bs: 0,
+                total_debt_usd: 0,
+                total_bank_bs: 0,
+                total_balance_bs: 0,
+                total_balance_usd: 0,
+                total_sessions: 0,
+                is_weekly_closed: false,
+              };
+            }
+            agencyData[derivedAgId].total_expenses_bs += bs;
+            agencyData[derivedAgId].total_expenses_usd += usd;
+          }
           totalExpensesBs += bs;
           totalExpensesUsd += usd;
         } else if (e.category === 'deuda' || e.category === 'prestamo') {
-          agencyData[agId].total_debt_bs += bs;
-          agencyData[agId].total_debt_usd += usd;
+          if (derivedAgId) {
+            if (!agencyData[derivedAgId]) {
+              const agencyName = allAgencies.find(a => a.id === derivedAgId)?.name || 'Agencia';
+              agencyData[derivedAgId] = {
+                agency_id: derivedAgId,
+                agency_name: agencyName,
+                total_sales_bs: 0,
+                total_sales_usd: 0,
+                total_prizes_bs: 0,
+                total_prizes_usd: 0,
+                total_expenses_bs: 0,
+                total_expenses_usd: 0,
+                total_debt_bs: 0,
+                total_debt_usd: 0,
+                total_bank_bs: 0,
+                total_balance_bs: 0,
+                total_balance_usd: 0,
+                total_sessions: 0,
+                is_weekly_closed: false,
+              };
+            }
+            agencyData[derivedAgId].total_debt_bs += bs;
+            agencyData[derivedAgId].total_debt_usd += usd;
+          }
           totalDebtBs += bs;
           totalDebtUsd += usd;
         }
@@ -421,12 +470,12 @@ export function WeeklyCuadreView() {
       const [{ data: weeklyMobile, error: mobErr }, { data: weeklyPOS, error: posErr }] = await Promise.all([
         supabase
           .from('mobile_payments')
-          .select('agency_id, amount_bs, transaction_date')
+          .select('agency_id, session_id, amount_bs, transaction_date')
           .gte('transaction_date', startStr)
           .lte('transaction_date', endStr),
         supabase
           .from('point_of_sale')
-          .select('agency_id, amount_bs, transaction_date')
+          .select('agency_id, session_id, amount_bs, transaction_date')
           .gte('transaction_date', startStr)
           .lte('transaction_date', endStr),
       ]);
@@ -434,13 +483,20 @@ export function WeeklyCuadreView() {
       if (posErr) throw posErr;
 
       const bankByAgency = new Map<string, number>();
+      let totalBankBsSum = 0;
       (weeklyMobile || []).forEach((m: any) => {
-        if (!m.agency_id) return;
-        bankByAgency.set(m.agency_id, (bankByAgency.get(m.agency_id) || 0) + Number(m.amount_bs || 0));
+        const agId = m.agency_id || (m.session_id ? sessionAgencyMap.get(m.session_id) : undefined);
+        const amt = Number(m.amount_bs || 0);
+        totalBankBsSum += amt; // net: recibidos positivos, pagados negativos
+        if (!agId) return;
+        bankByAgency.set(agId, (bankByAgency.get(agId) || 0) + amt);
       });
       (weeklyPOS || []).forEach((p: any) => {
-        if (!p.agency_id) return;
-        bankByAgency.set(p.agency_id, (bankByAgency.get(p.agency_id) || 0) + Number(p.amount_bs || 0));
+        const agId = p.agency_id || (p.session_id ? sessionAgencyMap.get(p.session_id) : undefined);
+        const amt = Number(p.amount_bs || 0);
+        totalBankBsSum += amt;
+        if (!agId) return;
+        bankByAgency.set(p.agency_id || agId, (bankByAgency.get(p.agency_id || agId) || 0) + amt);
       });
       bankByAgency.forEach((val, agId) => {
         if (!agencyData[agId]) {
@@ -463,8 +519,8 @@ export function WeeklyCuadreView() {
           };
         }
         agencyData[agId].total_bank_bs += val;
-        totalBankBs += val;
       });
+      totalBankBs = totalBankBsSum;
 
       // Calculate balance USD for daily data and agency data
       Object.values(dailyData).forEach(day => {
