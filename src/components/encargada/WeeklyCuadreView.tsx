@@ -624,6 +624,58 @@ export function WeeklyCuadreView() {
     return `${Number(amount).toLocaleString('es-VE')} Bs`;
   };
 
+  const getFilteredSummary = () => {
+    if (!weeklyData) return {
+      total_sales_bs: 0,
+      total_sales_usd: 0,
+      total_prizes_bs: 0,
+      total_prizes_usd: 0,
+      total_expenses_bs: 0,
+      total_expenses_usd: 0,
+      total_debt_bs: 0,
+      total_debt_usd: 0,
+      total_bank_bs: 0,
+      total_balance_bs: 0,
+      total_balance_usd: 0,
+    };
+
+    if (selectedAgency === 'all') {
+      return weeklyData;
+    }
+
+    // Filter data by selected agency
+    const agencyData = agenciesData.find(agency => agency.agency_id === selectedAgency);
+    if (!agencyData) {
+      return {
+        total_sales_bs: 0,
+        total_sales_usd: 0,
+        total_prizes_bs: 0,
+        total_prizes_usd: 0,
+        total_expenses_bs: 0,
+        total_expenses_usd: 0,
+        total_debt_bs: 0,
+        total_debt_usd: 0,
+        total_bank_bs: 0,
+        total_balance_bs: 0,
+        total_balance_usd: 0,
+      };
+    }
+
+    return {
+      total_sales_bs: agencyData.total_sales_bs,
+      total_sales_usd: agencyData.total_sales_usd,
+      total_prizes_bs: agencyData.total_prizes_bs,
+      total_prizes_usd: agencyData.total_prizes_usd,
+      total_expenses_bs: agencyData.total_expenses_bs,
+      total_expenses_usd: agencyData.total_expenses_usd,
+      total_debt_bs: agencyData.total_debt_bs,
+      total_debt_usd: agencyData.total_debt_usd,
+      total_bank_bs: agencyData.total_bank_bs,
+      total_balance_bs: agencyData.total_balance_bs,
+      total_balance_usd: agencyData.total_balance_usd,
+    };
+  };
+
   if (loading) {
     return <div className="p-6">Cargando datos semanales...</div>;
   }
@@ -672,10 +724,29 @@ export function WeeklyCuadreView() {
       {weeklyData && (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Banknote className="h-5 w-5" />
-              Resumen Semanal
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Banknote className="h-5 w-5" />
+                Resumen Semanal
+              </CardTitle>
+              
+              {/* Agency Filter */}
+              <div className="flex items-center gap-2">
+                <Select value={selectedAgency} onValueChange={setSelectedAgency}>
+                  <SelectTrigger className="w-[200px] bg-background">
+                    <SelectValue placeholder="Seleccionar agencia" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background border z-50">
+                    <SelectItem value="all">Todas las agencias</SelectItem>
+                    {allAgencies.map((agency) => (
+                      <SelectItem key={agency.id} value={agency.id}>
+                        {agency.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="bolivares" className="w-full">
@@ -692,7 +763,7 @@ export function WeeklyCuadreView() {
                       <span className="font-medium text-green-700">Ventas</span>
                     </div>
                     <span className="font-bold text-green-600">
-                      {formatCurrency(weeklyData.total_sales_bs, 'bs')}
+                      {formatCurrency(getFilteredSummary().total_sales_bs, 'bs')}
                     </span>
                   </div>
                   
@@ -702,7 +773,7 @@ export function WeeklyCuadreView() {
                       <span className="font-medium text-red-700">Premios</span>
                     </div>
                     <span className="font-bold text-red-600">
-                      {formatCurrency(weeklyData.total_prizes_bs, 'bs')}
+                      {formatCurrency(getFilteredSummary().total_prizes_bs, 'bs')}
                     </span>
                   </div>
                   
@@ -712,7 +783,7 @@ export function WeeklyCuadreView() {
                       <span className="font-medium text-amber-700">Gastos</span>
                     </div>
                     <span className="font-bold text-amber-600">
-                      {formatCurrency(weeklyData.total_expenses_bs, 'bs')}
+                      {formatCurrency(getFilteredSummary().total_expenses_bs, 'bs')}
                     </span>
                   </div>
                   
@@ -722,7 +793,7 @@ export function WeeklyCuadreView() {
                       <span className="font-medium text-orange-700">Deudas</span>
                     </div>
                     <span className="font-bold text-orange-600">
-                      {formatCurrency(weeklyData.total_debt_bs, 'bs')}
+                      {formatCurrency(getFilteredSummary().total_debt_bs, 'bs')}
                     </span>
                   </div>
                   
@@ -732,7 +803,7 @@ export function WeeklyCuadreView() {
                       <span className="font-medium text-blue-700">Total Banco</span>
                     </div>
                     <span className="font-bold text-blue-600">
-                      {formatCurrency(weeklyData.total_bank_bs, 'bs')}
+                      {formatCurrency(getFilteredSummary().total_bank_bs, 'bs')}
                     </span>
                   </div>
                   
@@ -741,8 +812,8 @@ export function WeeklyCuadreView() {
                       <Banknote className="h-6 w-6 text-muted-foreground" />
                       <span className="text-lg font-semibold">Balance Final</span>
                     </div>
-                    <span className={`text-2xl font-bold ${Number(weeklyData.total_balance_bs) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      {formatCurrency(weeklyData.total_balance_bs, 'bs')}
+                    <span className={`text-2xl font-bold ${Number(getFilteredSummary().total_balance_bs) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {formatCurrency(getFilteredSummary().total_balance_bs, 'bs')}
                     </span>
                   </div>
                 </div>
@@ -756,7 +827,7 @@ export function WeeklyCuadreView() {
                       <span className="font-medium text-green-700">Ventas</span>
                     </div>
                     <span className="font-bold text-green-600">
-                      {formatCurrency(weeklyData.total_sales_usd, 'usd')}
+                      {formatCurrency(getFilteredSummary().total_sales_usd, 'usd')}
                     </span>
                   </div>
                   
@@ -766,7 +837,7 @@ export function WeeklyCuadreView() {
                       <span className="font-medium text-red-700">Premios</span>
                     </div>
                     <span className="font-bold text-red-600">
-                      {formatCurrency(weeklyData.total_prizes_usd, 'usd')}
+                      {formatCurrency(getFilteredSummary().total_prizes_usd, 'usd')}
                     </span>
                   </div>
                   
@@ -776,7 +847,7 @@ export function WeeklyCuadreView() {
                       <span className="font-medium text-amber-700">Gastos</span>
                     </div>
                     <span className="font-bold text-amber-600">
-                      {formatCurrency(weeklyData.total_expenses_usd, 'usd')}
+                      {formatCurrency(getFilteredSummary().total_expenses_usd, 'usd')}
                     </span>
                   </div>
                   
@@ -786,7 +857,7 @@ export function WeeklyCuadreView() {
                       <span className="font-medium text-orange-700">Deudas</span>
                     </div>
                     <span className="font-bold text-orange-600">
-                      {formatCurrency(weeklyData.total_debt_usd, 'usd')}
+                      {formatCurrency(getFilteredSummary().total_debt_usd, 'usd')}
                     </span>
                   </div>
                   
@@ -795,8 +866,8 @@ export function WeeklyCuadreView() {
                       <Banknote className="h-6 w-6 text-muted-foreground" />
                       <span className="text-lg font-semibold">Balance Final</span>
                     </div>
-                    <span className={`text-2xl font-bold ${Number(weeklyData.total_balance_usd) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      {formatCurrency(weeklyData.total_balance_usd, 'usd')}
+                    <span className={`text-2xl font-bold ${Number(getFilteredSummary().total_balance_usd) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {formatCurrency(getFilteredSummary().total_balance_usd, 'usd')}
                     </span>
                   </div>
                 </div>
@@ -807,7 +878,7 @@ export function WeeklyCuadreView() {
                   <Users className="h-4 w-4 text-muted-foreground" />
                   <span className="text-sm text-muted-foreground">Total de Registros</span>
                 </div>
-                <span className="text-xl font-semibold">{weeklyData.total_sessions}</span>
+                <span className="text-xl font-semibold">{selectedAgency === 'all' ? weeklyData.total_sessions : agenciesData.find(a => a.agency_id === selectedAgency)?.total_sessions || 0}</span>
               </div>
             </Tabs>
           </CardContent>
