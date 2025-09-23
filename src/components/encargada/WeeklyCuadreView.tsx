@@ -780,12 +780,12 @@ export function WeeklyCuadreView() {
             </div>
             <div className="flex-1">
               <Label htmlFor="agency-select">Seleccionar Agencia</Label>
-              <Select value={selectedAgency || ''} onValueChange={(value) => setSelectedAgency(value || null)}>
+              <Select value={selectedAgency || 'all'} onValueChange={(value) => setSelectedAgency(value === 'all' ? null : value)}>
                 <SelectTrigger id="agency-select">
                   <SelectValue placeholder="Todas las agencias" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todas las agencias</SelectItem>
+                  <SelectItem value="all">Todas las agencias</SelectItem>
                   {filteredAgencies.map((agency) => (
                     <SelectItem key={agency.id} value={agency.id}>
                       {agency.name}
