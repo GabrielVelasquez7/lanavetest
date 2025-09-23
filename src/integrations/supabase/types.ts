@@ -504,7 +504,7 @@ export type Database = {
           amount_bs: number
           created_at: string
           id: string
-          session_id: string
+          session_id: string | null
           transaction_date: string | null
           updated_at: string
         }
@@ -513,7 +513,7 @@ export type Database = {
           amount_bs?: number
           created_at?: string
           id?: string
-          session_id: string
+          session_id?: string | null
           transaction_date?: string | null
           updated_at?: string
         }
@@ -522,7 +522,7 @@ export type Database = {
           amount_bs?: number
           created_at?: string
           id?: string
-          session_id?: string
+          session_id?: string | null
           transaction_date?: string | null
           updated_at?: string
         }
