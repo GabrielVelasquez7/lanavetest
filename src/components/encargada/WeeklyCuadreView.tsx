@@ -228,7 +228,7 @@ export function WeeklyCuadreView() {
       const { data: taquilleraData, error: taquilleraError } = await supabase
         .from('daily_cuadres_summary')
         .select(`
-          total_expenses_bs, total_expenses_usd, total_debt_bs, total_debt_usd,
+          session_id, total_expenses_bs, total_expenses_usd, total_debt_bs, total_debt_usd,
           agency_id, session_date
         `)
         .not('session_id', 'is', null)  // Taquillera data
@@ -236,6 +236,14 @@ export function WeeklyCuadreView() {
         .lte('session_date', endStr);
 
       if (taquilleraError) throw taquilleraError;
+
+      // Build session -> agency mapping for taquillera sessions
+      const sessionToAgencyId = new Map<string, string>();
+      taquilleraData?.forEach(row => {
+        if (row.session_id && row.agency_id) {
+          sessionToAgencyId.set(row.session_id, row.agency_id);
+        }
+      });
 
       // Get detailed expenses from both encargada and taquilleras
       const [encargadaExpenses, taquilleraExpenses] = await Promise.all([
@@ -341,9 +349,11 @@ export function WeeklyCuadreView() {
           const agency = allAgencies.find(a => a.id === gasto.agency_id);
           agencyName = agency?.name || 'Sin agencia';
         } else if ('session_id' in gasto && gasto.session_id) {
-          // For taquillera expenses, we'd need to map session to agency
-          // For now, just use the default
-          agencyName = 'Taquillera';
+          const mappedAgencyId = sessionToAgencyId.get(gasto.session_id);
+          if (mappedAgencyId) {
+            const agency = allAgencies.find(a => a.id === mappedAgencyId);
+            agencyName = agency?.name || 'Sin agencia';
+          }
         }
         return { ...gasto, agency_name: agencyName };
       });
@@ -354,9 +364,11 @@ export function WeeklyCuadreView() {
           const agency = allAgencies.find(a => a.id === deuda.agency_id);
           agencyName = agency?.name || 'Sin agencia';
         } else if ('session_id' in deuda && deuda.session_id) {
-          // For taquillera expenses, we'd need to map session to agency
-          // For now, just use the default
-          agencyName = 'Taquillera';
+          const mappedAgencyId = sessionToAgencyId.get(deuda.session_id);
+          if (mappedAgencyId) {
+            const agency = allAgencies.find(a => a.id === mappedAgencyId);
+            agencyName = agency?.name || 'Sin agencia';
+          }
         }
         return { ...deuda, agency_name: agencyName };
       });
@@ -453,7 +465,12 @@ export function WeeklyCuadreView() {
 
       // Add expenses by agency (both encargada and taquillera)
       allGastos.forEach(gasto => {
-        const agencyId = 'agency_id' in gasto ? gasto.agency_id : null;
+        let agencyId: string | null = null;
+        if ('agency_id' in gasto && gasto.agency_id) {
+          agencyId = gasto.agency_id as string;
+        } else if ('session_id' in gasto && gasto.session_id) {
+          agencyId = sessionToAgencyId.get(gasto.session_id) || null;
+        }
         if (agencyId && agencyData[agencyId]) {
           agencyData[agencyId].totalGastos.bs += Number(gasto.amount_bs || 0);
           agencyData[agencyId].totalGastos.usd += Number(gasto.amount_usd || 0);
@@ -461,7 +478,12 @@ export function WeeklyCuadreView() {
       });
 
       allDeudas.forEach(deuda => {
-        const agencyId = 'agency_id' in deuda ? deuda.agency_id : null;
+        let agencyId: string | null = null;
+        if ('agency_id' in deuda && deuda.agency_id) {
+          agencyId = deuda.agency_id as string;
+        } else if ('session_id' in deuda && deuda.session_id) {
+          agencyId = sessionToAgencyId.get(deuda.session_id) || null;
+        }
         if (agencyId && agencyData[agencyId]) {
           agencyData[agencyId].totalDeudas.bs += Number(deuda.amount_bs || 0);
           agencyData[agencyId].totalDeudas.usd += Number(deuda.amount_usd || 0);
