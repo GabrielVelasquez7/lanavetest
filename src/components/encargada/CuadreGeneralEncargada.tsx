@@ -79,6 +79,18 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
     sessionsCount: 0,
   });
   
+  // Temporary string states for input fields
+  const [exchangeRateInput, setExchangeRateInput] = useState<string>('36.00');
+  const [cashAvailableInput, setCashAvailableInput] = useState<string>('0');
+  const [cashAvailableUsdInput, setCashAvailableUsdInput] = useState<string>('0');
+  
+  // Track if user has manually edited the fields to prevent overriding them
+  const [fieldsEditedByUser, setFieldsEditedByUser] = useState({
+    exchangeRate: false,
+    cashAvailable: false,
+    cashAvailableUsd: false,
+  });
+
   // State for collapsible dropdowns
   const [gastosOpen, setGastosOpen] = useState(false);
   const [deudasOpen, setDeudasOpen] = useState(false);
@@ -508,11 +520,95 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
         sessionsCount: sessions?.length || 0,
       };
       
-      setCuadre(finalCuadre);
+        setCuadre(finalCuadre);
+        
+        // Update input states only if user hasn't edited them manually
+        if (!fieldsEditedByUser.exchangeRate) {
+          setExchangeRateInput(finalCuadre.exchangeRate.toString());
+        }
+        if (!fieldsEditedByUser.cashAvailable) {
+          setCashAvailableInput(finalCuadre.cashAvailable.toString());
+        }
+        if (!fieldsEditedByUser.cashAvailableUsd) {
+          setCashAvailableUsdInput(finalCuadre.cashAvailableUsd.toString());
+        }
     } catch (error) {
       console.error('Error fetching cuadre data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Save daily closure function
+  const saveDailyClosure = async () => {
+    if (!user || !selectedAgency || !selectedDate) {
+      toast({
+        title: 'Error',
+        description: 'Usuario, agencia o fecha no válidos',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      const dateStr = formatDateForDB(selectedDate);
+      
+      // Update the cuadre with current input values
+      const updatedCuadre = {
+        ...cuadre,
+        exchangeRate: parseFloat(exchangeRateInput) || 36.00,
+        cashAvailable: parseFloat(cashAvailableInput) || 0,
+        cashAvailableUsd: parseFloat(cashAvailableUsdInput) || 0,
+      };
+
+      // Save to daily_cuadres_summary (agency level)
+      const payload = {
+        agency_id: selectedAgency,
+        session_date: dateStr,
+        total_sales_bs: updatedCuadre.totalSales.bs,
+        total_sales_usd: updatedCuadre.totalSales.usd,
+        total_prizes_bs: updatedCuadre.totalPrizes.bs,
+        total_prizes_usd: updatedCuadre.totalPrizes.usd,
+        total_expenses_bs: updatedCuadre.totalGastos.bs + updatedCuadre.totalDeudas.bs,
+        total_expenses_usd: updatedCuadre.totalGastos.usd + updatedCuadre.totalDeudas.usd,
+        total_debt_bs: updatedCuadre.totalDeudas.bs,
+        total_debt_usd: updatedCuadre.totalDeudas.usd,
+        total_mobile_payments_bs: updatedCuadre.pagoMovilRecibidos - updatedCuadre.pagoMovilPagados,
+        total_pos_bs: updatedCuadre.totalPointOfSale,
+        cash_available_bs: updatedCuadre.cashAvailable,
+        cash_available_usd: updatedCuadre.cashAvailableUsd,
+        exchange_rate: updatedCuadre.exchangeRate,
+        pending_prizes: updatedCuadre.premiosPorPagar,
+        daily_closure_confirmed: updatedCuadre.closureConfirmed,
+        closure_notes: updatedCuadre.closureNotes,
+        session_id: null, // Encargada level entry
+        user_id: user.id,
+        is_closed: true,
+      };
+
+      const { error } = await supabase
+        .from('daily_cuadres_summary')
+        .upsert(payload, { 
+          onConflict: 'agency_id,session_date,user_id',
+          ignoreDuplicates: false 
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: 'Éxito',
+        description: 'Cuadre guardado correctamente',
+      });
+
+      // Update local state
+      setCuadre(updatedCuadre);
+      
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Error al guardar el cuadre',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -580,6 +676,75 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
               Tasa promedio del día: <span className="font-bold">{cuadre.exchangeRate.toFixed(2)} Bs por USD</span>
             </p>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Campos editables para encargada */}
+      <Card className="border-2 border-amber-200 bg-amber-50/50">
+        <CardHeader>
+          <CardTitle className="text-amber-700 flex items-center gap-2">
+            <Save className="h-5 w-5" />
+            Configuración del Cuadre
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="exchange-rate">Tasa BCV (Bs/$)</Label>
+              <Input
+                id="exchange-rate"
+                type="number"
+                step="0.01"
+                value={exchangeRateInput}
+                onChange={(e) => {
+                  setExchangeRateInput(e.target.value);
+                  setFieldsEditedByUser(prev => ({ ...prev, exchangeRate: true }));
+                  const rate = parseFloat(e.target.value) || 36.00;
+                  setCuadre(prev => ({ ...prev, exchangeRate: rate }));
+                }}
+                className="text-center font-mono"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="cash-bs">Efectivo Disponible (Bs)</Label>
+              <Input
+                id="cash-bs"
+                type="number"
+                step="0.01"
+                value={cashAvailableInput}
+                onChange={(e) => {
+                  setCashAvailableInput(e.target.value);
+                  setFieldsEditedByUser(prev => ({ ...prev, cashAvailable: true }));
+                  const amount = parseFloat(e.target.value) || 0;
+                  setCuadre(prev => ({ ...prev, cashAvailable: amount }));
+                }}
+                className="text-center font-mono"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="cash-usd">Efectivo Disponible (USD)</Label>
+              <Input
+                id="cash-usd"
+                type="number"
+                step="0.01"
+                value={cashAvailableUsdInput}
+                onChange={(e) => {
+                  setCashAvailableUsdInput(e.target.value);
+                  setFieldsEditedByUser(prev => ({ ...prev, cashAvailableUsd: true }));
+                  const amount = parseFloat(e.target.value) || 0;
+                  setCuadre(prev => ({ ...prev, cashAvailableUsd: amount }));
+                }}
+                className="text-center font-mono"
+              />
+            </div>
+          </div>
+          
+          <Button onClick={saveDailyClosure} className="w-full">
+            <Save className="h-4 w-4 mr-2" />
+            Guardar Cuadre del Día
+          </Button>
         </CardContent>
       </Card>
 
