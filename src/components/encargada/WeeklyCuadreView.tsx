@@ -320,20 +320,26 @@ export function WeeklyCuadreView() {
       const startStr = format(currentWeek.start, 'yyyy-MM-dd');
       const endStr = format(currentWeek.end, 'yyyy-MM-dd');
 
+      // Get all expenses from both taquilleras and encargada within the week range
       const { data: weeklyExpenses, error: expErr } = await supabase
         .from('expenses')
-        .select('agency_id, amount_bs, amount_usd, category, transaction_date')
+        .select('agency_id, amount_bs, amount_usd, category, transaction_date, session_id')
         .gte('transaction_date', startStr)
         .lte('transaction_date', endStr);
       if (expErr) throw expErr;
 
+      console.log('Weekly expenses found:', weeklyExpenses?.length || 0);
+
       (weeklyExpenses || []).forEach((e: any) => {
         const agId = e.agency_id;
         if (!agId) return;
+        
+        // Initialize agency data if not exists
         if (!agencyData[agId]) {
+          const agencyName = allAgencies.find(a => a.id === agId)?.name || 'Agencia';
           agencyData[agId] = {
             agency_id: agId,
-            agency_name: (allAgencies.find(a => a.id === agId)?.name) || 'Agencia',
+            agency_name: agencyName,
             total_sales_bs: 0,
             total_sales_usd: 0,
             total_prizes_bs: 0,
@@ -349,18 +355,65 @@ export function WeeklyCuadreView() {
             is_weekly_closed: false,
           };
         }
+        
         const bs = Number(e.amount_bs || 0);
         const usd = Number(e.amount_usd || 0);
-        if (e.category === 'gasto_operativo') {
+        
+        // Sum all expense types (including both taquillera and encargada entries)
+        if (e.category === 'gasto_operativo' || e.category === 'operativo' || e.category === 'gasto') {
           agencyData[agId].total_expenses_bs += bs;
           agencyData[agId].total_expenses_usd += usd;
           totalExpensesBs += bs;
           totalExpensesUsd += usd;
-        } else if (e.category === 'deuda') {
+        } else if (e.category === 'deuda' || e.category === 'prestamo') {
           agencyData[agId].total_debt_bs += bs;
           agencyData[agId].total_debt_usd += usd;
           totalDebtBs += bs;
           totalDebtUsd += usd;
+        }
+      });
+
+      // Also get inter-agency loans within the week range
+      const { data: weeklyLoans, error: loansErr } = await supabase
+        .from('inter_agency_loans')
+        .select('from_agency_id, to_agency_id, amount_bs, amount_usd, status, loan_date')
+        .gte('loan_date', startStr)
+        .lte('loan_date', endStr);
+      if (loansErr) throw loansErr;
+
+      console.log('Weekly inter-agency loans found:', weeklyLoans?.length || 0);
+
+      (weeklyLoans || []).forEach((loan: any) => {
+        // Add debt to the debtor agency (to_agency_id)
+        const debtorId = loan.to_agency_id;
+        if (debtorId && loan.status === 'pendiente') {
+          if (!agencyData[debtorId]) {
+            const agencyName = allAgencies.find(a => a.id === debtorId)?.name || 'Agencia';
+            agencyData[debtorId] = {
+              agency_id: debtorId,
+              agency_name: agencyName,
+              total_sales_bs: 0,
+              total_sales_usd: 0,
+              total_prizes_bs: 0,
+              total_prizes_usd: 0,
+              total_expenses_bs: 0,
+              total_expenses_usd: 0,
+              total_debt_bs: 0,
+              total_debt_usd: 0,
+              total_bank_bs: 0,
+              total_balance_bs: 0,
+              total_balance_usd: 0,
+              total_sessions: 0,
+              is_weekly_closed: false,
+            };
+          }
+          
+          const loanBs = Number(loan.amount_bs || 0);
+          const loanUsd = Number(loan.amount_usd || 0);
+          agencyData[debtorId].total_debt_bs += loanBs;
+          agencyData[debtorId].total_debt_usd += loanUsd;
+          totalDebtBs += loanBs;
+          totalDebtUsd += loanUsd;
         }
       });
 
