@@ -102,10 +102,82 @@ export function WeeklyCuadreView() {
   const [allAgencies, setAllAgencies] = useState<{ id: string; name: string }[]>([]);
   const [isDailyOpen, setIsDailyOpen] = useState(false);
   const [activeAgencyTab, setActiveAgencyTab] = useState('resumen');
+  const [selectedAgency, setSelectedAgency] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
   
   // State for collapsible dropdowns
   const [gastosOpen, setGastosOpen] = useState(false);
   const [deudasOpen, setDeudasOpen] = useState(false);
+
+  // Filter agencies based on search and selection
+  const filteredAgencies = allAgencies.filter(agency =>
+    agency.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Get filtered summary based on selected agency
+  const getFilteredSummary = (): WeeklyData => {
+    if (!weeklyData) return {
+      totalSales: { bs: 0, usd: 0 },
+      totalPrizes: { bs: 0, usd: 0 },
+      totalGastos: { bs: 0, usd: 0 },
+      totalDeudas: { bs: 0, usd: 0 },
+      gastosDetails: [],
+      deudasDetails: [],
+      pagoMovilRecibidos: 0,
+      pagoMovilPagados: 0,
+      totalPointOfSale: 0,
+      totalCashAvailable: 0,
+      totalCashAvailableUsd: 0,
+      premiosPorPagar: 0,
+      averageExchangeRate: 36.00,
+      total_sessions: 0,
+      is_weekly_closed: false,
+      weekly_closure_notes: '',
+    };
+
+    if (!selectedAgency) return weeklyData;
+
+    // Find agency data
+    const agencyData = agenciesData.find(a => a.agency_id === selectedAgency);
+    if (!agencyData) {
+      // Return zeroed summary if agency has no data
+      return {
+        totalSales: { bs: 0, usd: 0 },
+        totalPrizes: { bs: 0, usd: 0 },
+        totalGastos: { bs: 0, usd: 0 },
+        totalDeudas: { bs: 0, usd: 0 },
+        gastosDetails: [],
+        deudasDetails: [],
+        pagoMovilRecibidos: 0,
+        pagoMovilPagados: 0,
+        totalPointOfSale: 0,
+        totalCashAvailable: 0,
+        totalCashAvailableUsd: 0,
+        premiosPorPagar: 0,
+        averageExchangeRate: 36.00,
+        total_sessions: 0,
+        is_weekly_closed: false,
+        weekly_closure_notes: '',
+      };
+    }
+
+    return {
+      ...weeklyData,
+      totalSales: agencyData.totalSales,
+      totalPrizes: agencyData.totalPrizes,
+      totalGastos: agencyData.totalGastos,
+      totalDeudas: agencyData.totalDeudas,
+      pagoMovilRecibidos: agencyData.pagoMovilRecibidos,
+      pagoMovilPagados: agencyData.pagoMovilPagados,
+      totalPointOfSale: agencyData.totalPointOfSale,
+      totalCashAvailable: agencyData.totalCashAvailable,
+      totalCashAvailableUsd: agencyData.totalCashAvailableUsd,
+      premiosPorPagar: agencyData.premiosPorPagar,
+      averageExchangeRate: agencyData.averageExchangeRate,
+      total_sessions: agencyData.total_sessions,
+      is_weekly_closed: agencyData.is_weekly_closed,
+    };
+  };
 
   useEffect(() => {
     if (user) {
@@ -623,7 +695,7 @@ export function WeeklyCuadreView() {
     );
   }
 
-  const summary = weeklyData;
+  const summary = getFilteredSummary();
   if (!summary) return null;
 
   // Calculate main cuadre (Sales - Prizes) for the total data
@@ -685,6 +757,53 @@ export function WeeklyCuadreView() {
           {format(currentWeek.start, 'dd/MM/yyyy', { locale: es })} - {format(currentWeek.end, 'dd/MM/yyyy', { locale: es })}
         </div>
       )}
+
+      {/* Agency Filter */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Filtrar por Agencia</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex-1">
+              <Label htmlFor="agency-search">Buscar Agencia</Label>
+              <div className="relative">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="agency-search"
+                  placeholder="Escriba el nombre de la agencia..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-8"
+                />
+              </div>
+            </div>
+            <div className="flex-1">
+              <Label htmlFor="agency-select">Seleccionar Agencia</Label>
+              <Select value={selectedAgency || ''} onValueChange={(value) => setSelectedAgency(value || null)}>
+                <SelectTrigger id="agency-select">
+                  <SelectValue placeholder="Todas las agencias" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Todas las agencias</SelectItem>
+                  {filteredAgencies.map((agency) => (
+                    <SelectItem key={agency.id} value={agency.id}>
+                      {agency.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          {selectedAgency && (
+            <div className="mt-4 p-3 bg-muted/50 rounded-lg">
+              <p className="text-sm text-muted-foreground">
+                Mostrando datos para: <strong>{allAgencies.find(a => a.id === selectedAgency)?.name}</strong>
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Main Summary Cards - Total for all agencies */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -767,189 +886,7 @@ export function WeeklyCuadreView() {
         </Card>
       </div>
 
-      {/* Agency Breakdown Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Building2 className="h-5 w-5" />
-            Desglose por Agencias
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {agenciesData.map((agency, index) => {
-            const agencyCuadre = {
-              bs: agency.totalSales.bs - agency.totalPrizes.bs,
-              usd: agency.totalSales.usd - agency.totalPrizes.usd,
-            };
-            const agencyBanco = agency.pagoMovilRecibidos + agency.totalPointOfSale - agency.pagoMovilPagados;
-            const agencyExcessUsd = agency.totalCashAvailableUsd - agencyCuadre.usd;
-            const agencySumatoria = 
-              agency.totalCashAvailable + 
-              agencyBanco + 
-              agency.totalDeudas.bs + 
-              agency.totalGastos.bs + 
-              (agencyExcessUsd * agency.averageExchangeRate);
-            const agencyDiferencia = agencySumatoria - agencyCuadre.bs;
-            const agencyFinal = agencyDiferencia - agency.premiosPorPagar;
-            const agencyBalanced = Math.abs(agencyFinal) <= 100;
-
-            return (
-              <Collapsible key={agency.agency_id}>
-                <Card className="shadow-sm">
-                  <CollapsibleTrigger asChild>
-                    <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors py-3">
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-sm font-medium flex items-center gap-2">
-                          <Building2 className="h-4 w-4" />
-                          {agency.agency_name}
-                        </CardTitle>
-                        <div className="flex items-center gap-3">
-                          <div className="text-right">
-                            <div className={`text-sm font-medium ${agencyBalanced ? 'text-success' : 'text-destructive'}`}>
-                              {formatCurrency(agencyFinal, 'VES')}
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              Balance Final
-                            </div>
-                          </div>
-                          <Badge variant={agencyBalanced ? 'default' : 'destructive'} className="text-xs">
-                            {agencyBalanced ? 'Cuadrado' : 'Diferencia'}
-                          </Badge>
-                          <ChevronDown className="h-4 w-4 transition-transform [&[data-state=open]]:rotate-180" />
-                        </div>
-                      </div>
-                    </CardHeader>
-                  </CollapsibleTrigger>
-                  
-                  <CollapsibleContent>
-                    <CardContent className="pt-0 pb-4">
-                      <div className="grid md:grid-cols-2 gap-6">
-                        {/* Bolivares Section */}
-                        <div className="space-y-3">
-                          <h4 className="font-medium text-sm text-center border-b pb-2">Bolívares</h4>
-                          <div className="grid grid-cols-2 gap-3">
-                            <div className="text-center p-2 bg-muted/30 rounded">
-                              <p className="text-xs text-muted-foreground">Ventas</p>
-                              <p className="text-sm font-semibold text-success">
-                                {formatCurrency(agency.totalSales.bs, 'VES')}
-                              </p>
-                            </div>
-                            <div className="text-center p-2 bg-muted/30 rounded">
-                              <p className="text-xs text-muted-foreground">Premios</p>
-                              <p className="text-sm font-semibold text-destructive">
-                                {formatCurrency(agency.totalPrizes.bs, 'VES')}
-                              </p>
-                            </div>
-                            <div className="text-center p-2 bg-muted/30 rounded">
-                              <p className="text-xs text-muted-foreground">Gastos</p>
-                              <p className="text-sm font-semibold text-destructive">
-                                {formatCurrency(agency.totalGastos.bs, 'VES')}
-                              </p>
-                            </div>
-                            <div className="text-center p-2 bg-muted/30 rounded">
-                              <p className="text-xs text-muted-foreground">Deudas</p>
-                              <p className="text-sm font-semibold text-destructive">
-                                {formatCurrency(agency.totalDeudas.bs, 'VES')}
-                              </p>
-                            </div>
-                            <div className="text-center p-2 bg-muted/30 rounded">
-                              <p className="text-xs text-muted-foreground">Pago Móvil</p>
-                              <p className="text-sm font-semibold text-success">
-                                {formatCurrency(agency.pagoMovilRecibidos, 'VES')}
-                              </p>
-                            </div>
-                            <div className="text-center p-2 bg-muted/30 rounded">
-                              <p className="text-xs text-muted-foreground">POS</p>
-                              <p className="text-sm font-semibold text-success">
-                                {formatCurrency(agency.totalPointOfSale, 'VES')}
-                              </p>
-                            </div>
-                            <div className="text-center p-2 bg-muted/30 rounded">
-                              <p className="text-xs text-muted-foreground">Efectivo</p>
-                              <p className="text-sm font-semibold">
-                                {formatCurrency(agency.totalCashAvailable, 'VES')}
-                              </p>
-                            </div>
-                            <div className="text-center p-2 bg-primary/10 rounded border border-primary/20">
-                              <p className="text-xs text-muted-foreground">Balance Final</p>
-                              <p className={`text-sm font-bold ${agencyBalanced ? 'text-success' : 'text-destructive'}`}>
-                                {formatCurrency(agencyFinal, 'VES')}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Dólares Section */}
-                        <div className="space-y-3">
-                          <h4 className="font-medium text-sm text-center border-b pb-2">Dólares</h4>
-                          <div className="grid grid-cols-2 gap-3">
-                            <div className="text-center p-2 bg-muted/30 rounded">
-                              <p className="text-xs text-muted-foreground">Ventas</p>
-                              <p className="text-sm font-semibold text-success">
-                                {formatCurrency(agency.totalSales.usd, 'USD')}
-                              </p>
-                            </div>
-                            <div className="text-center p-2 bg-muted/30 rounded">
-                              <p className="text-xs text-muted-foreground">Premios</p>
-                              <p className="text-sm font-semibold text-destructive">
-                                {formatCurrency(agency.totalPrizes.usd, 'USD')}
-                              </p>
-                            </div>
-                            <div className="text-center p-2 bg-muted/30 rounded">
-                              <p className="text-xs text-muted-foreground">Gastos</p>
-                              <p className="text-sm font-semibold text-destructive">
-                                {formatCurrency(agency.totalGastos.usd, 'USD')}
-                              </p>
-                            </div>
-                            <div className="text-center p-2 bg-muted/30 rounded">
-                              <p className="text-xs text-muted-foreground">Deudas</p>
-                              <p className="text-sm font-semibold text-destructive">
-                                {formatCurrency(agency.totalDeudas.usd, 'USD')}
-                              </p>
-                            </div>
-                            <div className="text-center p-2 bg-muted/30 rounded">
-                              <p className="text-xs text-muted-foreground">Pago Móvil</p>
-                              <p className="text-sm font-semibold text-muted-foreground">
-                                N/A
-                              </p>
-                            </div>
-                            <div className="text-center p-2 bg-muted/30 rounded">
-                              <p className="text-xs text-muted-foreground">POS</p>
-                              <p className="text-sm font-semibold text-muted-foreground">
-                                N/A
-                              </p>
-                            </div>
-                            <div className="text-center p-2 bg-muted/30 rounded">
-                              <p className="text-xs text-muted-foreground">Efectivo</p>
-                              <p className="text-sm font-semibold">
-                                {formatCurrency(agency.totalCashAvailableUsd, 'USD')}
-                              </p>
-                            </div>
-                            <div className="text-center p-2 bg-primary/10 rounded border border-primary/20">
-                              <p className="text-xs text-muted-foreground">Cuadre</p>
-                              <p className={`text-sm font-bold ${agencyCuadre.usd >= 0 ? 'text-success' : 'text-destructive'}`}>
-                                {formatCurrency(agencyCuadre.usd, 'USD')}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </CollapsibleContent>
-                </Card>
-              </Collapsible>
-            );
-          })}
-          
-          {agenciesData.length === 0 && (
-            <div className="text-center text-muted-foreground py-8">
-              No hay datos de agencias para mostrar
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Mobile Payments and POS Section */}
+       {/* Mobile Payments and POS Section */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -1235,6 +1172,188 @@ export function WeeklyCuadreView() {
           </CardContent>
         </Card>
       )}
+
+      {/* Agency Breakdown Section - Additional Detail View */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Building2 className="h-5 w-5" />
+            Desglose Detallado por Agencias
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {agenciesData.map((agency, index) => {
+            const agencyCuadre = {
+              bs: agency.totalSales.bs - agency.totalPrizes.bs,
+              usd: agency.totalSales.usd - agency.totalPrizes.usd,
+            };
+            const agencyBanco = agency.pagoMovilRecibidos + agency.totalPointOfSale - agency.pagoMovilPagados;
+            const agencyExcessUsd = agency.totalCashAvailableUsd - agencyCuadre.usd;
+            const agencySumatoria = 
+              agency.totalCashAvailable + 
+              agencyBanco + 
+              agency.totalDeudas.bs + 
+              agency.totalGastos.bs + 
+              (agencyExcessUsd * agency.averageExchangeRate);
+            const agencyDiferencia = agencySumatoria - agencyCuadre.bs;
+            const agencyFinal = agencyDiferencia - agency.premiosPorPagar;
+            const agencyBalanced = Math.abs(agencyFinal) <= 100;
+
+            return (
+              <Collapsible key={agency.agency_id}>
+                <Card className="shadow-sm">
+                  <CollapsibleTrigger asChild>
+                    <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors py-3">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-sm font-medium flex items-center gap-2">
+                          <Building2 className="h-4 w-4" />
+                          {agency.agency_name}
+                        </CardTitle>
+                        <div className="flex items-center gap-3">
+                          <div className="text-right">
+                            <div className={`text-sm font-medium ${agencyBalanced ? 'text-success' : 'text-destructive'}`}>
+                              {formatCurrency(agencyFinal, 'VES')}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              Balance Final
+                            </div>
+                          </div>
+                          <Badge variant={agencyBalanced ? 'default' : 'destructive'} className="text-xs">
+                            {agencyBalanced ? 'Cuadrado' : 'Diferencia'}
+                          </Badge>
+                          <ChevronDown className="h-4 w-4 transition-transform [&[data-state=open]]:rotate-180" />
+                        </div>
+                      </div>
+                    </CardHeader>
+                  </CollapsibleTrigger>
+                  
+                  <CollapsibleContent>
+                    <CardContent className="pt-0 pb-4">
+                      <div className="grid md:grid-cols-2 gap-6">
+                        {/* Bolivares Section */}
+                        <div className="space-y-3">
+                          <h4 className="font-medium text-sm text-center border-b pb-2">Bolívares</h4>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="text-center p-2 bg-muted/30 rounded">
+                              <p className="text-xs text-muted-foreground">Ventas</p>
+                              <p className="text-sm font-semibold text-success">
+                                {formatCurrency(agency.totalSales.bs, 'VES')}
+                              </p>
+                            </div>
+                            <div className="text-center p-2 bg-muted/30 rounded">
+                              <p className="text-xs text-muted-foreground">Premios</p>
+                              <p className="text-sm font-semibold text-destructive">
+                                {formatCurrency(agency.totalPrizes.bs, 'VES')}
+                              </p>
+                            </div>
+                            <div className="text-center p-2 bg-muted/30 rounded">
+                              <p className="text-xs text-muted-foreground">Gastos</p>
+                              <p className="text-sm font-semibold text-destructive">
+                                {formatCurrency(agency.totalGastos.bs, 'VES')}
+                              </p>
+                            </div>
+                            <div className="text-center p-2 bg-muted/30 rounded">
+                              <p className="text-xs text-muted-foreground">Deudas</p>
+                              <p className="text-sm font-semibold text-destructive">
+                                {formatCurrency(agency.totalDeudas.bs, 'VES')}
+                              </p>
+                            </div>
+                            <div className="text-center p-2 bg-muted/30 rounded">
+                              <p className="text-xs text-muted-foreground">Pago Móvil</p>
+                              <p className="text-sm font-semibold text-success">
+                                {formatCurrency(agency.pagoMovilRecibidos, 'VES')}
+                              </p>
+                            </div>
+                            <div className="text-center p-2 bg-muted/30 rounded">
+                              <p className="text-xs text-muted-foreground">POS</p>
+                              <p className="text-sm font-semibold text-success">
+                                {formatCurrency(agency.totalPointOfSale, 'VES')}
+                              </p>
+                            </div>
+                            <div className="text-center p-2 bg-muted/30 rounded">
+                              <p className="text-xs text-muted-foreground">Efectivo</p>
+                              <p className="text-sm font-semibold">
+                                {formatCurrency(agency.totalCashAvailable, 'VES')}
+                              </p>
+                            </div>
+                            <div className="text-center p-2 bg-primary/10 rounded border border-primary/20">
+                              <p className="text-xs text-muted-foreground">Balance Final</p>
+                              <p className={`text-sm font-bold ${agencyBalanced ? 'text-success' : 'text-destructive'}`}>
+                                {formatCurrency(agencyFinal, 'VES')}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Dólares Section */}
+                        <div className="space-y-3">
+                          <h4 className="font-medium text-sm text-center border-b pb-2">Dólares</h4>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="text-center p-2 bg-muted/30 rounded">
+                              <p className="text-xs text-muted-foreground">Ventas</p>
+                              <p className="text-sm font-semibold text-success">
+                                {formatCurrency(agency.totalSales.usd, 'USD')}
+                              </p>
+                            </div>
+                            <div className="text-center p-2 bg-muted/30 rounded">
+                              <p className="text-xs text-muted-foreground">Premios</p>
+                              <p className="text-sm font-semibold text-destructive">
+                                {formatCurrency(agency.totalPrizes.usd, 'USD')}
+                              </p>
+                            </div>
+                            <div className="text-center p-2 bg-muted/30 rounded">
+                              <p className="text-xs text-muted-foreground">Gastos</p>
+                              <p className="text-sm font-semibold text-destructive">
+                                {formatCurrency(agency.totalGastos.usd, 'USD')}
+                              </p>
+                            </div>
+                            <div className="text-center p-2 bg-muted/30 rounded">
+                              <p className="text-xs text-muted-foreground">Deudas</p>
+                              <p className="text-sm font-semibold text-destructive">
+                                {formatCurrency(agency.totalDeudas.usd, 'USD')}
+                              </p>
+                            </div>
+                            <div className="text-center p-2 bg-muted/30 rounded">
+                              <p className="text-xs text-muted-foreground">Pago Móvil</p>
+                              <p className="text-sm font-semibold text-muted-foreground">
+                                N/A
+                              </p>
+                            </div>
+                            <div className="text-center p-2 bg-muted/30 rounded">
+                              <p className="text-xs text-muted-foreground">POS</p>
+                              <p className="text-sm font-semibold text-muted-foreground">
+                                N/A
+                              </p>
+                            </div>
+                            <div className="text-center p-2 bg-muted/30 rounded">
+                              <p className="text-xs text-muted-foreground">Efectivo</p>
+                              <p className="text-sm font-semibold">
+                                {formatCurrency(agency.totalCashAvailableUsd, 'USD')}
+                              </p>
+                            </div>
+                            <div className="text-center p-2 bg-primary/10 rounded border border-primary/20">
+                              <p className="text-xs text-muted-foreground">Cuadre</p>
+                              <p className={`text-sm font-bold ${agencyCuadre.usd >= 0 ? 'text-success' : 'text-destructive'}`}>
+                                {formatCurrency(agencyCuadre.usd, 'USD')}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </CollapsibleContent>
+                </Card>
+              </Collapsible>
+            );
+          })}
+          
+          {agenciesData.length === 0 && (
+            <div className="text-center text-muted-foreground py-8">
+              No hay datos de agencias para mostrar
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {weeklyData.is_weekly_closed && (
         <Card>
