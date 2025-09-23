@@ -569,88 +569,138 @@ export function WeeklyCuadreView() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-              <div className="text-center p-4 bg-green-50 rounded-lg">
-                <div className="flex justify-center mb-2">
-                  <DollarSign className="h-6 w-6 text-green-600" />
+            <Tabs defaultValue="bolivares" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="bolivares">Bolívares</TabsTrigger>
+                <TabsTrigger value="dolares">Dólares</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="bolivares" className="mt-4">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <DollarSign className="h-5 w-5 text-green-600" />
+                      <span className="font-medium text-green-700">Ventas</span>
+                    </div>
+                    <span className="font-bold text-green-600">
+                      {formatCurrency(weeklyData.total_sales_bs, 'bs')}
+                    </span>
+                  </div>
+                  
+                  <div className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <Trophy className="h-5 w-5 text-red-600" />
+                      <span className="font-medium text-red-700">Premios</span>
+                    </div>
+                    <span className="font-bold text-red-600">
+                      {formatCurrency(weeklyData.total_prizes_bs, 'bs')}
+                    </span>
+                  </div>
+                  
+                  <div className="flex items-center justify-between p-3 bg-amber-50 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <Receipt className="h-5 w-5 text-amber-600" />
+                      <span className="font-medium text-amber-700">Gastos</span>
+                    </div>
+                    <span className="font-bold text-amber-600">
+                      {formatCurrency(weeklyData.total_expenses_bs, 'bs')}
+                    </span>
+                  </div>
+                  
+                  <div className="flex items-center justify-between p-3 bg-orange-50 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <HandCoins className="h-5 w-5 text-orange-600" />
+                      <span className="font-medium text-orange-700">Deudas</span>
+                    </div>
+                    <span className="font-bold text-orange-600">
+                      {formatCurrency(weeklyData.total_debt_bs, 'bs')}
+                    </span>
+                  </div>
+                  
+                  <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <CreditCard className="h-5 w-5 text-blue-600" />
+                      <span className="font-medium text-blue-700">Total Banco</span>
+                    </div>
+                    <span className="font-bold text-blue-600">
+                      {formatCurrency(weeklyData.total_bank_bs, 'bs')}
+                    </span>
+                  </div>
+                  
+                  <div className="flex items-center justify-between p-4 bg-muted rounded-lg border-2">
+                    <div className="flex items-center gap-3">
+                      <Banknote className="h-6 w-6 text-muted-foreground" />
+                      <span className="text-lg font-semibold">Balance Final</span>
+                    </div>
+                    <span className={`text-2xl font-bold ${Number(weeklyData.total_balance_bs) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {formatCurrency(weeklyData.total_balance_bs, 'bs')}
+                    </span>
+                  </div>
                 </div>
-                <p className="text-sm text-muted-foreground">Ventas Bs</p>
-                <p className="text-xl font-bold text-green-600">
-                  {formatCurrency(weeklyData.total_sales_bs, 'bs')}
-                </p>
-              </div>
-              <div className="text-center p-4 bg-green-50 rounded-lg">
-                <div className="flex justify-center mb-2">
-                  <DollarSign className="h-6 w-6 text-green-600" />
+              </TabsContent>
+              
+              <TabsContent value="dolares" className="mt-4">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <DollarSign className="h-5 w-5 text-green-600" />
+                      <span className="font-medium text-green-700">Ventas</span>
+                    </div>
+                    <span className="font-bold text-green-600">
+                      {formatCurrency(weeklyData.total_sales_usd, 'usd')}
+                    </span>
+                  </div>
+                  
+                  <div className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <Trophy className="h-5 w-5 text-red-600" />
+                      <span className="font-medium text-red-700">Premios</span>
+                    </div>
+                    <span className="font-bold text-red-600">
+                      {formatCurrency(weeklyData.total_prizes_usd, 'usd')}
+                    </span>
+                  </div>
+                  
+                  <div className="flex items-center justify-between p-3 bg-amber-50 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <Receipt className="h-5 w-5 text-amber-600" />
+                      <span className="font-medium text-amber-700">Gastos</span>
+                    </div>
+                    <span className="font-bold text-amber-600">
+                      {formatCurrency(weeklyData.total_expenses_usd, 'usd')}
+                    </span>
+                  </div>
+                  
+                  <div className="flex items-center justify-between p-3 bg-orange-50 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <HandCoins className="h-5 w-5 text-orange-600" />
+                      <span className="font-medium text-orange-700">Deudas</span>
+                    </div>
+                    <span className="font-bold text-orange-600">
+                      {formatCurrency(weeklyData.total_debt_usd, 'usd')}
+                    </span>
+                  </div>
+                  
+                  <div className="flex items-center justify-between p-4 bg-muted rounded-lg border-2">
+                    <div className="flex items-center gap-3">
+                      <Banknote className="h-6 w-6 text-muted-foreground" />
+                      <span className="text-lg font-semibold">Balance Final</span>
+                    </div>
+                    <span className={`text-2xl font-bold ${Number(weeklyData.total_balance_usd) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {formatCurrency(weeklyData.total_balance_usd, 'usd')}
+                    </span>
+                  </div>
                 </div>
-                <p className="text-sm text-muted-foreground">Ventas USD</p>
-                <p className="text-xl font-bold text-green-600">
-                  {formatCurrency(weeklyData.total_sales_usd, 'usd')}
-                </p>
-              </div>
-              <div className="text-center p-4 bg-red-50 rounded-lg">
-                <div className="flex justify-center mb-2">
-                  <Trophy className="h-6 w-6 text-red-600" />
+              </TabsContent>
+              
+              <div className="mt-4 text-center p-3 bg-slate-50 rounded-lg">
+                <div className="flex justify-center items-center gap-2 mb-1">
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">Total de Registros</span>
                 </div>
-                <p className="text-sm text-muted-foreground">Premios Bs</p>
-                <p className="text-xl font-bold text-red-600">
-                  {formatCurrency(weeklyData.total_prizes_bs, 'bs')}
-                </p>
+                <span className="text-xl font-semibold">{weeklyData.total_sessions}</span>
               </div>
-              <div className="text-center p-4 bg-red-50 rounded-lg">
-                <div className="flex justify-center mb-2">
-                  <Trophy className="h-6 w-6 text-red-600" />
-                </div>
-                <p className="text-sm text-muted-foreground">Premios USD</p>
-                <p className="text-xl font-bold text-red-600">
-                  {formatCurrency(weeklyData.total_prizes_usd, 'usd')}
-                </p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-4 mb-6">
-              <div className="text-center p-4 bg-amber-50 rounded-lg">
-                <p className="text-sm text-muted-foreground">Gastos Bs</p>
-                <p className="text-xl font-bold text-amber-700">
-                  {formatCurrency(weeklyData.total_expenses_bs, 'bs')}
-                </p>
-              </div>
-              <div className="text-center p-4 bg-amber-50 rounded-lg">
-                <p className="text-sm text-muted-foreground">Deudas Bs</p>
-                <p className="text-xl font-bold text-amber-700">
-                  {formatCurrency(weeklyData.total_debt_bs, 'bs')}
-                </p>
-              </div>
-              <div className="text-center p-4 bg-blue-50 rounded-lg">
-                <p className="text-sm text-muted-foreground">Total Banco</p>
-                <p className="text-xl font-bold text-blue-700">
-                  {formatCurrency(weeklyData.total_bank_bs, 'bs')}
-                </p>
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4 mb-4">
-              <div className="text-center p-4 bg-muted rounded-lg">
-                <p className="text-sm text-muted-foreground">Balance Bs</p>
-                <p className={`text-3xl font-bold ${Number(weeklyData.total_balance_bs) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {formatCurrency(weeklyData.total_balance_bs, 'bs')}
-                </p>
-              </div>
-              <div className="text-center p-4 bg-muted rounded-lg">
-                <p className="text-sm text-muted-foreground">Balance USD</p>
-                <p className={`text-3xl font-bold ${Number(weeklyData.total_balance_usd) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {formatCurrency(weeklyData.total_balance_usd, 'usd')}
-                </p>
-              </div>
-            </div>
-
-            <div className="text-center">
-              <div className="flex justify-center items-center gap-2 mb-2">
-                <Users className="h-5 w-5 text-muted-foreground" />
-                <p className="text-sm text-muted-foreground">Total de Registros</p>
-              </div>
-              <p className="text-2xl font-semibold">{weeklyData.total_sessions}</p>
-            </div>
+            </Tabs>
           </CardContent>
         </Card>
       )}
