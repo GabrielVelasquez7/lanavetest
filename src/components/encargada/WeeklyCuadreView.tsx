@@ -1098,8 +1098,8 @@ export function WeeklyCuadreView() {
 
       {/* Daily Breakdown */}
       <Card>
-        <CardHeader>
-          <Collapsible open={isDailyOpen} onOpenChange={setIsDailyOpen}>
+        <Collapsible open={isDailyOpen} onOpenChange={setIsDailyOpen}>
+          <CardHeader>
             <CollapsibleTrigger className="flex items-center justify-between w-full">
               <CardTitle className="flex items-center gap-2 text-left">
                 <Calendar className="h-5 w-5" />
@@ -1107,10 +1107,9 @@ export function WeeklyCuadreView() {
               </CardTitle>
               {isDailyOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRightIcon className="h-4 w-4" />}
             </CollapsibleTrigger>
-          </Collapsible>
-        </CardHeader>
-        <CollapsibleContent>
-          <CardContent>
+          </CardHeader>
+          <CollapsibleContent>
+            <CardContent>
             <div className="space-y-2">
               {dailyDetails.map((day) => (
                 <div key={day.day_date} className={`p-3 border rounded-lg ${day.is_completed ? 'bg-muted/50' : 'bg-muted/20'}`}>
@@ -1151,8 +1150,9 @@ export function WeeklyCuadreView() {
                 </div>
               ))}
             </div>
-          </CardContent>
-        </CollapsibleContent>
+            </CardContent>
+          </CollapsibleContent>
+        </Collapsible>
       </Card>
 
       {/* Weekly closure section */}
