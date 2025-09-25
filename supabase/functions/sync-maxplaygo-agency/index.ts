@@ -134,10 +134,33 @@ serve(async (req) => {
         .eq('agency_id', agency_id)
         .limit(1);
 
-      if (profilesError || !profiles?.length) {
-        console.warn('No users found for agency to insert summary');
+      let insertUserId: string | null = null;
+      if (!profilesError && profiles && profiles.length > 0) {
+        insertUserId = profiles[0].user_id;
+      } else {
+        console.warn('No agency users found, falling back to any encargada user');
+        const { data: encs, error: encsError } = await supabase
+          .from('profiles')
+          .select('user_id')
+          .eq('role', 'encargada')
+          .limit(1);
+        if (!encsError && encs && encs.length > 0) {
+          insertUserId = encs[0].user_id;
+        } else {
+          console.warn('No encargada user found, falling back to any profile');
+          const { data: anyProf, error: anyErr } = await supabase
+            .from('profiles')
+            .select('user_id')
+            .limit(1);
+          if (!anyErr && anyProf && anyProf.length > 0) {
+            insertUserId = anyProf[0].user_id;
+          }
+        }
+      }
+
+      if (!insertUserId) {
         return new Response(
-          JSON.stringify({ success: false, error: 'No hay usuarios asociados a la agencia para crear el resumen' }),
+          JSON.stringify({ success: false, error: 'No hay usuarios disponibles para asociar el resumen' }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
         );
       }
@@ -146,7 +169,7 @@ serve(async (req) => {
         .from('daily_cuadres_summary')
         .insert({
           ...updateData,
-          user_id: profiles[0].user_id,
+          user_id: insertUserId,
           agency_id,
           session_date: dbDate,
           session_id: null,
