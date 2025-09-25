@@ -17,7 +17,7 @@ import { GastosManagerEncargada } from './GastosManagerEncargada';
 import { PagoMovilManagerEncargada } from './PagoMovilManagerEncargada';
 import { PointOfSaleFormEncargada } from './PointOfSaleFormEncargada';
 import { CuadreGeneralEncargada } from './CuadreGeneralEncargada';
-import { Edit, Building2, CalendarIcon, DollarSign, Receipt, Smartphone, HandCoins, CreditCard, RefreshCw } from 'lucide-react';
+import { Edit, Building2, CalendarIcon, DollarSign, Receipt, Smartphone, HandCoins, CreditCard, RefreshCw, Loader2 } from 'lucide-react';
 import { MaxPlayGoSyncModal } from './MaxPlayGoSyncModal';
 import { formatCurrency, cn } from '@/lib/utils';
 import { formatDateForDB } from '@/lib/dateUtils';
@@ -68,6 +68,7 @@ export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
   
   // MaxPlayGo sync states
   const [syncModalOpen, setSyncModalOpen] = useState(false);
+  const [isUpdatingFields, setIsUpdatingFields] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -305,8 +306,48 @@ export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
     setSyncModalOpen(true);
   };
 
-  const handleSyncSuccess = () => {
-    refreshData();
+  const handleSyncSuccess = async (agencyResults?: Array<{name: string, sales: number, prizes: number}>) => {
+    setIsUpdatingFields(true);
+    
+    if (agencyResults && agencyResults.length > 0) {
+      // Find MAXPLAY system
+      const maxplaySystem = lotteryOptions.find(system => system.code === 'MAXPLAY');
+      
+      if (maxplaySystem) {
+        // Get current agency data
+        const currentAgencyResult = agencyResults.find(result => 
+          agencies.find(agency => agency.name === result.name)?.id === selectedAgency
+        );
+        
+        if (currentAgencyResult) {
+          // Update form with MaxPlayGo values for MAXPLAY system
+          const currentSystems = form.getValues('systems');
+          const updatedSystems = currentSystems.map(system => {
+            if (system.lottery_system_id === maxplaySystem.id) {
+              return {
+                ...system,
+                sales_bs: currentAgencyResult.sales,
+                prizes_bs: currentAgencyResult.prizes,
+              };
+            }
+            return system;
+          });
+          
+          form.setValue('systems', updatedSystems);
+          
+          toast({
+            title: 'Campos actualizados',
+            description: `MAXPLAY: ${currentAgencyResult.sales} Bs ventas, ${currentAgencyResult.prizes} Bs premios`,
+          });
+        }
+      }
+    }
+    
+    // Always refresh data to ensure we have the latest from database
+    setTimeout(async () => {
+      await loadAgencyData();
+      setIsUpdatingFields(false);
+    }, 1500);
   };
 
   const totals = calculateTotals();
@@ -473,26 +514,38 @@ export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
             </Card>
 
             {/* Sub-tabs para ventas/premios */}
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="bolivares">Ventas/Premios Bs</TabsTrigger>
-                <TabsTrigger value="dolares">Ventas/Premios USD</TabsTrigger>
-              </TabsList>
+            <div className="relative">
+              {isUpdatingFields && (
+                <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-10 rounded-lg">
+                  <div className="text-center p-6">
+                    <Loader2 className="h-8 w-8 animate-spin mx-auto mb-3 text-primary" />
+                    <p className="text-sm font-medium text-foreground">Actualizando campos con datos de MaxPlayGo</p>
+                    <p className="text-xs text-muted-foreground mt-1">Por favor espere...</p>
+                  </div>
+                </div>
+              )}
+              
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="bolivares">Ventas/Premios Bs</TabsTrigger>
+                  <TabsTrigger value="dolares">Ventas/Premios USD</TabsTrigger>
+                </TabsList>
 
-              <TabsContent value="bolivares" className="space-y-4">
-                <VentasPremiosBolivares 
-                  form={form} 
-                  lotteryOptions={lotteryOptions}
-                />
-              </TabsContent>
+                <TabsContent value="bolivares" className="space-y-4">
+                  <VentasPremiosBolivares 
+                    form={form} 
+                    lotteryOptions={lotteryOptions}
+                  />
+                </TabsContent>
 
-              <TabsContent value="dolares" className="space-y-4">
-                <VentasPremiosDolares 
-                  form={form} 
-                  lotteryOptions={lotteryOptions}
-                />
-              </TabsContent>
-            </Tabs>
+                <TabsContent value="dolares" className="space-y-4">
+                  <VentasPremiosDolares 
+                    form={form} 
+                    lotteryOptions={lotteryOptions}
+                  />
+                </TabsContent>
+              </Tabs>
+            </div>
 
             {/* Botón de guardar */}
             <div className="flex justify-center">
