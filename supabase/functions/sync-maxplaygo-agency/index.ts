@@ -89,99 +89,124 @@ serve(async (req) => {
     const [day, month, year] = target_date.split('-');
     const dbDate = `${year}-${month}-${day}`;
 
-    // Check existing summary for agency-level row (session_id IS NULL)
-    const { data: existingSummary, error: fetchError } = await supabase
-      .from('daily_cuadres_summary')
+    // Get MAXPLAY system ID
+    const { data: maxplaySystem, error: maxplayError } = await supabase
+      .from('lottery_systems')
       .select('id')
-      .eq('agency_id', agency_id)
-      .eq('session_date', dbDate)
-      .is('session_id', null)
+      .eq('code', 'MAXPLAY')
+      .eq('is_active', true)
       .maybeSingle();
 
-    if (fetchError) {
-      console.error('Fetch existing summary error:', fetchError);
+    if (maxplayError || !maxplaySystem) {
+      console.warn('MAXPLAY system not found or error:', maxplayError);
       return new Response(
-        JSON.stringify({ success: false, error: 'Error verificando resumen existente' }),
+        JSON.stringify({ success: false, error: 'Sistema MAXPLAY no encontrado o inactivo' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
       );
     }
 
-    const updateData = {
-      total_sales_bs: scrapedData.totalSales,
-      total_prizes_bs: scrapedData.totalPrizes,
-      balance_bs: scrapedData.totalSales - scrapedData.totalPrizes,
-      updated_at: new Date().toISOString(),
-    };
+    // Get all active agencies
+    const { data: agencies, error: agenciesError } = await supabase
+      .from('agencies')
+      .select('id, name')
+      .eq('is_active', true);
 
-    if (existingSummary) {
-      const { error: updateError } = await supabase
-        .from('daily_cuadres_summary')
-        .update(updateData)
-        .eq('id', existingSummary.id);
+    if (agenciesError || !agencies?.length) {
+      console.warn('No active agencies found or error:', agenciesError);
+      return new Response(
+        JSON.stringify({ success: false, error: 'No se encontraron agencias activas' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+      );
+    }
 
-      if (updateError) {
-        console.error('Update summary error:', updateError);
-        return new Response(
-          JSON.stringify({ success: false, error: 'Error actualizando el resumen' }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-        );
-      }
+    // Get a fallback user for insertions
+    const { data: profiles, error: profilesError } = await supabase
+      .from('profiles')
+      .select('user_id')
+      .eq('role', 'encargada')
+      .limit(1);
+
+    let fallbackUserId: string | null = null;
+    if (!profilesError && profiles && profiles.length > 0) {
+      fallbackUserId = profiles[0].user_id;
     } else {
-      // We need a user_id from this agency to insert the agency-level record
-      const { data: profiles, error: profilesError } = await supabase
+      const { data: anyProf, error: anyErr } = await supabase
         .from('profiles')
         .select('user_id')
-        .eq('agency_id', agency_id)
         .limit(1);
+      if (!anyErr && anyProf && anyProf.length > 0) {
+        fallbackUserId = anyProf[0].user_id;
+      }
+    }
 
-      let insertUserId: string | null = null;
-      if (!profilesError && profiles && profiles.length > 0) {
-        insertUserId = profiles[0].user_id;
-      } else {
-        console.warn('No agency users found, falling back to any encargada user');
-        const { data: encs, error: encsError } = await supabase
-          .from('profiles')
-          .select('user_id')
-          .eq('role', 'encargada')
-          .limit(1);
-        if (!encsError && encs && encs.length > 0) {
-          insertUserId = encs[0].user_id;
+    if (!fallbackUserId) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'No hay usuarios disponibles para asociar el resumen' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+      );
+    }
+
+    let updatedAgenciesCount = 0;
+
+    // Update/Create summary for each agency with MAXPLAY data
+    for (const agencyItem of agencies) {
+      try {
+        // Check existing summary for this agency and MAXPLAY system
+        const { data: existingSummary, error: fetchError } = await supabase
+          .from('daily_cuadres_summary')
+          .select('id')
+          .eq('agency_id', agencyItem.id)
+          .eq('session_date', dbDate)
+          .eq('lottery_system_id', maxplaySystem.id)
+          .is('session_id', null)
+          .maybeSingle();
+
+        if (fetchError) {
+          console.error(`Fetch existing summary error for agency ${agencyItem.name}:`, fetchError);
+          continue;
+        }
+
+        const updateData = {
+          total_sales_bs: scrapedData.totalSales,
+          total_prizes_bs: scrapedData.totalPrizes,
+          balance_bs: scrapedData.totalSales - scrapedData.totalPrizes,
+          updated_at: new Date().toISOString(),
+        };
+
+        if (existingSummary) {
+          const { error: updateError } = await supabase
+            .from('daily_cuadres_summary')
+            .update(updateData)
+            .eq('id', existingSummary.id);
+
+          if (updateError) {
+            console.error(`Update summary error for agency ${agencyItem.name}:`, updateError);
+            continue;
+          }
         } else {
-          console.warn('No encargada user found, falling back to any profile');
-          const { data: anyProf, error: anyErr } = await supabase
-            .from('profiles')
-            .select('user_id')
-            .limit(1);
-          if (!anyErr && anyProf && anyProf.length > 0) {
-            insertUserId = anyProf[0].user_id;
+          const { error: insertError } = await supabase
+            .from('daily_cuadres_summary')
+            .insert({
+              ...updateData,
+              user_id: fallbackUserId,
+              agency_id: agencyItem.id,
+              session_date: dbDate,
+              session_id: null,
+              exchange_rate: 36,
+              lottery_system_id: maxplaySystem.id,
+            });
+
+          if (insertError) {
+            console.error(`Insert summary error for agency ${agencyItem.name}:`, insertError);
+            continue;
           }
         }
-      }
 
-      if (!insertUserId) {
-        return new Response(
-          JSON.stringify({ success: false, error: 'No hay usuarios disponibles para asociar el resumen' }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-        );
-      }
-
-      const { error: insertError } = await supabase
-        .from('daily_cuadres_summary')
-        .insert({
-          ...updateData,
-          user_id: insertUserId,
-          agency_id,
-          session_date: dbDate,
-          session_id: null,
-          exchange_rate: 36,
-        });
-
-      if (insertError) {
-        console.error('Insert summary error:', insertError);
-        return new Response(
-          JSON.stringify({ success: false, error: 'Error creando el resumen' }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-        );
+        updatedAgenciesCount++;
+        console.log(`Updated MAXPLAY data for agency: ${agencyItem.name}`);
+      } catch (error) {
+        console.error(`Error processing agency ${agencyItem.name}:`, error);
+        continue;
       }
     }
 
@@ -191,8 +216,8 @@ serve(async (req) => {
         data: {
           totalSales: scrapedData.totalSales,
           totalPrizes: scrapedData.totalPrizes,
+          updatedAgenciesCount,
         },
-        agency_name: agency.name,
         maxplaygo_name: maxPlayGoName,
         date: target_date,
       }),

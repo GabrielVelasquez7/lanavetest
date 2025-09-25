@@ -41,16 +41,17 @@ export function MaxPlayGoSyncModal({
       if (data?.success) {
         const sales = data?.data?.totalSales ?? 0;
         const prizes = data?.data?.totalPrizes ?? 0;
+        const agenciesCount = data?.data?.updatedAgenciesCount ?? 0;
         toast({
           title: 'Sincronización exitosa',
-          description: `Datos actualizados para ${agencyName}: ${sales} Bs en ventas, ${prizes} Bs en premios`,
+          description: `${agenciesCount} agencias actualizadas con datos MAXPLAY: ${sales} Bs en ventas, ${prizes} Bs en premios`,
         });
         onSuccess();
         onClose();
       } else {
         toast({
           title: 'Sin datos disponibles',
-          description: data?.error || 'No se encontraron datos para esta agencia/fecha en MaxPlayGo',
+          description: data?.error || 'No se encontraron datos para esta fecha en MaxPlayGo',
           variant: 'destructive',
         });
       }
@@ -81,10 +82,9 @@ export function MaxPlayGoSyncModal({
             Sincronizar MaxPlayGo
           </DialogTitle>
           <DialogDescription>
-            Actualizaremos ventas (posición 1) y premios (posición 2) para la agencia y fecha seleccionadas.
+            Sincronizaremos los datos de MaxPlayGo solo para el sistema MAXPLAY en todas las agencias activas para la fecha seleccionada.
           </DialogDescription>
           <div className="text-sm text-muted-foreground">
-            <p><strong>Agencia:</strong> {agencyName}</p>
             <p><strong>Fecha:</strong> {targetDate}</p>
           </div>
         </DialogHeader>
