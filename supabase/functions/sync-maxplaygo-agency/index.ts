@@ -7,9 +7,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Agency mapping from internal agency IDs to MaxPlayGo names  
+// Agency mapping from internal agency IDs to MaxPlayGo names
 const AGENCY_MAPPING: Record<string, string> = {
-  "4e331754-2ca9-44c6-8a9f-c9888a9ccf10": "NAVE AV SUCRE PC", // Agencia Central
+  "4e331754-2ca9-44c6-8a9f-c9888a9ccf10": "NAVE AV SUCRE PC", // Agencia Central (ajustar si aplica)
   "3ed75efe-3a2a-4185-9611-eaaf57669360": "NAVE AV SUCRE PC", // AV.SUCRE
   "97e6b008-51eb-47b1-9c06-6fc173340a42": "NAVE BARALT PC", // BARALT
   "71c6537f-22a7-477b-beab-8628242505e1": "NAVE CANDELARIA PC", // CANDELARIA
@@ -25,10 +25,6 @@ interface SyncRequest {
   target_date: string; // Format: DD-MM-YYYY
 }
 
-function parseNumber(value: string): number {
-  return parseFloat(value.replace(/\./g, '').replace(',', '.')) || 0;
-}
-
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -36,110 +32,114 @@ serve(async (req) => {
 
   try {
     const { agency_id, target_date }: SyncRequest = await req.json();
-
     console.log(`Starting MaxPlayGo sync for agency: ${agency_id}, date: ${target_date}`);
-
-    // Hardcoded MaxPlayGo credentials
-    const credentials = {
-      usuario: "BANCA LA", // Replace with actual MaxPlayGo username
-      clave: "your_password_here" // Replace with actual MaxPlayGo password  
-    };
 
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Get agency name for mapping validation
+    // Fetch agency info
     const { data: agency, error: agencyError } = await supabase
       .from('agencies')
       .select('name')
       .eq('id', agency_id)
-      .single();
+      .maybeSingle();
 
     if (agencyError || !agency) {
-      throw new Error(`Agency not found: ${agency_id}`);
+      console.warn('Agency not found or error:', agencyError);
+      return new Response(
+        JSON.stringify({ success: false, error: `Agencia no encontrada: ${agency_id}` }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+      );
     }
 
-    // Find MaxPlayGo name for this agency
-    const maxPlayGoName = AGENCY_MAPPING[agency_id];
-
+    // Resolve MaxPlayGo name (mapping or heuristic)
+    let maxPlayGoName = AGENCY_MAPPING[agency_id];
     if (!maxPlayGoName) {
-      throw new Error(`No MaxPlayGo mapping found for agency: ${agency.name} (ID: ${agency_id})`);
+      const norm = (agency.name || '').replace(/\./g, '').trim().toUpperCase();
+      maxPlayGoName = `NAVE ${norm} PC`;
+      if (norm === 'VICTORIA 1') maxPlayGoName = 'NAVE VICTORIA 1 T2 PC';
+      if (norm === 'VICTORIA 2') maxPlayGoName = 'NAVE VICTORIA 2 PC';
     }
+    console.log('MaxPlayGo name resolved:', maxPlayGoName);
 
-    console.log(`MaxPlayGo name found: ${maxPlayGoName}`);
-
-    // TODO: Implement actual scraping logic here
-    // For now, return mock data for testing the integration
-    console.log('Simulating MaxPlayGo scraping...');
-    
-    // Mock data based on the provided example - using agency names as keys
+    // TODO: Replace this with real scraping extracting montos[1] (ventas) and montos[2] (premios)
     const mockData: Record<string, { totalSales: number; totalPrizes: number }> = {
-      "NAVE AV SUCRE PC": { totalSales: 34370, totalPrizes: 33600 },
-      "NAVE BARALT PC": { totalSales: 12410, totalPrizes: 2400 },
-      "NAVE CANDELARIA PC": { totalSales: 4125, totalPrizes: 1200 },
-      "NAVE CEMENTERIO PC": { totalSales: 6295, totalPrizes: 6600 },
-      "NAVE PANTEON 2 PC": { totalSales: 5460, totalPrizes: 11200 },
-      "NAVE PARQUE CENTRAL PC": { totalSales: 7355, totalPrizes: 8800 },
-      "NAVE VICTORIA 1 T2 PC": { totalSales: 7230, totalPrizes: 6900 },
-      "NAVE VICTORIA 2 PC": { totalSales: 3380, totalPrizes: 7000 }
+      'NAVE AV SUCRE PC': { totalSales: 34370, totalPrizes: 33600 },
+      'NAVE BARALT PC': { totalSales: 12410, totalPrizes: 2400 },
+      'NAVE CANDELARIA PC': { totalSales: 4125, totalPrizes: 1200 },
+      'NAVE CEMENTERIO PC': { totalSales: 6295, totalPrizes: 6600 },
+      'NAVE PANTEON 2 PC': { totalSales: 5460, totalPrizes: 11200 },
+      'NAVE PARQUE CENTRAL PC': { totalSales: 7355, totalPrizes: 8800 },
+      'NAVE VICTORIA 1 T2 PC': { totalSales: 7230, totalPrizes: 6900 },
+      'NAVE VICTORIA 2 PC': { totalSales: 3380, totalPrizes: 7000 },
     };
 
     const scrapedData = mockData[maxPlayGoName];
-    
     if (!scrapedData) {
-      throw new Error(`No mock data available for agency: ${maxPlayGoName}`);
+      console.warn('No mock data for', maxPlayGoName);
+      return new Response(
+        JSON.stringify({ success: false, error: `No hay datos simulados para: ${maxPlayGoName}` }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+      );
     }
 
-    console.log(`Mock data - Sales: ${scrapedData.totalSales}, Prizes: ${scrapedData.totalPrizes}`);
-
-    // Convert target_date to database format (YYYY-MM-DD)
+    // Convert DD-MM-YYYY -> YYYY-MM-DD
     const [day, month, year] = target_date.split('-');
     const dbDate = `${year}-${month}-${day}`;
 
-    // Update or create daily_cuadres_summary
+    // Check existing summary for agency-level row (session_id IS NULL)
     const { data: existingSummary, error: fetchError } = await supabase
       .from('daily_cuadres_summary')
-      .select('*')
+      .select('id')
       .eq('agency_id', agency_id)
       .eq('session_date', dbDate)
+      .is('session_id', null)
       .maybeSingle();
 
     if (fetchError) {
-      console.error('Error fetching existing summary:', fetchError);
-      throw fetchError;
+      console.error('Fetch existing summary error:', fetchError);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Error verificando resumen existente' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+      );
     }
 
     const updateData = {
       total_sales_bs: scrapedData.totalSales,
       total_prizes_bs: scrapedData.totalPrizes,
+      balance_bs: scrapedData.totalSales - scrapedData.totalPrizes,
       updated_at: new Date().toISOString(),
     };
 
     if (existingSummary) {
-      // Update existing record
       const { error: updateError } = await supabase
         .from('daily_cuadres_summary')
         .update(updateData)
         .eq('id', existingSummary.id);
 
       if (updateError) {
-        console.error('Error updating summary:', updateError);
-        throw updateError;
+        console.error('Update summary error:', updateError);
+        return new Response(
+          JSON.stringify({ success: false, error: 'Error actualizando el resumen' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
       }
-
-      console.log('Successfully updated existing summary');
     } else {
-      // Create new record - we need a user_id, let's get one from the agency
-      const { data: profiles, error: profileError } = await supabase
+      // We need a user_id from this agency to insert the agency-level record
+      const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('user_id')
         .eq('agency_id', agency_id)
         .limit(1);
 
-      if (profileError || !profiles?.length) {
-        throw new Error(`No users found for agency: ${agency_id}`);
+      if (profilesError || !profiles?.length) {
+        console.warn('No users found for agency to insert summary');
+        return new Response(
+          JSON.stringify({ success: false, error: 'No hay usuarios asociados a la agencia para crear el resumen' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
       }
 
       const { error: insertError } = await supabase
@@ -147,16 +147,19 @@ serve(async (req) => {
         .insert({
           ...updateData,
           user_id: profiles[0].user_id,
-          agency_id: agency_id,
+          agency_id,
           session_date: dbDate,
+          session_id: null,
+          exchange_rate: 36,
         });
 
       if (insertError) {
-        console.error('Error inserting summary:', insertError);
-        throw insertError;
+        console.error('Insert summary error:', insertError);
+        return new Response(
+          JSON.stringify({ success: false, error: 'Error creando el resumen' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
       }
-
-      console.log('Successfully created new summary');
     }
 
     return new Response(
@@ -164,31 +167,20 @@ serve(async (req) => {
         success: true,
         data: {
           totalSales: scrapedData.totalSales,
-          totalPrizes: scrapedData.totalPrizes
+          totalPrizes: scrapedData.totalPrizes,
         },
         agency_name: agency.name,
         maxplaygo_name: maxPlayGoName,
         date: target_date,
       }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
-
   } catch (error) {
     console.error('Error in sync-maxplaygo-agency:', error);
-    
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-    
+    const msg = error instanceof Error ? error.message : 'Unknown error occurred';
     return new Response(
-      JSON.stringify({
-        success: false,
-        error: errorMessage,
-      }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
+      JSON.stringify({ success: false, error: msg }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     );
   }
 });

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { RefreshCw, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
@@ -38,22 +38,28 @@ export function MaxPlayGoSyncModal({
 
       if (error) throw error;
 
-      if (data.success) {
+      if (data?.success) {
+        const sales = data?.data?.totalSales ?? 0;
+        const prizes = data?.data?.totalPrizes ?? 0;
         toast({
-          title: "Sincronización exitosa",
-          description: `Datos actualizados para ${agencyName}: ${data.data.totalSales} Bs en ventas, ${data.data.totalPrizes} Bs en premios`,
+          title: 'Sincronización exitosa',
+          description: `Datos actualizados para ${agencyName}: ${sales} Bs en ventas, ${prizes} Bs en premios`,
         });
         onSuccess();
         onClose();
       } else {
-        throw new Error(data.error || 'Error desconocido');
+        toast({
+          title: 'Sin datos disponibles',
+          description: data?.error || 'No se encontraron datos para esta agencia/fecha en MaxPlayGo',
+          variant: 'destructive',
+        });
       }
     } catch (error) {
       console.error('Error syncing MaxPlayGo:', error);
       toast({
-        title: "Error de sincronización",
-        description: error instanceof Error ? error.message : 'Error al sincronizar con MaxPlayGo',
-        variant: "destructive",
+        title: 'Error de sincronización',
+        description: 'Ocurrió un error inesperado al sincronizar',
+        variant: 'destructive',
       });
     } finally {
       setIsLoading(false);
@@ -74,13 +80,15 @@ export function MaxPlayGoSyncModal({
             <RefreshCw className="h-5 w-5" />
             Sincronizar MaxPlayGo
           </DialogTitle>
+          <DialogDescription>
+            Actualizaremos ventas (posición 1) y premios (posición 2) para la agencia y fecha seleccionadas.
+          </DialogDescription>
           <div className="text-sm text-muted-foreground">
             <p><strong>Agencia:</strong> {agencyName}</p>
             <p><strong>Fecha:</strong> {targetDate}</p>
-            <p className="mt-2">Se actualizarán automáticamente los datos de ventas y premios desde MaxPlayGo.</p>
           </div>
         </DialogHeader>
-        
+
         <DialogFooter className="flex gap-2">
           <Button 
             type="button" 
