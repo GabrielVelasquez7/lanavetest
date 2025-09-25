@@ -1,7 +1,5 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { RefreshCw, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -24,32 +22,16 @@ export function MaxPlayGoSyncModal({
   targetDate, 
   onSuccess 
 }: MaxPlayGoSyncModalProps) {
-  const [credentials, setCredentials] = useState({
-    usuario: '',
-    clave: ''
-  });
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!credentials.usuario || !credentials.clave) {
-      toast({
-        title: "Error",
-        description: "Por favor ingresa las credenciales de MaxPlayGo",
-        variant: "destructive",
-      });
-      return;
-    }
-
+  const handleSubmit = async () => {
     setIsLoading(true);
 
     try {
       const { data, error } = await supabase.functions.invoke('sync-maxplaygo-agency', {
         body: {
           agency_id: agencyId,
-          credentials: credentials,
           target_date: targetDate
         }
       });
@@ -63,8 +45,6 @@ export function MaxPlayGoSyncModal({
         });
         onSuccess();
         onClose();
-        // Clear credentials for security
-        setCredentials({ usuario: '', clave: '' });
       } else {
         throw new Error(data.error || 'Error desconocido');
       }
@@ -82,7 +62,6 @@ export function MaxPlayGoSyncModal({
 
   const handleClose = () => {
     if (!isLoading) {
-      setCredentials({ usuario: '', clave: '' });
       onClose();
     }
   };
@@ -98,61 +77,34 @@ export function MaxPlayGoSyncModal({
           <div className="text-sm text-muted-foreground">
             <p><strong>Agencia:</strong> {agencyName}</p>
             <p><strong>Fecha:</strong> {targetDate}</p>
+            <p className="mt-2">Se actualizarán automáticamente los datos de ventas y premios desde MaxPlayGo.</p>
           </div>
         </DialogHeader>
         
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="usuario">Usuario MaxPlayGo</Label>
-            <Input
-              id="usuario"
-              type="text"
-              value={credentials.usuario}
-              onChange={(e) => setCredentials(prev => ({ ...prev, usuario: e.target.value }))}
-              placeholder="BANCA LA"
-              disabled={isLoading}
-              required
-            />
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="clave">Contraseña</Label>
-            <Input
-              id="clave"
-              type="password"
-              value={credentials.clave}
-              onChange={(e) => setCredentials(prev => ({ ...prev, clave: e.target.value }))}
-              placeholder="••••••"
-              disabled={isLoading}
-              required
-            />
-          </div>
-
-          <DialogFooter className="flex gap-2">
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={handleClose}
-              disabled={isLoading}
-            >
-              <X className="h-4 w-4 mr-2" />
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={isLoading}>
-              {isLoading ? (
-                <>
-                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                  Sincronizando...
-                </>
-              ) : (
-                <>
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Sincronizar
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </form>
+        <DialogFooter className="flex gap-2">
+          <Button 
+            type="button" 
+            variant="outline" 
+            onClick={handleClose}
+            disabled={isLoading}
+          >
+            <X className="h-4 w-4 mr-2" />
+            Cancelar
+          </Button>
+          <Button onClick={handleSubmit} disabled={isLoading}>
+            {isLoading ? (
+              <>
+                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                Sincronizando...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Sincronizar
+              </>
+            )}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

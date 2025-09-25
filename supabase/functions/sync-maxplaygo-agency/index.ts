@@ -21,10 +21,6 @@ const AGENCY_MAPPING: Record<string, string> = {
 
 interface SyncRequest {
   agency_id: string;
-  credentials: {
-    usuario: string;
-    clave: string;
-  };
   target_date: string; // Format: DD-MM-YYYY
 }
 
@@ -38,9 +34,15 @@ serve(async (req) => {
   }
 
   try {
-    const { agency_id, credentials, target_date }: SyncRequest = await req.json();
+    const { agency_id, target_date }: SyncRequest = await req.json();
 
     console.log(`Starting MaxPlayGo sync for agency: ${agency_id}, date: ${target_date}`);
+
+    // Hardcoded MaxPlayGo credentials
+    const credentials = {
+      usuario: "BANCA LA", // Replace with actual MaxPlayGo username
+      clave: "your_password_here" // Replace with actual MaxPlayGo password  
+    };
 
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
