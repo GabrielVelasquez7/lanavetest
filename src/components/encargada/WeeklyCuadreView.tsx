@@ -15,7 +15,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { formatCurrency } from '@/lib/utils';
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { MaxPlayGoSyncModal } from './MaxPlayGoSyncModal';
+
 
 interface WeeklyData {
   // Sales & Prizes
@@ -105,11 +105,6 @@ export function WeeklyCuadreView() {
   const [activeAgencyTab, setActiveAgencyTab] = useState('resumen');
   const [selectedAgency, setSelectedAgency] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  
-  // MaxPlayGo sync state
-  const [syncModalOpen, setSyncModalOpen] = useState(false);
-  const [syncAgencyId, setSyncAgencyId] = useState<string>('');
-  const [syncAgencyName, setSyncAgencyName] = useState<string>('');
   
   // State for collapsible dropdowns
   const [gastosOpen, setGastosOpen] = useState(false);
@@ -621,23 +616,6 @@ export function WeeklyCuadreView() {
     } finally {
       setLoading(false);
     }
-  };
-
-  // MaxPlayGo sync functions
-  const handleSyncAgency = (agencyId: string, agencyName: string) => {
-    setSyncAgencyId(agencyId);
-    setSyncAgencyName(agencyName);
-    setSyncModalOpen(true);
-  };
-
-  const handleSyncSuccess = () => {
-    // Refresh the weekly data after successful sync
-    fetchWeeklyData();
-  };
-
-  const formatDateForMaxPlayGo = (date: Date): string => {
-    // Format as DD-MM-YYYY for MaxPlayGo
-    return format(date, 'dd-MM-yyyy');
   };
 
   const navigateWeek = (direction: 'prev' | 'next') => {
@@ -1232,24 +1210,15 @@ export function WeeklyCuadreView() {
                           <Building2 className="h-4 w-4" />
                           {agency.agency_name}
                         </CardTitle>
-                          <div className="flex items-center gap-3">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleSyncAgency(agency.agency_id, agency.agency_name)}
-                              className="text-xs"
-                            >
-                              <RefreshCw className="h-3 w-3 mr-1" />
-                              Sync MaxPlayGo
-                            </Button>
-                            <div className="text-right">
-                              <div className={`text-sm font-medium ${agencyBalanced ? 'text-success' : 'text-destructive'}`}>
-                                {formatCurrency(agencyFinal, 'VES')}
-                              </div>
-                              <div className="text-xs text-muted-foreground">
-                                Balance Final
-                              </div>
+                        <div className="flex items-center gap-2">
+                          <div className="text-right">
+                            <div className={`text-sm font-medium ${agencyBalanced ? 'text-success' : 'text-destructive'}`}>
+                              {formatCurrency(agencyFinal, 'VES')}
                             </div>
+                            <div className="text-xs text-muted-foreground">
+                              Balance Final
+                            </div>
+                          </div>
                           <Badge variant={agencyBalanced ? 'default' : 'destructive'} className="text-xs">
                             {agencyBalanced ? 'Cuadrado' : 'Diferencia'}
                           </Badge>
@@ -1402,16 +1371,6 @@ export function WeeklyCuadreView() {
           </CardContent>
         </Card>
       )}
-
-      {/* MaxPlayGo Sync Modal */}
-      <MaxPlayGoSyncModal
-        isOpen={syncModalOpen}
-        onClose={() => setSyncModalOpen(false)}
-        agencyId={syncAgencyId}
-        agencyName={syncAgencyName}
-        targetDate={currentWeek ? formatDateForMaxPlayGo(currentWeek.start) : ''}
-        onSuccess={handleSyncSuccess}
-      />
     </div>
   );
 }

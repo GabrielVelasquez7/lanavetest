@@ -17,7 +17,10 @@ import { GastosManagerEncargada } from './GastosManagerEncargada';
 import { PagoMovilManagerEncargada } from './PagoMovilManagerEncargada';
 import { PointOfSaleFormEncargada } from './PointOfSaleFormEncargada';
 import { CuadreGeneralEncargada } from './CuadreGeneralEncargada';
-import { Edit, Building2, CalendarIcon, DollarSign, Receipt, Smartphone, HandCoins, CreditCard } from 'lucide-react';
+import { Edit, Building2, CalendarIcon, DollarSign, Receipt, Smartphone, HandCoins, CreditCard, RefreshCw } from 'lucide-react';
+import { MaxPlayGoSyncModal } from './MaxPlayGoSyncModal';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { formatCurrency, cn } from '@/lib/utils';
 import { formatDateForDB } from '@/lib/dateUtils';
 import { format } from 'date-fns';
@@ -64,6 +67,13 @@ export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
   const [loading, setLoading] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [currentCuadreId, setCurrentCuadreId] = useState<string | null>(null);
+  
+  // MaxPlayGo sync states
+  const [maxPlayGoCredentials, setMaxPlayGoCredentials] = useState({
+    usuario: '',
+    clave: ''
+  });
+  const [syncModalOpen, setSyncModalOpen] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -289,13 +299,29 @@ export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
     loadAgencyData();
   };
 
+  const handleSyncMaxPlayGo = () => {
+    if (!selectedAgency) {
+      toast({
+        title: "Error",
+        description: "Selecciona una agencia primero",
+        variant: "destructive",
+      });
+      return;
+    }
+    setSyncModalOpen(true);
+  };
+
+  const handleSyncSuccess = () => {
+    refreshData();
+  };
+
   const totals = calculateTotals();
   const selectedAgencyName = agencies.find(a => a.id === selectedAgency)?.name || '';
 
   return (
     <div className="space-y-6">
       {/* Selectores de Agencia y Fecha */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center">
@@ -303,7 +329,7 @@ export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
               Seleccionar Agencia
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             <Select value={selectedAgency} onValueChange={setSelectedAgency}>
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Selecciona una agencia" />
@@ -316,6 +342,17 @@ export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
                 ))}
               </SelectContent>
             </Select>
+            
+            <div className="space-y-2">
+              <Label htmlFor="maxplaygo-usuario">Usuario MaxPlayGo</Label>
+              <Input
+                id="maxplaygo-usuario"
+                type="text"
+                placeholder="BANCA LA"
+                value={maxPlayGoCredentials.usuario}
+                onChange={(e) => setMaxPlayGoCredentials(prev => ({ ...prev, usuario: e.target.value }))}
+              />
+            </div>
           </CardContent>
         </Card>
 
@@ -326,7 +363,7 @@ export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
               Seleccionar Fecha
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             <Popover>
               <PopoverTrigger asChild>
                 <Button
@@ -350,6 +387,36 @@ export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
                 />
               </PopoverContent>
             </Popover>
+            
+            <div className="space-y-2">
+              <Label htmlFor="maxplaygo-clave">Contraseña MaxPlayGo</Label>
+              <Input
+                id="maxplaygo-clave"
+                type="password"
+                placeholder="••••••"
+                value={maxPlayGoCredentials.clave}
+                onChange={(e) => setMaxPlayGoCredentials(prev => ({ ...prev, clave: e.target.value }))}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <RefreshCw className="h-5 w-5 mr-2" />
+              Sincronización MaxPlayGo
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex items-center justify-center h-full">
+            <Button 
+              onClick={handleSyncMaxPlayGo}
+              disabled={!selectedAgency || !maxPlayGoCredentials.usuario || !maxPlayGoCredentials.clave}
+              className="w-full"
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Sincronizar Datos
+            </Button>
           </CardContent>
         </Card>
       </div>
@@ -501,6 +568,18 @@ export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
             />
           </TabsContent>
         </Tabs>
+      )}
+
+      {/* MaxPlayGo Sync Modal */}
+      {selectedAgency && (
+        <MaxPlayGoSyncModal
+          isOpen={syncModalOpen}
+          onClose={() => setSyncModalOpen(false)}
+          agencyId={selectedAgency}
+          agencyName={selectedAgencyName}
+          targetDate={format(selectedDate, 'dd-MM-yyyy')}
+          onSuccess={handleSyncSuccess}
+        />
       )}
     </div>
   );
