@@ -7,16 +7,17 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Agency mapping from MaxPlayGo names to system IDs  
+// Agency mapping from internal agency IDs to MaxPlayGo names  
 const AGENCY_MAPPING: Record<string, string> = {
-  "NAVE AV SUCRE PC": "3ed75efe-3a2a-4185-9611-eaaf57669360", // AV.SUCRE
-  "NAVE BARALT PC": "97e6b008-51eb-47b1-9c06-6fc173340a42", // BARALT
-  "NAVE CANDELARIA PC": "71c6537f-22a7-477b-beab-8628242505e1", // CANDELARIA
-  "NAVE CEMENTERIO PC": "719863b3-6a37-4344-a348-0cf9a1da0967", // CEMENTERIO
-  "NAVE PANTEON 2 PC": "a2ebaac9-c3b4-4571-ac17-6d9ad3a8ff0d", // PANTEON 2
-  "NAVE PARQUE CENTRAL PC": "1b143ea9-48ee-4660-ac53-af641c2759f8", // PARQUE CENTRAL
-  "NAVE VICTORIA 1 T2 PC": "5226973d-bc0e-4755-8e5c-aeff41bac811", // VICTORIA 1
-  "NAVE VICTORIA 2 PC": "6b4040aa-4fb8-475f-9ac0-08ff313709ad" // VICTORIA 2
+  "4e331754-2ca9-44c6-8a9f-c9888a9ccf10": "NAVE AV SUCRE PC", // Agencia Central
+  "3ed75efe-3a2a-4185-9611-eaaf57669360": "NAVE AV SUCRE PC", // AV.SUCRE
+  "97e6b008-51eb-47b1-9c06-6fc173340a42": "NAVE BARALT PC", // BARALT
+  "71c6537f-22a7-477b-beab-8628242505e1": "NAVE CANDELARIA PC", // CANDELARIA
+  "719863b3-6a37-4344-a348-0cf9a1da0967": "NAVE CEMENTERIO PC", // CEMENTERIO
+  "a2ebaac9-c3b4-4571-ac17-6d9ad3a8ff0d": "NAVE PANTEON 2 PC", // PANTEON 2
+  "1b143ea9-48ee-4660-ac53-af641c2759f8": "NAVE PARQUE CENTRAL PC", // PARQUE CENTRAL
+  "5226973d-bc0e-4755-8e5c-aeff41bac811": "NAVE VICTORIA 1 T2 PC", // VICTORIA 1
+  "6b4040aa-4fb8-475f-9ac0-08ff313709ad": "NAVE VICTORIA 2 PC" // VICTORIA 2
 };
 
 interface SyncRequest {
@@ -61,12 +62,10 @@ serve(async (req) => {
     }
 
     // Find MaxPlayGo name for this agency
-    const maxPlayGoName = Object.keys(AGENCY_MAPPING).find(
-      key => AGENCY_MAPPING[key] === agency_id
-    );
+    const maxPlayGoName = AGENCY_MAPPING[agency_id];
 
     if (!maxPlayGoName) {
-      throw new Error(`No MaxPlayGo mapping found for agency: ${agency.name}`);
+      throw new Error(`No MaxPlayGo mapping found for agency: ${agency.name} (ID: ${agency_id})`);
     }
 
     console.log(`MaxPlayGo name found: ${maxPlayGoName}`);
@@ -75,8 +74,8 @@ serve(async (req) => {
     // For now, return mock data for testing the integration
     console.log('Simulating MaxPlayGo scraping...');
     
-    // Mock data based on the provided example
-    const mockData = {
+    // Mock data based on the provided example - using agency names as keys
+    const mockData: Record<string, { totalSales: number; totalPrizes: number }> = {
       "NAVE AV SUCRE PC": { totalSales: 34370, totalPrizes: 33600 },
       "NAVE BARALT PC": { totalSales: 12410, totalPrizes: 2400 },
       "NAVE CANDELARIA PC": { totalSales: 4125, totalPrizes: 1200 },
@@ -87,7 +86,7 @@ serve(async (req) => {
       "NAVE VICTORIA 2 PC": { totalSales: 3380, totalPrizes: 7000 }
     };
 
-    const scrapedData = mockData[maxPlayGoName as keyof typeof mockData];
+    const scrapedData = mockData[maxPlayGoName];
     
     if (!scrapedData) {
       throw new Error(`No mock data available for agency: ${maxPlayGoName}`);
@@ -163,9 +162,12 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
+        data: {
+          totalSales: scrapedData.totalSales,
+          totalPrizes: scrapedData.totalPrizes
+        },
         agency_name: agency.name,
         maxplaygo_name: maxPlayGoName,
-        data: scrapedData,
         date: target_date,
       }),
       {
