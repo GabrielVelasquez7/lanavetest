@@ -39,12 +39,14 @@ export function MaxPlayGoSyncModal({
       if (error) throw error;
 
       if (data?.success) {
-        const sales = data?.data?.totalSales ?? 0;
-        const prizes = data?.data?.totalPrizes ?? 0;
         const agenciesCount = data?.data?.updatedAgenciesCount ?? 0;
+        const agencyResults = data?.data?.agencyResults ?? [];
+        const totalSales = agencyResults.reduce((sum, agency) => sum + agency.sales, 0);
+        const totalPrizes = agencyResults.reduce((sum, agency) => sum + agency.prizes, 0);
+        
         toast({
           title: 'Sincronización exitosa',
-          description: `${agenciesCount} agencias actualizadas con datos MAXPLAY: ${sales} Bs en ventas, ${prizes} Bs en premios`,
+          description: `${agenciesCount} agencias actualizadas con datos específicos MAXPLAY: ${totalSales} Bs en ventas, ${totalPrizes} Bs en premios`,
         });
         onSuccess();
         onClose();

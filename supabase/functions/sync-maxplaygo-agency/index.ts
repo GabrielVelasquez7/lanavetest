@@ -147,10 +147,27 @@ serve(async (req) => {
     }
 
     let updatedAgenciesCount = 0;
+    const agencyResults: Array<{name: string, sales: number, prizes: number}> = [];
 
-    // Update/Create summary for each agency with MAXPLAY data
+    // Update/Create summary for each agency with their specific MAXPLAY data
     for (const agencyItem of agencies) {
       try {
+        // Resolve MaxPlayGo name for this agency
+        let agencyMaxPlayGoName = AGENCY_MAPPING[agencyItem.id];
+        if (!agencyMaxPlayGoName) {
+          const norm = (agencyItem.name || '').replace(/\./g, '').trim().toUpperCase();
+          agencyMaxPlayGoName = `NAVE ${norm} PC`;
+          if (norm === 'VICTORIA 1') agencyMaxPlayGoName = 'NAVE VICTORIA 1 T2 PC';
+          if (norm === 'VICTORIA 2') agencyMaxPlayGoName = 'NAVE VICTORIA 2 PC';
+        }
+
+        // Get specific scraped data for this agency
+        const agencyScrapedData = mockData[agencyMaxPlayGoName];
+        if (!agencyScrapedData) {
+          console.warn(`No mock data for agency: ${agencyItem.name} (${agencyMaxPlayGoName})`);
+          continue;
+        }
+
         // Check existing summary for this agency and MAXPLAY system
         const { data: existingSummary, error: fetchError } = await supabase
           .from('daily_cuadres_summary')
@@ -167,9 +184,9 @@ serve(async (req) => {
         }
 
         const updateData = {
-          total_sales_bs: scrapedData.totalSales,
-          total_prizes_bs: scrapedData.totalPrizes,
-          balance_bs: scrapedData.totalSales - scrapedData.totalPrizes,
+          total_sales_bs: agencyScrapedData.totalSales,
+          total_prizes_bs: agencyScrapedData.totalPrizes,
+          balance_bs: agencyScrapedData.totalSales - agencyScrapedData.totalPrizes,
           updated_at: new Date().toISOString(),
         };
 
@@ -203,7 +220,12 @@ serve(async (req) => {
         }
 
         updatedAgenciesCount++;
-        console.log(`Updated MAXPLAY data for agency: ${agencyItem.name}`);
+        agencyResults.push({
+          name: agencyItem.name,
+          sales: agencyScrapedData.totalSales,
+          prizes: agencyScrapedData.totalPrizes
+        });
+        console.log(`Updated MAXPLAY data for agency: ${agencyItem.name} - Sales: ${agencyScrapedData.totalSales}, Prizes: ${agencyScrapedData.totalPrizes}`);
       } catch (error) {
         console.error(`Error processing agency ${agencyItem.name}:`, error);
         continue;
@@ -214,11 +236,9 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         data: {
-          totalSales: scrapedData.totalSales,
-          totalPrizes: scrapedData.totalPrizes,
           updatedAgenciesCount,
+          agencyResults,
         },
-        maxplaygo_name: maxPlayGoName,
         date: target_date,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
