@@ -78,7 +78,7 @@ serve(async (req) => {
     }
 
     const loginData = await loginResponse.json();
-    const token = loginData?.body?.data?.token;
+    const token = loginData?.data?.token;
     
     if (!token) {
       console.error('Login response structure:', JSON.stringify(loginData, null, 2));
@@ -154,18 +154,18 @@ serve(async (req) => {
       console.log(`Response structure for grupo_id ${grupoId}:`, JSON.stringify(salesData).substring(0, 200));
       
       // Extract comercios array from response
-      // Assuming structure: { body: { data: [{ comercios: [...] }] } } or similar
+      // Structure: { data: [{ comercios: [...] }] }
       let comercios: SourcesComercio[] = [];
       
-      if (salesData?.body?.data) {
-        if (Array.isArray(salesData.body.data)) {
+      if (salesData?.data) {
+        if (Array.isArray(salesData.data)) {
           // If data is array, look for comercios in first element
-          if (salesData.body.data[0]?.comercios) {
-            comercios = salesData.body.data[0].comercios;
+          if (salesData.data[0]?.comercios) {
+            comercios = salesData.data[0].comercios;
           }
-        } else if (salesData.body.data.comercios) {
+        } else if (salesData.data.comercios) {
           // If data is object with comercios
-          comercios = salesData.body.data.comercios;
+          comercios = salesData.data.comercios;
         }
       }
       
@@ -290,11 +290,14 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error in sync-sources-agency:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorDetails = error instanceof Error ? error.toString() : String(error);
+    
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message,
-        details: error.toString()
+        error: errorMessage,
+        details: errorDetails
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
