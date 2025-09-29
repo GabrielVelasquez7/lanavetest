@@ -125,32 +125,61 @@ serve(async (req) => {
 
     for (const grupoId of grupoIds) {
       console.log(`Fetching data for grupo_id: ${grupoId}`);
-      
-      const queryParams = new URLSearchParams({
-        daterange: JSON.stringify([formattedDate, formattedDate]),
-        master_id: '3',
-        comercializadora_id: '123',
-        grupo_id: grupoId,
-        divisa_id: '1'
-      });
 
-      const salesResponse = await fetch(
-        `https://api.sourcesws.com/dashboard/reporte/venta/comercio/consolidado?${queryParams}`,
-        {
+      // Try multiple parameter encodings for daterange
+      const paramCandidates: URLSearchParams[] = [
+        new URLSearchParams({
+          daterange: JSON.stringify([formattedDate, formattedDate]),
+          master_id: '3',
+          comercializadora_id: '123',
+          grupo_id: grupoId,
+          divisa_id: '1'
+        }),
+        (() => {
+          const p = new URLSearchParams({
+            master_id: '3',
+            comercializadora_id: '123',
+            grupo_id: grupoId,
+            divisa_id: '1'
+          });
+          p.append('daterange[]', formattedDate);
+          p.append('daterange[]', formattedDate);
+          return p;
+        })()
+      ];
+
+      let salesData: any = null;
+      let lastErrorBody: string | null = null;
+
+      for (const qp of paramCandidates) {
+        const url = `https://api.sourcesws.com/dashboard/reporte/venta/comercio/consolidado?${qp}`;
+        const res = await fetch(url, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`,
-            'Accept': 'application/json'
+            'Accept': 'application/json',
+            // Some SOURCES endpoints require these headers to be present
+            'Origin': 'https://admin.sourcesws.com',
+            'Referer': 'https://admin.sourcesws.com/'
           }
-        }
-      );
+        });
 
-      if (!salesResponse.ok) {
-        console.error(`Failed to fetch data for grupo_id ${grupoId}: ${salesResponse.status}`);
+        if (!res.ok) {
+          const errText = await res.text().catch(() => '');
+          console.error(`Failed to fetch data for grupo_id ${grupoId} with params "${qp.toString()}": ${res.status} ${res.statusText} - ${errText}`);
+          lastErrorBody = errText;
+          continue;
+        }
+
+        salesData = await res.json();
+        break;
+      }
+
+      if (!salesData) {
+        console.error(`Giving up fetching grupo_id ${grupoId} after ${paramCandidates.length} attempts. Last error body: ${lastErrorBody || 'n/a'}`);
         continue;
       }
 
-      const salesData = await salesResponse.json();
       console.log(`Response structure for grupo_id ${grupoId}:`, JSON.stringify(salesData).substring(0, 200));
       
       // Extract comercios array from response
