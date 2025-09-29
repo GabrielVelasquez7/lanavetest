@@ -197,12 +197,12 @@ export function WeeklyCuadreView() {
     }
   }, [currentWeek, user, allAgencies.length]);
   
-  // Update exchange rate input when weekly data changes
+  // Update exchange rate input when weekly data changes (only on initial load)
   useEffect(() => {
-    if (weeklyData && !isEditingRate) {
+    if (weeklyData && exchangeRateInput === '36.00') {
       setExchangeRateInput(weeklyData.averageExchangeRate.toFixed(2));
     }
-  }, [weeklyData, isEditingRate]);
+  }, [weeklyData]);
 
   const fetchAgencies = async () => {
     try {
@@ -820,14 +820,14 @@ export function WeeklyCuadreView() {
       {/* Exchange Rate Editor */}
       <Card className="border-2 border-amber-200 bg-amber-50/50 dark:bg-amber-950/20">
         <CardHeader>
-          <CardTitle className="text-amber-700 dark:text-amber-500 flex items-center gap-2">
+          <CardTitle className="text-amber-700 dark:text-amber-500 flex items-center gap-2 text-base">
             💱 Editor de Tasa de Cambio
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="weekly-exchange-rate">Tasa BCV (Bs/$)</Label>
+        <CardContent>
+          <div className="flex items-center gap-3">
+            <div className="space-y-1 flex-shrink-0">
+              <Label htmlFor="weekly-exchange-rate" className="text-sm">Tasa BCV (Bs/$)</Label>
               <Input
                 id="weekly-exchange-rate"
                 type="number"
@@ -835,36 +835,35 @@ export function WeeklyCuadreView() {
                 value={exchangeRateInput}
                 onChange={(e) => {
                   setExchangeRateInput(e.target.value);
-                  setIsEditingRate(true);
                 }}
-                onBlur={() => setIsEditingRate(false)}
-                className="text-center font-mono"
+                className="text-center font-mono w-32"
               />
-              <p className="text-xs text-muted-foreground">
-                Tasa promedio actual: {summary.averageExchangeRate.toFixed(2)} Bs/$
-              </p>
             </div>
             
-            <div className="flex items-end">
-              <Button 
-                onClick={() => {
-                  const newRate = parseFloat(exchangeRateInput) || 36.00;
-                  if (weeklyData) {
-                    setWeeklyData({
-                      ...weeklyData,
-                      averageExchangeRate: newRate
-                    });
-                    toast({
-                      title: "Tasa actualizada",
-                      description: `Nueva tasa: ${newRate.toFixed(2)} Bs/$`,
-                    });
-                  }
-                }}
-                className="w-full"
-              >
-                <Save className="h-4 w-4 mr-2" />
-                Aplicar Tasa
-              </Button>
+            <Button 
+              onClick={() => {
+                const newRate = parseFloat(exchangeRateInput) || 36.00;
+                if (weeklyData) {
+                  setWeeklyData({
+                    ...weeklyData,
+                    averageExchangeRate: newRate
+                  });
+                  setExchangeRateInput(newRate.toFixed(2));
+                  toast({
+                    title: "Tasa actualizada",
+                    description: `Nueva tasa: ${newRate.toFixed(2)} Bs/$`,
+                  });
+                }
+              }}
+              className="mt-6"
+              size="sm"
+            >
+              <Save className="h-4 w-4 mr-2" />
+              Aplicar
+            </Button>
+            
+            <div className="text-xs text-muted-foreground mt-6">
+              Promedio actual: <span className="font-semibold">{summary.averageExchangeRate.toFixed(2)}</span>
             </div>
           </div>
         </CardContent>
