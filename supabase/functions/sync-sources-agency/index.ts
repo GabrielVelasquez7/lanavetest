@@ -183,18 +183,23 @@ serve(async (req) => {
       console.log(`Response structure for grupo_id ${grupoId}:`, JSON.stringify(salesData).substring(0, 200));
       
       // Extract comercios array from response
-      // Structure: { data: [{ comercios: [...] }] }
+      // Possible structures:
+      // 1) { data: [{ comercios: [...] }] }
+      // 2) { success: true, data: { reportList: [...] } }
       let comercios: SourcesComercio[] = [];
       
       if (salesData?.data) {
         if (Array.isArray(salesData.data)) {
           // If data is array, look for comercios in first element
           if (salesData.data[0]?.comercios) {
-            comercios = salesData.data[0].comercios;
+            comercios = salesData.data[0].comercios as SourcesComercio[];
           }
-        } else if (salesData.data.comercios) {
-          // If data is object with comercios
-          comercios = salesData.data.comercios;
+        } else {
+          if (Array.isArray(salesData.data.comercios)) {
+            comercios = salesData.data.comercios as SourcesComercio[];
+          } else if (Array.isArray(salesData.data.reportList)) {
+            comercios = salesData.data.reportList as SourcesComercio[];
+          }
         }
       }
       
