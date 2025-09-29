@@ -327,22 +327,25 @@ export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
     // Map system codes to update form values
     const systemCodeToLotterySystem: Record<string, LotterySystem | undefined> = {
       'MAXPLAY': lotteryOptions.find(s => s.code === 'MAXPLAY'),
-      'SOURCES': lotteryOptions.find(s => s.code === 'SOURCES'),
+      // Handle both SOURCE and SOURCES codes
+      'SOURCES': lotteryOptions.find(s => s.code === 'SOURCES') || lotteryOptions.find(s => s.code === 'SOURCE'),
+      'SOURCE': lotteryOptions.find(s => s.code === 'SOURCE'),
       'PREMIER': lotteryOptions.find(s => s.code === 'PREMIER'),
     };
 
     // Get current form values
     const currentSystems = form.getValues('systems');
-    const updatedSystems = [...currentSystems];
+    const updatedSystems = Array.isArray(currentSystems) ? [...currentSystems] : [];
 
     // Process each successful sync result
     results.forEach(result => {
       if (!result.success || !result.agencyResults) return;
 
-      const lotterySystem = systemCodeToLotterySystem[result.systemCode];
+      const codeKey = (result.systemCode || '').toUpperCase();
+      const lotterySystem = systemCodeToLotterySystem[codeKey];
       if (!lotterySystem) return;
 
-      // Find data for the current agency
+      // Find data for the current agency (by name match)
       const currentAgencyResult = result.agencyResults.find(agencyResult => {
         const agency = agencies.find(a => a.name === agencyResult.name);
         return agency?.id === selectedAgency;
@@ -354,18 +357,31 @@ export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
           s => s.lottery_system_id === lotterySystem.id
         );
 
+        const salesBs = Number(currentAgencyResult.sales) || 0;
+        const prizesBs = Number(currentAgencyResult.prizes) || 0;
+
         if (systemIndex !== -1) {
           updatedSystems[systemIndex] = {
             ...updatedSystems[systemIndex],
-            sales_bs: currentAgencyResult.sales,
-            prizes_bs: currentAgencyResult.prizes,
+            sales_bs: salesBs,
+            prizes_bs: prizesBs,
           };
+        } else {
+          // Ensure an entry exists if it wasn't initialized yet
+          updatedSystems.push({
+            lottery_system_id: lotterySystem.id,
+            lottery_system_name: lotterySystem.name,
+            sales_bs: salesBs,
+            sales_usd: 0,
+            prizes_bs: prizesBs,
+            prizes_usd: 0,
+          });
         }
       }
     });
 
-    // Update form with all synchronized data
-    form.setValue('systems', updatedSystems);
+    // Update form with all synchronized data and mark as dirty to re-render
+    form.setValue('systems', updatedSystems as any, { shouldDirty: true, shouldValidate: false });
 
     // Show summary toast
     const successfulSyncs = results.filter(r => r.success);
