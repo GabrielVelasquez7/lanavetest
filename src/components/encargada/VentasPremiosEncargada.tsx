@@ -18,7 +18,7 @@ import { PagoMovilManagerEncargada } from './PagoMovilManagerEncargada';
 import { PointOfSaleFormEncargada } from './PointOfSaleFormEncargada';
 import { CuadreGeneralEncargada } from './CuadreGeneralEncargada';
 import { Edit, Building2, CalendarIcon, DollarSign, Receipt, Smartphone, HandCoins, CreditCard, RefreshCw, Loader2 } from 'lucide-react';
-import { MaxPlayGoSyncModal } from './MaxPlayGoSyncModal';
+import { SystemSyncManager, SystemSyncResult } from './SystemSyncManager';
 import { formatCurrency, cn } from '@/lib/utils';
 import { formatDateForDB } from '@/lib/dateUtils';
 import { format } from 'date-fns';
@@ -66,8 +66,8 @@ export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
   const [editMode, setEditMode] = useState(false);
   const [currentCuadreId, setCurrentCuadreId] = useState<string | null>(null);
   
-  // MaxPlayGo sync states
-  const [syncModalOpen, setSyncModalOpen] = useState(false);
+  // System sync states
+  const [isSystemSyncModalOpen, setIsSystemSyncModalOpen] = useState(false);
   const [isUpdatingFields, setIsUpdatingFields] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
@@ -294,56 +294,76 @@ export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
     loadAgencyData();
   };
 
-  const handleSyncMaxPlayGo = () => {
-    if (!selectedAgency) {
+  const handleSyncSystems = () => {
+    if (!selectedAgency || !selectedDate) {
       toast({
         title: "Error",
-        description: "Selecciona una agencia primero",
+        description: "Selecciona una agencia y fecha primero",
         variant: "destructive",
       });
       return;
     }
-    setSyncModalOpen(true);
+    setIsSystemSyncModalOpen(true);
   };
 
-  const handleSyncSuccess = async (agencyResults?: Array<{name: string, sales: number, prizes: number}>) => {
+  const handleSyncSuccess = async (results: SystemSyncResult[]) => {
     setIsUpdatingFields(true);
     
-    if (agencyResults && agencyResults.length > 0) {
-      // Find MAXPLAY system
-      const maxplaySystem = lotteryOptions.find(system => system.code === 'MAXPLAY');
-      
-      if (maxplaySystem) {
-        // Get current agency data
-        const currentAgencyResult = agencyResults.find(result => 
-          agencies.find(agency => agency.name === result.name)?.id === selectedAgency
+    console.log('Sync results received:', results);
+
+    // Map system codes to update form values
+    const systemCodeToLotterySystem: Record<string, LotterySystem | undefined> = {
+      'MAXPLAY': lotteryOptions.find(s => s.code === 'MAXPLAY'),
+      'SOURCES': lotteryOptions.find(s => s.code === 'SOURCES'),
+      'PREMIER': lotteryOptions.find(s => s.code === 'PREMIER'),
+    };
+
+    // Get current form values
+    const currentSystems = form.getValues('systems');
+    const updatedSystems = [...currentSystems];
+
+    // Process each successful sync result
+    results.forEach(result => {
+      if (!result.success || !result.agencyResults) return;
+
+      const lotterySystem = systemCodeToLotterySystem[result.systemCode];
+      if (!lotterySystem) return;
+
+      // Find data for the current agency
+      const currentAgencyResult = result.agencyResults.find(agencyResult => {
+        const agency = agencies.find(a => a.name === agencyResult.name);
+        return agency?.id === selectedAgency;
+      });
+
+      if (currentAgencyResult) {
+        // Update the corresponding system in the form
+        const systemIndex = updatedSystems.findIndex(
+          s => s.lottery_system_id === lotterySystem.id
         );
-        
-        if (currentAgencyResult) {
-          // Update form with MaxPlayGo values for MAXPLAY system
-          const currentSystems = form.getValues('systems');
-          const updatedSystems = currentSystems.map(system => {
-            if (system.lottery_system_id === maxplaySystem.id) {
-              return {
-                ...system,
-                sales_bs: currentAgencyResult.sales,
-                prizes_bs: currentAgencyResult.prizes,
-              };
-            }
-            return system;
-          });
-          
-          form.setValue('systems', updatedSystems);
-          
-          toast({
-            title: 'Campos actualizados',
-            description: `MAXPLAY: ${currentAgencyResult.sales} Bs ventas, ${currentAgencyResult.prizes} Bs premios`,
-          });
+
+        if (systemIndex !== -1) {
+          updatedSystems[systemIndex] = {
+            ...updatedSystems[systemIndex],
+            sales_bs: currentAgencyResult.sales,
+            prizes_bs: currentAgencyResult.prizes,
+          };
         }
       }
+    });
+
+    // Update form with all synchronized data
+    form.setValue('systems', updatedSystems);
+
+    // Show summary toast
+    const successfulSyncs = results.filter(r => r.success);
+    if (successfulSyncs.length > 0) {
+      toast({
+        title: 'Campos actualizados',
+        description: `${successfulSyncs.map(r => r.systemName).join(', ')} sincronizados correctamente`,
+      });
     }
     
-    // Always refresh data to ensure we have the latest from database
+    // Refresh data from database
     setTimeout(async () => {
       await loadAgencyData();
       setIsUpdatingFields(false);
@@ -418,17 +438,17 @@ export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
           <CardHeader>
             <CardTitle className="flex items-center">
               <RefreshCw className="h-5 w-5 mr-2" />
-              Sincronización MaxPlayGo
+              Sincronización de Sistemas
             </CardTitle>
           </CardHeader>
           <CardContent className="flex items-center justify-center h-full">
             <Button 
-              onClick={handleSyncMaxPlayGo}
-              disabled={!selectedAgency}
+              onClick={handleSyncSystems}
+              disabled={!selectedAgency || !selectedDate}
               className="w-full"
             >
               <RefreshCw className="h-4 w-4 mr-2" />
-              Sincronizar Datos
+              Sincronizar Sistemas
             </Button>
           </CardContent>
         </Card>
@@ -595,13 +615,11 @@ export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
         </Tabs>
       )}
 
-      {/* MaxPlayGo Sync Modal */}
-      {selectedAgency && (
-        <MaxPlayGoSyncModal
-          isOpen={syncModalOpen}
-          onClose={() => setSyncModalOpen(false)}
-          agencyId={selectedAgency}
-          agencyName={selectedAgencyName}
+      {/* System Sync Manager Modal */}
+      {selectedAgency && selectedDate && (
+        <SystemSyncManager
+          isOpen={isSystemSyncModalOpen}
+          onClose={() => setIsSystemSyncModalOpen(false)}
           targetDate={format(selectedDate, 'dd-MM-yyyy')}
           onSuccess={handleSyncSuccess}
         />
