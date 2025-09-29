@@ -19,31 +19,25 @@ interface VentasPremiosBolivaresProps {
 export const VentasPremiosBolivares = ({ form, lotteryOptions }: VentasPremiosBolivaresProps) => {
   const systems = form.watch('systems');
   const [inputValues, setInputValues] = useState<Record<string, string>>({});
-  const [isInitialized, setIsInitialized] = useState(false);
 
-  // Inicializar valores solo una vez al cargar los datos
+  // Sincroniza los inputs cuando cambian los valores del formulario (agencia/fecha/sync)
   useEffect(() => {
-    if (systems.length > 0 && !isInitialized) {
-      const newInputValues: Record<string, string> = {};
-      systems.forEach((system, index) => {
-        const salesKey = `${index}-sales_bs`;
-        const prizesKey = `${index}-prizes_bs`;
-        
-        newInputValues[salesKey] = system.sales_bs > 0 ? system.sales_bs.toLocaleString('es-VE', {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        }) : '';
-        
-        newInputValues[prizesKey] = system.prizes_bs > 0 ? system.prizes_bs.toLocaleString('es-VE', {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        }) : '';
-      });
-      
-      setInputValues(newInputValues);
-      setIsInitialized(true);
-    }
-  }, [systems, isInitialized]);
+    const newInputValues: Record<string, string> = {};
+    systems.forEach((system) => {
+      const id = system.lottery_system_id;
+      const salesKey = `${id}-sales_bs`;
+      const prizesKey = `${id}-prizes_bs`;
+
+      newInputValues[salesKey] = (system.sales_bs || 0) > 0
+        ? (system.sales_bs as number).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        : '';
+
+      newInputValues[prizesKey] = (system.prizes_bs || 0) > 0
+        ? (system.prizes_bs as number).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        : '';
+    });
+    setInputValues(newInputValues);
+  }, [systems]);
 
   const parseInputValue = (value: string): number => {
     if (!value || value.trim() === '') return 0;
@@ -53,18 +47,18 @@ export const VentasPremiosBolivares = ({ form, lotteryOptions }: VentasPremiosBo
     return isNaN(num) ? 0 : num;
   };
 
-  const handleInputChange = (index: number, field: 'sales_bs' | 'prizes_bs', value: string) => {
-    const key = `${index}-${field}`;
+  const handleInputChange = (systemId: string, index: number, field: 'sales_bs' | 'prizes_bs', value: string) => {
+    const key = `${systemId}-${field}`;
     setInputValues(prev => ({ ...prev, [key]: value }));
   };
 
-  const handleInputBlur = (index: number, field: 'sales_bs' | 'prizes_bs') => {
-    const key = `${index}-${field}`;
+  const handleInputBlur = (systemId: string, index: number, field: 'sales_bs' | 'prizes_bs') => {
+    const key = `${systemId}-${field}`;
     const value = inputValues[key] || '';
     const numValue = parseInputValue(value);
     
     // Actualizar el formulario
-    form.setValue(`systems.${index}.${field}`, numValue);
+    form.setValue(`systems.${index}.${field}`, numValue, { shouldDirty: true, shouldValidate: false });
     
     // Formatear el valor en el input solo si es mayor que 0
     const formattedValue = numValue > 0 ? numValue.toLocaleString('es-VE', {
@@ -74,7 +68,6 @@ export const VentasPremiosBolivares = ({ form, lotteryOptions }: VentasPremiosBo
     
     setInputValues(prev => ({ ...prev, [key]: formattedValue }));
   };
-
   const calculateTotals = () => {
     return systems.reduce(
       (acc, system) => ({
@@ -113,18 +106,18 @@ export const VentasPremiosBolivares = ({ form, lotteryOptions }: VentasPremiosBo
                 <Input
                   type="text"
                   placeholder="0,00"
-                  value={inputValues[`${index}-sales_bs`] || ''}
-                  onChange={(e) => handleInputChange(index, 'sales_bs', e.target.value)}
-                  onBlur={() => handleInputBlur(index, 'sales_bs')}
+                  value={inputValues[`${system.lottery_system_id}-sales_bs`] || ''}
+                  onChange={(e) => handleInputChange(system.lottery_system_id, index, 'sales_bs', e.target.value)}
+                  onBlur={() => handleInputBlur(system.lottery_system_id, index, 'sales_bs')}
                   className="text-center"
                 />
                 
                 <Input
                   type="text"
                   placeholder="0,00"
-                  value={inputValues[`${index}-prizes_bs`] || ''}
-                  onChange={(e) => handleInputChange(index, 'prizes_bs', e.target.value)}
-                  onBlur={() => handleInputBlur(index, 'prizes_bs')}
+                  value={inputValues[`${system.lottery_system_id}-prizes_bs`] || ''}
+                  onChange={(e) => handleInputChange(system.lottery_system_id, index, 'prizes_bs', e.target.value)}
+                  onBlur={() => handleInputBlur(system.lottery_system_id, index, 'prizes_bs')}
                   className="text-center"
                 />
                 

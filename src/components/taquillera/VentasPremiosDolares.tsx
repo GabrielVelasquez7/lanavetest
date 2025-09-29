@@ -19,31 +19,25 @@ interface VentasPremiosDolaresProps {
 export const VentasPremiosDolares = ({ form, lotteryOptions }: VentasPremiosDolaresProps) => {
   const systems = form.watch('systems');
   const [inputValues, setInputValues] = useState<Record<string, string>>({});
-  const [isInitialized, setIsInitialized] = useState(false);
 
-  // Inicializar valores solo una vez al cargar los datos
+  // Sincroniza los inputs cuando cambian los valores del formulario (agencia/fecha/sync)
   useEffect(() => {
-    if (systems.length > 0 && !isInitialized) {
-      const newInputValues: Record<string, string> = {};
-      systems.forEach((system, index) => {
-        const salesKey = `${index}-sales_usd`;
-        const prizesKey = `${index}-prizes_usd`;
-        
-        newInputValues[salesKey] = system.sales_usd > 0 ? system.sales_usd.toLocaleString('en-US', {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        }) : '';
-        
-        newInputValues[prizesKey] = system.prizes_usd > 0 ? system.prizes_usd.toLocaleString('en-US', {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        }) : '';
-      });
-      
-      setInputValues(newInputValues);
-      setIsInitialized(true);
-    }
-  }, [systems, isInitialized]);
+    const newInputValues: Record<string, string> = {};
+    systems.forEach((system) => {
+      const id = system.lottery_system_id;
+      const salesKey = `${id}-sales_usd`;
+      const prizesKey = `${id}-prizes_usd`;
+
+      newInputValues[salesKey] = (system.sales_usd || 0) > 0
+        ? (system.sales_usd as number).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        : '';
+
+      newInputValues[prizesKey] = (system.prizes_usd || 0) > 0
+        ? (system.prizes_usd as number).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        : '';
+    });
+    setInputValues(newInputValues);
+  }, [systems]);
 
   const parseInputValue = (value: string): number => {
     if (!value || value.trim() === '') return 0;
@@ -53,18 +47,18 @@ export const VentasPremiosDolares = ({ form, lotteryOptions }: VentasPremiosDola
     return isNaN(num) ? 0 : num;
   };
 
-  const handleInputChange = (index: number, field: 'sales_usd' | 'prizes_usd', value: string) => {
-    const key = `${index}-${field}`;
+  const handleInputChange = (systemId: string, index: number, field: 'sales_usd' | 'prizes_usd', value: string) => {
+    const key = `${systemId}-${field}`;
     setInputValues(prev => ({ ...prev, [key]: value }));
   };
 
-  const handleInputBlur = (index: number, field: 'sales_usd' | 'prizes_usd') => {
-    const key = `${index}-${field}`;
+  const handleInputBlur = (systemId: string, index: number, field: 'sales_usd' | 'prizes_usd') => {
+    const key = `${systemId}-${field}`;
     const value = inputValues[key] || '';
     const numValue = parseInputValue(value);
     
     // Actualizar el formulario
-    form.setValue(`systems.${index}.${field}`, numValue);
+    form.setValue(`systems.${index}.${field}`, numValue, { shouldDirty: true, shouldValidate: false });
     
     // Formatear el valor en el input solo si es mayor que 0
     const formattedValue = numValue > 0 ? numValue.toLocaleString('en-US', {
@@ -74,7 +68,6 @@ export const VentasPremiosDolares = ({ form, lotteryOptions }: VentasPremiosDola
     
     setInputValues(prev => ({ ...prev, [key]: formattedValue }));
   };
-
   const calculateTotals = () => {
     return systems.reduce(
       (acc, system) => ({

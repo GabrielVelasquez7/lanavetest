@@ -175,10 +175,11 @@ export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
           };
         });
 
-        form.setValue('systems', systemsWithData);
+        // Reemplazar completamente los valores del formulario con los datos cargados
+        form.reset({ systems: systemsWithData });
         
         // Determinar si estamos en modo edición
-        const hasData = systemsWithData.some(s => s.sales_bs > 0 || s.sales_usd > 0);
+        const hasData = systemsWithData.some(s => s.sales_bs > 0 || s.sales_usd > 0 || s.prizes_bs > 0 || s.prizes_usd > 0);
         setEditMode(hasData);
         
         // Establecer ID del cuadre
@@ -188,7 +189,7 @@ export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
           setCurrentCuadreId(null);
         }
       } else {
-        form.setValue('systems', systemsData);
+        form.reset({ systems: systemsData });
         setEditMode(false);
         setCurrentCuadreId(null);
       }
@@ -202,7 +203,7 @@ export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
         prizes_bs: 0,
         prizes_usd: 0,
       }));
-      form.setValue('systems', systemsData);
+      form.reset({ systems: systemsData });
       setEditMode(false);
       setCurrentCuadreId(null);
     } finally {
