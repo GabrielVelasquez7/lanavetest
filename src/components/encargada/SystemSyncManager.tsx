@@ -72,8 +72,15 @@ export function SystemSyncManager({
     setSyncProgress(prev => ({ ...prev, [system.code]: 'syncing' }));
 
     try {
+      const body: any = { target_date: targetDate };
+      if (system.code === 'MAXPLAY') {
+        const { data: userData } = await supabase.auth.getUser();
+        const agencyId = userData?.user?.user_metadata?.agency_id;
+        body.agency_id = agencyId;
+      }
+
       const { data, error } = await supabase.functions.invoke(system.functionName, {
-        body: { target_date: targetDate }
+        body
       });
 
       if (error) throw error;

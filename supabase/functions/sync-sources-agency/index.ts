@@ -96,7 +96,7 @@ serve(async (req) => {
     const { data: sourcesSystem, error: systemError } = await supabase
       .from('lottery_systems')
       .select('id')
-      .eq('code', 'SOURCES')
+      .in('code', ['SOURCES', 'SOURCE'])
       .single();
 
     if (systemError || !sourcesSystem) {
