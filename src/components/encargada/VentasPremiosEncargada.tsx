@@ -361,13 +361,14 @@ export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
         title: 'Campos actualizados',
         description: `${successfulSyncs.map(r => r.systemName).join(', ')} sincronizados correctamente`,
       });
-    }
-    
-    // Refresh data from database
-    setTimeout(async () => {
-      await loadAgencyData();
+      
+      // Reload page to show updated values
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
+    } else {
       setIsUpdatingFields(false);
-    }, 1500);
+    }
   };
 
   const totals = calculateTotals();
