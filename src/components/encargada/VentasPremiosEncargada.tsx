@@ -372,16 +372,11 @@ export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
     if (successfulSyncs.length > 0) {
       toast({
         title: 'Campos actualizados',
-        description: `${successfulSyncs.map(r => r.systemName).join(', ')} sincronizados correctamente`,
+        description: `${successfulSyncs.map(r => r.systemName).join(', ')} sincronizados correctamente. Revisa los valores y guarda cuando estés listo.`,
       });
-      
-      // Reload page to show updated values
-      setTimeout(() => {
-        window.location.reload();
-      }, 1500);
-    } else {
-      setIsUpdatingFields(false);
     }
+    
+    setIsUpdatingFields(false);
   };
 
   const totals = calculateTotals();
