@@ -63,9 +63,31 @@ export const TaquilleraCuadreDetalle = ({ userId, selectedDate, userFullName }: 
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Limpiar datos anteriores
+    setCuadre({
+      totalSales: { bs: 0, usd: 0 },
+      totalPrizes: { bs: 0, usd: 0 },
+      totalGastos: { bs: 0, usd: 0 },
+      totalDeudas: { bs: 0, usd: 0 },
+      pagoMovilRecibidos: 0,
+      pagoMovilPagados: 0,
+      totalPointOfSale: 0,
+      cashAvailable: 0,
+      cashAvailableUsd: 0,
+      closureConfirmed: false,
+      closureNotes: '',
+      premiosPorPagar: 0,
+      exchangeRate: 36.00,
+    });
+    
     if (userId && selectedDate) {
       fetchCuadreData();
     }
+    
+    // Cleanup
+    return () => {
+      setLoading(false);
+    };
   }, [userId, selectedDate]);
 
   const fetchCuadreData = async () => {

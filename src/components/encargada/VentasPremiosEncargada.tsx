@@ -122,8 +122,19 @@ export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
   // Cargar datos cuando cambie la agencia o la fecha
   useEffect(() => {
     if (selectedAgency && lotteryOptions.length > 0 && selectedDate) {
+      // Resetear estado antes de cargar nuevos datos
+      setLoading(true);
+      setEditMode(false);
+      setCurrentCuadreId(null);
+      form.reset({ systems: [] });
+      
       loadAgencyData();
     }
+    
+    // Cleanup function
+    return () => {
+      setLoading(false);
+    };
   }, [selectedAgency, selectedDate, lotteryOptions]);
 
   const loadAgencyData = async () => {
@@ -194,6 +205,8 @@ export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
       form.setValue('systems', systemsData);
       setEditMode(false);
       setCurrentCuadreId(null);
+    } finally {
+      setLoading(false);
     }
   };
 

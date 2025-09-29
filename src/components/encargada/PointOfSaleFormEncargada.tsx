@@ -40,6 +40,11 @@ export const PointOfSaleFormEncargada = ({ selectedAgency, selectedDate, onSucce
   });
 
   useEffect(() => {
+    // Limpiar datos anteriores
+    setCurrentAmount(0);
+    setHasEntry(false);
+    form.reset({ amount_bs: 0 });
+    
     if (selectedAgency && selectedDate) {
       fetchCurrentPOS();
     }

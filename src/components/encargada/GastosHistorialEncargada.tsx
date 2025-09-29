@@ -64,9 +64,18 @@ export const GastosHistorialEncargada = ({ refreshKey, selectedAgency, selectedD
   };
 
   useEffect(() => {
+    // Limpiar datos anteriores
+    setExpenses([]);
+    setLoading(true);
+    
     if (selectedAgency && selectedDate) {
       fetchExpenses();
     }
+    
+    // Cleanup
+    return () => {
+      setLoading(false);
+    };
   }, [selectedAgency, selectedDate, refreshKey]);
 
   const handleEdit = (expense: Expense) => {

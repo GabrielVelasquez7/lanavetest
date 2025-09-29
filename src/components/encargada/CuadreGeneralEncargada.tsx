@@ -100,9 +100,42 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
   const { toast } = useToast();
 
   useEffect(() => {
+    // Limpiar datos anteriores al cambiar agencia/fecha
+    setCuadre({
+      totalSales: { bs: 0, usd: 0 },
+      totalPrizes: { bs: 0, usd: 0 },
+      totalGastos: { bs: 0, usd: 0 },
+      totalDeudas: { bs: 0, usd: 0 },
+      gastosDetails: [],
+      deudasDetails: [],
+      pagoMovilRecibidos: 0,
+      pagoMovilPagados: 0,
+      totalPointOfSale: 0,
+      cashAvailable: 0,
+      cashAvailableUsd: 0,
+      closureConfirmed: false,
+      closureNotes: '',
+      premiosPorPagar: 0,
+      exchangeRate: 36.00,
+      sessionsCount: 0,
+    });
+    setExchangeRateInput('36.00');
+    setCashAvailableInput('0');
+    setCashAvailableUsdInput('0');
+    setFieldsEditedByUser({
+      exchangeRate: false,
+      cashAvailable: false,
+      cashAvailableUsd: false,
+    });
+    
     if (user && selectedAgency && selectedDate) {
       fetchCuadreData();
     }
+    
+    // Cleanup
+    return () => {
+      setLoading(false);
+    };
   }, [user, selectedAgency, selectedDate, refreshKey]);
 
   const fetchCuadreData = async () => {

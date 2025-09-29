@@ -64,9 +64,18 @@ export const PagoMovilHistorialEncargada = ({ refreshKey, selectedAgency, select
   };
 
   useEffect(() => {
+    // Limpiar datos anteriores
+    setPayments([]);
+    setLoading(true);
+    
     if (selectedAgency && selectedDate) {
       fetchPayments();
     }
+    
+    // Cleanup
+    return () => {
+      setLoading(false);
+    };
   }, [selectedAgency, selectedDate, refreshKey]);
 
   const handleEdit = (payment: MobilePayment) => {
