@@ -106,18 +106,18 @@ export const VentasPremiosDolares = ({ form, lotteryOptions }: VentasPremiosDola
                 <Input
                   type="text"
                   placeholder="0.00"
-                  value={inputValues[`${index}-sales_usd`] || ''}
-                  onChange={(e) => handleInputChange(index, 'sales_usd', e.target.value)}
-                  onBlur={() => handleInputBlur(index, 'sales_usd')}
+                  value={inputValues[`${system.lottery_system_id}-sales_usd`] || ''}
+                  onChange={(e) => handleInputChange(system.lottery_system_id, index, 'sales_usd', e.target.value)}
+                  onBlur={() => handleInputBlur(system.lottery_system_id, index, 'sales_usd')}
                   className="text-center"
                 />
                 
                 <Input
                   type="text"
                   placeholder="0.00"
-                  value={inputValues[`${index}-prizes_usd`] || ''}
-                  onChange={(e) => handleInputChange(index, 'prizes_usd', e.target.value)}
-                  onBlur={() => handleInputBlur(index, 'prizes_usd')}
+                  value={inputValues[`${system.lottery_system_id}-prizes_usd`] || ''}
+                  onChange={(e) => handleInputChange(system.lottery_system_id, index, 'prizes_usd', e.target.value)}
+                  onBlur={() => handleInputBlur(system.lottery_system_id, index, 'prizes_usd')}
                   className="text-center"
                 />
                 

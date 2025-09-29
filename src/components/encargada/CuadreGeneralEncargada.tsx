@@ -829,34 +829,6 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
         </Card>
       </div>
 
-      {/* Final Balance */}
-      <Card className={`border-2 ${isCuadreBalanced ? 'border-success/20 bg-success/5' : 'border-destructive/20 bg-destructive/5'}`}>
-        <CardHeader>
-          <CardTitle className="text-primary">Balance Final</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center">
-            <p className="text-3xl font-bold mb-2">
-              <span className={isCuadreBalanced ? 'text-success' : 'text-destructive'}>
-                {formatCurrency(diferenciaFinal, 'VES')}
-              </span>
-            </p>
-            <div className="flex items-center gap-2 justify-center">
-              {isCuadreBalanced ? (
-                <Badge variant="default" className="flex items-center gap-2 px-4 py-2 text-base bg-success">
-                  <CheckCircle2 className="h-4 w-4" />
-                  ¡Cuadre Perfecto!
-                </Badge>
-              ) : (
-                <Badge variant="destructive" className="flex items-center gap-2 px-4 py-2 text-base">
-                  <XCircle className="h-4 w-4" />
-                  Diferencia encontrada
-                </Badge>
-              )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Detailed Breakdown */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
