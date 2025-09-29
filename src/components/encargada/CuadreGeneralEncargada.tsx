@@ -1001,6 +1001,19 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
                       {formatCurrency(diferenciaFinal, 'VES')}
                     </span>
                   </div>
+                  <div className="flex items-center gap-2 justify-center mt-4">
+                    {isCuadreBalanced ? (
+                      <Badge variant="default" className="flex items-center gap-2 px-4 py-2 text-base">
+                        <CheckCircle2 className="h-4 w-4" />
+                        ¡Cuadre Perfecto!
+                      </Badge>
+                    ) : (
+                      <Badge variant="destructive" className="flex items-center gap-2 px-4 py-2 text-base">
+                        <XCircle className="h-4 w-4" />
+                        Diferencia encontrada
+                      </Badge>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
