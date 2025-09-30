@@ -11,6 +11,16 @@ import { useToast } from '@/hooks/use-toast';
 import { formatCurrency } from '@/lib/utils';
 import { formatDateForDB } from '@/lib/dateUtils';
 import { Edit2, Save, X, Trash2, Gift, CheckCircle } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface PendingPrize {
   id: string;
@@ -33,6 +43,8 @@ export const PremiosPorPagarHistorial = ({ refreshKey = 0, dateRange }: PremiosP
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ amount_bs: '', description: '' });
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [premioToDelete, setPremioToDelete] = useState<string | null>(null);
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -133,14 +145,19 @@ export const PremiosPorPagarHistorial = ({ refreshKey = 0, dateRange }: PremiosP
     }
   };
 
-  const deletePremio = async (id: string) => {
-    if (!window.confirm('¿Está seguro de eliminar este premio?')) return;
+  const confirmDelete = (id: string) => {
+    setPremioToDelete(id);
+    setDeleteDialogOpen(true);
+  };
+
+  const deletePremio = async () => {
+    if (!premioToDelete) return;
 
     try {
       const { error } = await supabase
         .from('pending_prizes')
         .delete()
-        .eq('id', id);
+        .eq('id', premioToDelete);
 
       if (error) throw error;
 
@@ -156,6 +173,9 @@ export const PremiosPorPagarHistorial = ({ refreshKey = 0, dateRange }: PremiosP
         description: error.message || 'Error al eliminar el premio',
         variant: 'destructive',
       });
+    } finally {
+      setDeleteDialogOpen(false);
+      setPremioToDelete(null);
     }
   };
 
@@ -212,8 +232,24 @@ export const PremiosPorPagarHistorial = ({ refreshKey = 0, dateRange }: PremiosP
     .reduce((sum, p) => sum + Number(p.amount_bs), 0);
 
   return (
-    <Card>
-      <CardHeader>
+    <>
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar premio?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. El premio será eliminado permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={deletePremio}>Eliminar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Card>
+        <CardHeader>
         <CardTitle className="flex items-center justify-between">
           Historial de Premios
           <div className="flex gap-4">
@@ -320,7 +356,7 @@ export const PremiosPorPagarHistorial = ({ refreshKey = 0, dateRange }: PremiosP
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => deletePremio(premio.id)}
+                          onClick={() => confirmDelete(premio.id)}
                         >
                           <Trash2 className="h-3 w-3" />
                         </Button>
@@ -334,5 +370,6 @@ export const PremiosPorPagarHistorial = ({ refreshKey = 0, dateRange }: PremiosP
         </Table>
       </CardContent>
     </Card>
+    </>
   );
 };

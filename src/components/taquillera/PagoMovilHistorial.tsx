@@ -10,6 +10,16 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Edit2, Save, X, Trash2, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface MobilePayment {
   id: string;
@@ -32,6 +42,8 @@ export const PagoMovilHistorial = ({ refreshKey, dateRange }: PagoMovilHistorial
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<MobilePayment>>({});
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [paymentToDelete, setPaymentToDelete] = useState<string | null>(null);
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -142,14 +154,19 @@ export const PagoMovilHistorial = ({ refreshKey, dateRange }: PagoMovilHistorial
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('¿Estás segura de que quieres eliminar este pago móvil?')) return;
+  const confirmDelete = (id: string) => {
+    setPaymentToDelete(id);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!paymentToDelete) return;
 
     try {
       const { error } = await supabase
         .from('mobile_payments')
         .delete()
-        .eq('id', id);
+        .eq('id', paymentToDelete);
 
       if (error) throw error;
 
@@ -165,6 +182,9 @@ export const PagoMovilHistorial = ({ refreshKey, dateRange }: PagoMovilHistorial
         description: error.message || 'Error al eliminar el pago móvil',
         variant: 'destructive',
       });
+    } finally {
+      setDeleteDialogOpen(false);
+      setPaymentToDelete(null);
     }
   };
 
@@ -314,13 +334,13 @@ export const PagoMovilHistorial = ({ refreshKey, dateRange }: PagoMovilHistorial
                       >
                         <Edit2 className="h-3 w-3" />
                       </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleDelete(payment.id)}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => confirmDelete(payment.id)}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
                     </>
                   )}
                 </div>

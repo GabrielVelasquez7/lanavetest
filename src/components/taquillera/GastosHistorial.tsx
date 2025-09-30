@@ -9,6 +9,16 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Edit2, Save, X, Trash2 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface Expense {
   id: string;
@@ -32,6 +42,8 @@ export const GastosHistorial = ({ refreshKey, dateRange }: GastosHistorialProps)
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<Expense>>({});
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [expenseToDelete, setExpenseToDelete] = useState<string | null>(null);
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -127,14 +139,19 @@ export const GastosHistorial = ({ refreshKey, dateRange }: GastosHistorialProps)
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('¿Estás segura de que quieres eliminar este gasto?')) return;
+  const confirmDelete = (id: string) => {
+    setExpenseToDelete(id);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!expenseToDelete) return;
 
     try {
       const { error } = await supabase
         .from('expenses')
         .delete()
-        .eq('id', id);
+        .eq('id', expenseToDelete);
 
       if (error) throw error;
 
@@ -150,6 +167,9 @@ export const GastosHistorial = ({ refreshKey, dateRange }: GastosHistorialProps)
         description: error.message || 'Error al eliminar el gasto',
         variant: 'destructive',
       });
+    } finally {
+      setDeleteDialogOpen(false);
+      setExpenseToDelete(null);
     }
   };
 
@@ -189,8 +209,24 @@ export const GastosHistorial = ({ refreshKey, dateRange }: GastosHistorialProps)
   }
 
   return (
-    <div className="space-y-4">
-      {expenses.map((expense) => (
+    <>
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar gasto?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. El gasto será eliminado permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete}>Eliminar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <div className="space-y-4">
+        {expenses.map((expense) => (
         <Card key={expense.id}>
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
@@ -240,7 +276,7 @@ export const GastosHistorial = ({ refreshKey, dateRange }: GastosHistorialProps)
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => handleDelete(expense.id)}
+                      onClick={() => confirmDelete(expense.id)}
                     >
                       <Trash2 className="h-3 w-3" />
                     </Button>
@@ -290,7 +326,8 @@ export const GastosHistorial = ({ refreshKey, dateRange }: GastosHistorialProps)
             </div>
           </CardContent>
         </Card>
-      ))}
-    </div>
+        ))}
+      </div>
+    </>
   );
 };
