@@ -224,8 +224,24 @@ export const PagoMovilHistorial = ({ refreshKey, dateRange }: PagoMovilHistorial
     .reduce((sum, p) => sum + Math.abs(p.amount_bs), 0);
 
   return (
-    <div className="space-y-4">
-      {/* Summary */}
+    <>
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar pago móvil?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. El pago móvil será eliminado permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete}>Eliminar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <div className="space-y-4">
+        {/* Summary */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <Card>
           <CardContent className="pt-4">
@@ -388,6 +404,7 @@ export const PagoMovilHistorial = ({ refreshKey, dateRange }: PagoMovilHistorial
           </Card>
         );
       })}
-    </div>
+      </div>
+    </>
   );
 };
