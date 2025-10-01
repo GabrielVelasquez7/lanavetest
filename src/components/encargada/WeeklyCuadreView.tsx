@@ -44,6 +44,10 @@ interface WeeklyData {
   // Pending prizes
   premiosPorPagar: number;
   
+  // Inter-agency loans
+  prestamos_otorgados: { bs: number; usd: number };
+  prestamos_recibidos: { bs: number; usd: number };
+  
   // Average exchange rate for the week 
   averageExchangeRate: number;
   
@@ -136,6 +140,8 @@ export function WeeklyCuadreView() {
       totalCashAvailable: 0,
       totalCashAvailableUsd: 0,
       premiosPorPagar: 0,
+      prestamos_otorgados: { bs: 0, usd: 0 },
+      prestamos_recibidos: { bs: 0, usd: 0 },
       averageExchangeRate: 36.00,
       total_sessions: 0,
       is_weekly_closed: false,
@@ -161,6 +167,8 @@ export function WeeklyCuadreView() {
         totalCashAvailable: 0,
         totalCashAvailableUsd: 0,
         premiosPorPagar: 0,
+        prestamos_otorgados: { bs: 0, usd: 0 },
+        prestamos_recibidos: { bs: 0, usd: 0 },
         averageExchangeRate: 36.00,
         total_sessions: 0,
         is_weekly_closed: false,
@@ -180,6 +188,8 @@ export function WeeklyCuadreView() {
       totalCashAvailable: agencyData.totalCashAvailable,
       totalCashAvailableUsd: agencyData.totalCashAvailableUsd,
       premiosPorPagar: agencyData.premiosPorPagar,
+      prestamos_otorgados: agencyData.prestamos_otorgados,
+      prestamos_recibidos: agencyData.prestamos_recibidos,
       averageExchangeRate: agencyData.averageExchangeRate,
       total_sessions: agencyData.total_sessions,
       is_weekly_closed: agencyData.is_weekly_closed,
@@ -371,6 +381,8 @@ export function WeeklyCuadreView() {
           totalCashAvailable: 0,
           totalCashAvailableUsd: 0,
           premiosPorPagar: 0,
+          prestamos_otorgados: { bs: 0, usd: 0 },
+          prestamos_recibidos: { bs: 0, usd: 0 },
           averageExchangeRate: 36.00,
           total_sessions: 0,
           is_weekly_closed: false,
@@ -615,6 +627,22 @@ export function WeeklyCuadreView() {
       });
 
       // Build weekly summary
+      // Calculate total inter-agency loans
+      const totalPrestamosOtorgados = { bs: 0, usd: 0 };
+      const totalPrestamosRecibidos = { bs: 0, usd: 0 };
+      
+      interAgencyLoans.data?.forEach(loan => {
+        if (loan.status === 'pendiente') {
+          totalPrestamosOtorgados.bs += Number(loan.amount_bs || 0);
+          totalPrestamosOtorgados.usd += Number(loan.amount_usd || 0);
+          // Note: For total view, we count both sides. Per-agency view already filters by agency
+        }
+      });
+      
+      // Actually, for the total view, we should not double count
+      // The loans are internal transfers, so they cancel out in total
+      // But we show them for transparency
+      
       const finalWeeklyData: WeeklyData = {
         totalSales,
         totalPrizes,
@@ -628,6 +656,8 @@ export function WeeklyCuadreView() {
         totalCashAvailable,
         totalCashAvailableUsd,
         premiosPorPagar,
+        prestamos_otorgados: totalPrestamosOtorgados,
+        prestamos_recibidos: totalPrestamosOtorgados, // Same value as they're internal
         averageExchangeRate,
         total_sessions: encargadaData?.length || 0,
         is_weekly_closed: encargadaData?.some(item => item.is_weekly_closed) || false,
@@ -1089,6 +1119,16 @@ export function WeeklyCuadreView() {
                 <span>Excedente USD (Bs {summary.averageExchangeRate.toFixed(2)}):</span>
                 <span className="font-mono font-semibold">{formatCurrency(excessUsd * summary.averageExchangeRate, 'VES')}</span>
               </div>
+
+              <div className="flex justify-between items-center p-2 bg-amber-50 dark:bg-amber-900/20 rounded border border-amber-200">
+                <span className="text-amber-700 dark:text-amber-400">Préstamos Dados:</span>
+                <span className="font-mono font-semibold text-red-600">{formatCurrency(summary.prestamos_otorgados.bs, 'VES')}</span>
+              </div>
+
+              <div className="flex justify-between items-center p-2 bg-emerald-50 dark:bg-emerald-900/20 rounded border border-emerald-200">
+                <span className="text-emerald-700 dark:text-emerald-400">Préstamos Recibidos:</span>
+                <span className="font-mono font-semibold text-green-600">{formatCurrency(summary.prestamos_recibidos.bs, 'VES')}</span>
+              </div>
             </div>
 
             <div className="space-y-3">
@@ -1133,39 +1173,75 @@ export function WeeklyCuadreView() {
         </CardContent>
       </Card>
 
-      {/* USD Summary Card */}
+      {/* USD Summary Card - Complete Formula */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <DollarSign className="h-5 w-5" />
-            Resumen en USD
+            Fórmula de Cierre en USD
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="text-center">
-              <div className="text-sm text-muted-foreground">Ventas</div>
-              <div className="text-lg font-bold text-green-600">{formatCurrency(summary.totalSales.usd, 'USD')}</div>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-3">
+              <div className="flex justify-between items-center p-2 bg-muted rounded">
+                <span>Ventas:</span>
+                <span className="font-mono font-semibold text-green-600">{formatCurrency(summary.totalSales.usd, 'USD')}</span>
+              </div>
+              
+              <div className="flex justify-between items-center p-2 bg-muted rounded">
+                <span>Premios:</span>
+                <span className="font-mono font-semibold text-red-600">{formatCurrency(summary.totalPrizes.usd, 'USD')}</span>
+              </div>
+
+              <div className="flex justify-between items-center p-2 bg-muted rounded">
+                <span>Gastos:</span>
+                <span className="font-mono font-semibold text-red-600">{formatCurrency(summary.totalGastos.usd, 'USD')}</span>
+              </div>
+
+              <div className="flex justify-between items-center p-2 bg-muted rounded">
+                <span>Deudas:</span>
+                <span className="font-mono font-semibold text-red-600">{formatCurrency(summary.totalDeudas.usd, 'USD')}</span>
+              </div>
+
+              <div className="flex justify-between items-center p-2 bg-muted rounded">
+                <span>Efectivo Disponible:</span>
+                <span className="font-mono font-semibold">{formatCurrency(summary.totalCashAvailableUsd, 'USD')}</span>
+              </div>
             </div>
-            <div className="text-center">
-              <div className="text-sm text-muted-foreground">Premios</div>
-              <div className="text-lg font-bold text-red-600">{formatCurrency(summary.totalPrizes.usd, 'USD')}</div>
-            </div>
-            <div className="text-center">
-              <div className="text-sm text-muted-foreground">Cuadre</div>
-              <div className="text-lg font-bold text-blue-600">{formatCurrency(cuadreVentasPremios.usd, 'USD')}</div>
-            </div>
-            <div className="text-center">
-              <div className="text-sm text-muted-foreground">Efectivo Disponible</div>
-              <div className="text-lg font-bold">{formatCurrency(summary.totalCashAvailableUsd, 'USD')}</div>
+
+            <div className="space-y-3">
+              <div className="flex justify-between items-center p-2 bg-amber-50 dark:bg-amber-900/20 rounded border border-amber-200">
+                <span className="text-amber-700 dark:text-amber-400">Préstamos Dados:</span>
+                <span className="font-mono font-semibold text-red-600">{formatCurrency(summary.prestamos_otorgados.usd, 'USD')}</span>
+              </div>
+
+              <div className="flex justify-between items-center p-2 bg-emerald-50 dark:bg-emerald-900/20 rounded border border-emerald-200">
+                <span className="text-emerald-700 dark:text-emerald-400">Préstamos Recibidos:</span>
+                <span className="font-mono font-semibold text-green-600">{formatCurrency(summary.prestamos_recibidos.usd, 'USD')}</span>
+              </div>
+
+              <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                <div className="text-center space-y-2">
+                  <div className="text-sm text-muted-foreground">Cuadre (Ventas - Premios)</div>
+                  <div className="text-xl font-bold font-mono text-blue-600">{formatCurrency(cuadreVentasPremios.usd, 'USD')}</div>
+                </div>
+              </div>
+
+              <div className={`p-4 rounded-lg ${excessUsd >= 0 ? 'bg-green-50 dark:bg-green-900/20' : 'bg-red-50 dark:bg-red-900/20'}`}>
+                <div className="text-center space-y-2">
+                  <div className="text-sm text-muted-foreground">Excedente/Faltante USD</div>
+                  <div className={`text-xl font-bold font-mono ${excessUsd >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {formatCurrency(excessUsd, 'USD')}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-          <div className="mt-4 pt-4 border-t">
-            <div className="text-center">
-              <div className="text-sm text-muted-foreground">Excedente/Faltante USD</div>
-              <div className={`text-lg font-bold ${excessUsd >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {formatCurrency(excessUsd, 'USD')}
-              </div>
+          
+          <div className="pt-4 border-t">
+            <div className="text-xs text-muted-foreground text-center">
+              Nota: Los préstamos inter-agencias afectan el balance individual de cada agencia
             </div>
           </div>
         </CardContent>
