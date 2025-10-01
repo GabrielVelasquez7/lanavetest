@@ -782,7 +782,8 @@ export function WeeklyCuadreView() {
     (excessUsd * summary.averageExchangeRate);
 
   const diferenciaCierre = sumatoriaBolivares - cuadreVentasPremios.bs;
-  const diferenciaFinal = diferenciaCierre - summary.premiosPorPagar;
+  // Apply inter-agency loans: subtract loans given (money out) and add loans received (money in)
+  const diferenciaFinal = diferenciaCierre - summary.premiosPorPagar - summary.prestamos_otorgados.bs + summary.prestamos_recibidos.bs;
   const isCuadreBalanced = Math.abs(diferenciaFinal) <= 100; // Allow 100 Bs tolerance
 
   return (
