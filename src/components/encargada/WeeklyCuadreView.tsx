@@ -69,6 +69,8 @@ interface AgencyWeeklyData {
   averageExchangeRate: number;
   total_sessions: number;
   is_weekly_closed: boolean;
+  prestamos_otorgados: { bs: number; usd: number }; // Dinero prestado a otras agencias (se resta)
+  prestamos_recibidos: { bs: number; usd: number }; // Dinero recibido como préstamo (se suma)
 }
 
 interface DailyDetail {
@@ -506,6 +508,8 @@ export function WeeklyCuadreView() {
           averageExchangeRate: 36,
           total_sessions: 0,
           is_weekly_closed: false,
+          prestamos_otorgados: { bs: 0, usd: 0 },
+          prestamos_recibidos: { bs: 0, usd: 0 },
         };
       });
 
@@ -552,6 +556,23 @@ export function WeeklyCuadreView() {
         if (agencyId && agencyData[agencyId]) {
           agencyData[agencyId].totalDeudas.bs += Number(deuda.amount_bs || 0);
           agencyData[agencyId].totalDeudas.usd += Number(deuda.amount_usd || 0);
+        }
+      });
+
+      // Process inter-agency loans (only pending ones)
+      interAgencyLoans.data?.forEach(loan => {
+        if (loan.status === 'pendiente') {
+          // For the creditor (from_agency_id): subtract money lent out
+          if (loan.from_agency_id && agencyData[loan.from_agency_id]) {
+            agencyData[loan.from_agency_id].prestamos_otorgados.bs += Number(loan.amount_bs || 0);
+            agencyData[loan.from_agency_id].prestamos_otorgados.usd += Number(loan.amount_usd || 0);
+          }
+          
+          // For the debtor (to_agency_id): add money received
+          if (loan.to_agency_id && agencyData[loan.to_agency_id]) {
+            agencyData[loan.to_agency_id].prestamos_recibidos.bs += Number(loan.amount_bs || 0);
+            agencyData[loan.to_agency_id].prestamos_recibidos.usd += Number(loan.amount_usd || 0);
+          }
         }
       });
 
@@ -1260,7 +1281,9 @@ export function WeeklyCuadreView() {
               agency.totalGastos.bs + 
               (agencyExcessUsd * agency.averageExchangeRate);
             const agencyDiferencia = agencySumatoria - agencyCuadre.bs;
-            const agencyFinal = agencyDiferencia - agency.premiosPorPagar;
+            // Apply inter-agency loans: subtract loans given (money out) and add loans received (money in)
+            const agencyFinalBeforeLoans = agencyDiferencia - agency.premiosPorPagar;
+            const agencyFinal = agencyFinalBeforeLoans - agency.prestamos_otorgados.bs + agency.prestamos_recibidos.bs;
             const agencyBalanced = Math.abs(agencyFinal) <= 100;
 
             return (
@@ -1340,6 +1363,18 @@ export function WeeklyCuadreView() {
                                 {formatCurrency(agency.totalCashAvailable, 'VES')}
                               </p>
                             </div>
+                            <div className="text-center p-2 bg-muted/30 rounded">
+                              <p className="text-xs text-muted-foreground">Préstamos Dados</p>
+                              <p className="text-sm font-semibold text-destructive">
+                                {formatCurrency(agency.prestamos_otorgados.bs, 'VES')}
+                              </p>
+                            </div>
+                            <div className="text-center p-2 bg-muted/30 rounded">
+                              <p className="text-xs text-muted-foreground">Préstamos Recibidos</p>
+                              <p className="text-sm font-semibold text-success">
+                                {formatCurrency(agency.prestamos_recibidos.bs, 'VES')}
+                              </p>
+                            </div>
                             <div className="text-center p-2 bg-primary/10 rounded border border-primary/20">
                               <p className="text-xs text-muted-foreground">Balance Final</p>
                               <p className={`text-sm font-bold ${agencyBalanced ? 'text-success' : 'text-destructive'}`}>
@@ -1393,6 +1428,18 @@ export function WeeklyCuadreView() {
                               <p className="text-xs text-muted-foreground">Efectivo</p>
                               <p className="text-sm font-semibold">
                                 {formatCurrency(agency.totalCashAvailableUsd, 'USD')}
+                              </p>
+                            </div>
+                            <div className="text-center p-2 bg-muted/30 rounded">
+                              <p className="text-xs text-muted-foreground">Préstamos Dados</p>
+                              <p className="text-sm font-semibold text-destructive">
+                                {formatCurrency(agency.prestamos_otorgados.usd, 'USD')}
+                              </p>
+                            </div>
+                            <div className="text-center p-2 bg-muted/30 rounded">
+                              <p className="text-xs text-muted-foreground">Préstamos Recibidos</p>
+                              <p className="text-sm font-semibold text-success">
+                                {formatCurrency(agency.prestamos_recibidos.usd, 'USD')}
                               </p>
                             </div>
                             <div className="text-center p-2 bg-primary/10 rounded border border-primary/20">
