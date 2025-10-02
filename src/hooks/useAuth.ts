@@ -86,21 +86,40 @@ export const useAuth = () => {
   const fetchProfile = async (userId: string) => {
     try {
       console.log('Fetching profile for userId:', userId);
-      const { data, error } = await supabase
+      
+      // Fetch profile data
+      const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('user_id', userId)
         .maybeSingle();
 
-      console.log('Profile fetch result:', { data, error });
-
-      if (error && error.code !== 'PGRST116') {
-        console.error('Error fetching profile:', error);
-        // Even with error, we should stop loading
+      if (profileError && profileError.code !== 'PGRST116') {
+        console.error('Error fetching profile:', profileError);
         setProfile(null);
-      } else {
-        setProfile(data);
+        setLoading(false);
+        return;
       }
+
+      // Fetch role from user_roles table
+      const { data: roleData, error: roleError } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (roleError && roleError.code !== 'PGRST116') {
+        console.error('Error fetching role:', roleError);
+      }
+
+      // Combine profile and role data
+      const completeProfile = profileData ? {
+        ...profileData,
+        role: roleData?.role || 'taquillero'
+      } : null;
+
+      console.log('Profile fetch result:', { completeProfile });
+      setProfile(completeProfile);
     } catch (error) {
       console.error('Error fetching profile:', error);
       setProfile(null);

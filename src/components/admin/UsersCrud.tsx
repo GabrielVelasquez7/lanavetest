@@ -45,7 +45,8 @@ export const UsersCrud = () => {
 
   const fetchProfiles = async () => {
     try {
-      const { data, error } = await supabase
+      // Fetch profiles with agencies
+      const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
         .select(`
           *,
@@ -53,14 +54,25 @@ export const UsersCrud = () => {
         `)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (profilesError) throw profilesError;
+
+      // Fetch roles from user_roles
+      const { data: rolesData, error: rolesError } = await supabase
+        .from('user_roles')
+        .select('user_id, role');
+
+      if (rolesError) throw rolesError;
+
+      // Create a map of user_id -> role for quick lookup
+      const rolesMap = new Map(rolesData?.map(r => [r.user_id, r.role]) || []);
       
-      const profilesWithAgencyName = data?.map(profile => ({
+      const profilesWithRoleAndAgency = profilesData?.map(profile => ({
         ...profile,
+        role: rolesMap.get(profile.user_id) || 'taquillero',
         agency_name: profile.agencies?.name || null
       })) || [];
       
-      setProfiles(profilesWithAgencyName);
+      setProfiles(profilesWithRoleAndAgency);
     } catch (error) {
       toast({
         title: "Error",
@@ -98,20 +110,27 @@ export const UsersCrud = () => {
     
     try {
       if (editingProfile) {
-        // Update existing user
-        const updateData = {
+        // Update profile data (without role)
+        const profileUpdateData = {
           full_name: formData.full_name,
-          role: formData.role,
           agency_id: formData.agency_id === 'none' ? null : formData.agency_id || null,
           is_active: formData.is_active
         };
 
-        const { error } = await supabase
+        const { error: profileError } = await supabase
           .from('profiles')
-          .update(updateData)
+          .update(profileUpdateData)
           .eq('id', editingProfile.id);
         
-        if (error) throw error;
+        if (profileError) throw profileError;
+
+        // Update role in user_roles table
+        const { error: roleError } = await supabase
+          .from('user_roles')
+          .update({ role: formData.role })
+          .eq('user_id', editingProfile.user_id);
+        
+        if (roleError) throw roleError;
         
         toast({
           title: "Éxito",
