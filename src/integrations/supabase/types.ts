@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "13.0.4"
+    PostgrestVersion: "13.0.5"
   }
   public: {
     Tables: {
@@ -397,25 +397,39 @@ export type Database = {
         Row: {
           code: string
           created_at: string
+          has_subcategories: boolean | null
           id: string
           is_active: boolean
           name: string
+          parent_system_id: string | null
         }
         Insert: {
           code: string
           created_at?: string
+          has_subcategories?: boolean | null
           id?: string
           is_active?: boolean
           name: string
+          parent_system_id?: string | null
         }
         Update: {
           code?: string
           created_at?: string
+          has_subcategories?: boolean | null
           id?: string
           is_active?: boolean
           name?: string
+          parent_system_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "lottery_systems_parent_system_id_fkey"
+            columns: ["parent_system_id"]
+            isOneToOne: false
+            referencedRelation: "lottery_systems"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       mobile_payments: {
         Row: {

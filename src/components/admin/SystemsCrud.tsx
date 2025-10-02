@@ -16,6 +16,8 @@ interface LotterySystem {
   code: string;
   is_active: boolean;
   created_at: string;
+  has_subcategories?: boolean;
+  parent_system_id?: string | null;
 }
 
 export const SystemsCrud = () => {
@@ -26,7 +28,9 @@ export const SystemsCrud = () => {
   const [formData, setFormData] = useState({
     name: '',
     code: '',
-    is_active: true
+    is_active: true,
+    has_subcategories: false,
+    parent_system_id: null as string | null
   });
   const { toast } = useToast();
 
@@ -35,7 +39,7 @@ export const SystemsCrud = () => {
       const { data, error } = await supabase
         .from('lottery_systems')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('name');
 
       if (error) throw error;
       setSystems(data || []);
@@ -99,7 +103,9 @@ export const SystemsCrud = () => {
     setFormData({
       name: system.name,
       code: system.code,
-      is_active: system.is_active
+      is_active: system.is_active,
+      has_subcategories: system.has_subcategories || false,
+      parent_system_id: system.parent_system_id || null
     });
     setIsDialogOpen(true);
   };
@@ -158,7 +164,9 @@ export const SystemsCrud = () => {
     setFormData({
       name: '',
       code: '',
-      is_active: true
+      is_active: true,
+      has_subcategories: false,
+      parent_system_id: null
     });
     setEditingSystem(null);
     setIsDialogOpen(false);
@@ -214,6 +222,14 @@ export const SystemsCrud = () => {
                 />
                 <Label htmlFor="is_active">Activo</Label>
               </div>
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="has_subcategories"
+                  checked={formData.has_subcategories}
+                  onCheckedChange={(checked) => setFormData({ ...formData, has_subcategories: checked })}
+                />
+                <Label htmlFor="has_subcategories">¿Tiene subcategorías?</Label>
+              </div>
               <div className="flex justify-end space-x-2">
                 <Button type="button" variant="outline" onClick={resetForm}>
                   Cancelar
@@ -237,15 +253,28 @@ export const SystemsCrud = () => {
               <TableRow>
                 <TableHead>Nombre</TableHead>
                 <TableHead>Código</TableHead>
+                <TableHead>Tipo</TableHead>
                 <TableHead>Estado</TableHead>
                 <TableHead>Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {systems.map((system) => (
-                <TableRow key={system.id}>
-                  <TableCell className="font-medium">{system.name}</TableCell>
+                <TableRow key={system.id} className={system.parent_system_id ? "bg-muted/30" : ""}>
+                  <TableCell className="font-medium">
+                    {system.parent_system_id && <span className="ml-4">↳ </span>}
+                    {system.name}
+                  </TableCell>
                   <TableCell className="font-mono">{system.code}</TableCell>
+                  <TableCell>
+                    {system.has_subcategories ? (
+                      <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">Con subcategorías</span>
+                    ) : system.parent_system_id ? (
+                      <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded">Subcategoría</span>
+                    ) : (
+                      <span className="text-xs bg-gray-100 text-gray-800 px-2 py-1 rounded">Normal</span>
+                    )}
+                  </TableCell>
                   <TableCell>
                     <div className="flex items-center space-x-2">
                       <span className={`px-2 py-1 rounded-full text-xs ${

@@ -44,6 +44,8 @@ interface LotterySystem {
   id: string;
   name: string;
   code: string;
+  has_subcategories?: boolean;
+  parent_system_id?: string | null;
 }
 
 interface Agency {
@@ -91,7 +93,7 @@ export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
             .order('name'),
           supabase
             .from('lottery_systems')
-            .select('id, name, code')
+            .select('id, name, code, has_subcategories, parent_system_id')
             .eq('is_active', true)
             .order('name')
         ]);
@@ -100,7 +102,23 @@ export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
         if (systemsResult.error) throw systemsResult.error;
 
         setAgencies(agenciesResult.data || []);
-        setLotteryOptions(systemsResult.data || []);
+        
+        // Expandir sistemas con subcategorías para la encargada
+        const allSystems = systemsResult.data || [];
+        const parentSystems = allSystems.filter(s => !s.parent_system_id);
+        const subcategories = allSystems.filter(s => s.parent_system_id);
+        
+        // Expandir: reemplazar padres con subcategorías por sus hijos
+        const expandedSystems: LotterySystem[] = parentSystems.flatMap(parent => {
+          if (parent.has_subcategories) {
+            // Mostrar subcategorías en lugar del padre
+            return subcategories.filter(sub => sub.parent_system_id === parent.id);
+          }
+          // Sistema normal sin subcategorías
+          return [parent];
+        });
+        
+        setLotteryOptions(expandedSystems);
 
         // Seleccionar primera agencia por defecto
         if (agenciesResult.data && agenciesResult.data.length > 0) {
