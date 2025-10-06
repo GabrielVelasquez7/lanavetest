@@ -1,0 +1,67 @@
+name: MaxPlayGo Daily Sync
+
+on:
+  # Run daily at 8:00 AM Caracas time (12:00 UTC)
+  schedule:
+    - cron: '0 12 * * *'
+  
+  # Allow manual triggering with optional date
+  workflow_dispatch:
+    inputs:
+      date:
+        description: 'Target date (DD-MM-YYYY format, e.g., 15-09-2025)'
+        required: false
+        type: string
+
+jobs:
+  sync-maxplaygo:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Set up Chrome
+        uses: browser-actions/setup-chrome@v1
+        with:
+          chrome-version: stable
+      
+      - name: Install dependencies
+        run: |
+          pip install -r scripts/requirements.txt
+      
+      - name: Calculate target date
+        id: date
+        run: |
+          if [ -z "${{ github.event.inputs.date }}" ]; then
+            # Use Venezuela timezone for automatic runs
+            TARGET_DATE=$(TZ='America/Caracas' date +'%d-%m-%Y')
+          else
+            TARGET_DATE="${{ github.event.inputs.date }}"
+          fi
+          echo "target_date=$TARGET_DATE" >> $GITHUB_OUTPUT
+          echo "📅 Target date: $TARGET_DATE"
+      
+      - name: Run MaxPlayGo sync
+        env:
+          MAXPLAYGO_USERNAME: ${{ secrets.MAXPLAYGO_USERNAME }}
+          MAXPLAYGO_PASSWORD: ${{ secrets.MAXPLAYGO_PASSWORD }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          python scripts/sync-maxplaygo.py --date "${{ steps.date.outputs.target_date }}"
+      
+      - name: Report status
+        if: always()
+        run: |
+          if [ $? -eq 0 ]; then
+            echo "✅ Sync completed successfully"
+          else
+            echo "❌ Sync failed"
+            exit 1
+          fi

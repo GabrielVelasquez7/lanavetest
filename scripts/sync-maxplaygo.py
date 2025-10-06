@@ -6,6 +6,7 @@ Ejecutar: python sync-maxplaygo.py --date 15-09-2025
 
 import argparse
 import json
+import os
 import requests
 from datetime import datetime
 from selenium import webdriver
@@ -14,11 +15,11 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
 
-# Configuración
-MAXPLAYGO_USERNAME = "BANCA LA"
-MAXPLAYGO_PASSWORD = "123456"
-SUPABASE_URL = "https://pmmjomdrkcnmdakytlen.supabase.co"
-SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBtbWpvbWRya2NubWRha3l0bGVuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ5MzgxNTMsImV4cCI6MjA3MDUxNDE1M30.Ggxtm7FakwzzzpBCtGD_YfO2X8yEe5pbFl0DhW_ol7w"
+# Configuración - ahora desde variables de entorno
+MAXPLAYGO_USERNAME = os.environ.get("MAXPLAYGO_USERNAME", "BANCA LA")
+MAXPLAYGO_PASSWORD = os.environ.get("MAXPLAYGO_PASSWORD", "123456")
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://pmmjomdrkcnmdakytlen.supabase.co")
+SUPABASE_ANON_KEY = os.environ.get("SUPABASE_ANON_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBtbWpvbWRya2NubWRha3l0bGVuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ5MzgxNTMsImV4cCI6MjA3MDUxNDE1M30.Ggxtm7FakwzzzpBCtGD_YfO2X8yEe5pbFl0DhW_ol7w")
 
 
 def logout_maxplaygo(driver):
@@ -63,6 +64,12 @@ def scrape_maxplaygo(target_date: str, juego: str) -> list:
     chrome_options.add_argument('--headless')
     chrome_options.add_argument('--no-sandbox')
     chrome_options.add_argument('--disable-dev-shm-usage')
+    chrome_options.add_argument('--disable-gpu')
+    
+    # Support para GitHub Actions environment
+    chrome_bin = os.environ.get("CHROME_BIN")
+    if chrome_bin:
+        chrome_options.binary_location = chrome_bin
     
     driver = webdriver.Chrome(options=chrome_options)
     
