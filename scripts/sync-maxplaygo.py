@@ -21,6 +21,30 @@ SUPABASE_URL = "https://pmmjomdrkcnmdakytlen.supabase.co"
 SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBtbWpvbWRya2NubWRha3l0bGVuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ5MzgxNTMsImV4cCI6MjA3MDUxNDE1M30.Ggxtm7FakwzzzpBCtGD_YfO2X8yEe5pbFl0DhW_ol7w"
 
 
+def logout_maxplaygo(driver):
+    """
+    Cierra la sesión en MaxPlayGo
+    
+    Args:
+        driver: WebDriver de Selenium
+    """
+    try:
+        print("🚪 Cerrando sesión en MaxPlayGo...")
+        
+        # Buscar el botón de logout
+        logout_button = driver.find_element(By.CSS_SELECTOR, "button.bg-gradient-cyan")
+        logout_button.click()
+        
+        # Esperar a que redirija
+        WebDriverWait(driver, 5).until(
+            EC.url_contains("/login")
+        )
+        
+        print("✅ Sesión cerrada correctamente")
+    except Exception as e:
+        print(f"⚠️ No se pudo cerrar sesión: {e}")
+
+
 def scrape_maxplaygo(target_date: str, juego: str) -> list:
     """
     Scrapea datos de MaxPlayGo para una fecha y tipo de juego específicos
@@ -110,7 +134,12 @@ def scrape_maxplaygo(target_date: str, juego: str) -> list:
         print(f"✅ Extraídas {len(data)} agencias")
         return data
         
+    except Exception as e:
+        print(f"❌ Error durante el scraping: {e}")
+        raise
     finally:
+        # Siempre cerrar sesión antes de cerrar el navegador
+        logout_maxplaygo(driver)
         driver.quit()
 
 
