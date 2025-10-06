@@ -32,7 +32,7 @@ interface SystemConfig {
 }
 
 const AVAILABLE_SYSTEMS: SystemConfig[] = [
-  { code: 'MAXPLAY', name: 'MaxPlayGo', functionName: 'sync-maxplaygo-agency', enabled: false, comingSoon: true },
+  { code: 'MAXPLAY', name: 'MaxPlayGo', functionName: 'scrape-maxplaygo', enabled: true },
   { code: 'SOURCES', name: 'Sources', functionName: 'sync-sources-agency', enabled: true },
   { code: 'PREMIER', name: 'Premier', functionName: 'sync-premier-agency', enabled: false, comingSoon: true },
   { code: 'SYSTEM4', name: 'Sistema 4', functionName: 'sync-system4-agency', enabled: false, comingSoon: true }
@@ -44,7 +44,7 @@ export function SystemSyncManager({
   targetDate, 
   onSuccess 
 }: SystemSyncManagerProps) {
-  const [selectedSystems, setSelectedSystems] = useState<string[]>(['SOURCES']);
+  const [selectedSystems, setSelectedSystems] = useState<string[]>(['MAXPLAY', 'SOURCES']);
   const [isLoading, setIsLoading] = useState(false);
   const [syncProgress, setSyncProgress] = useState<Record<string, 'pending' | 'syncing' | 'success' | 'error'>>({});
   const [syncResults, setSyncResults] = useState<SystemSyncResult[]>([]);
