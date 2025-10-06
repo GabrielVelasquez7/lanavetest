@@ -1,7 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.54.0';
-import puppeteer from "https://deno.land/x/puppeteer@16.2.0/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -22,8 +21,9 @@ const AGENCY_MAPPING: Record<string, string> = {
 };
 
 interface SyncRequest {
-  agency_id: string;
   target_date: string; // Format: DD-MM-YYYY
+  figuras_data?: Array<[string, string, string]>; // [agency_name, sales, prizes]
+  loterias_data?: Array<[string, string, string]>; // [agency_name, sales, prizes]
 }
 
 interface MaxPlayGoData {
@@ -39,114 +39,19 @@ function parseAmount(str: string): number {
   return parseFloat(str.replace(/\./g, '').replace(',', '.'));
 }
 
-// Scrape MaxPlayGo for a specific date and game type
-async function scrapeMaxPlayGo(date: string, juego: "O" | "A"): Promise<MaxPlayGoData> {
-  const username = Deno.env.get('MAXPLAYGO_USERNAME');
-  const password = Deno.env.get('MAXPLAYGO_PASSWORD');
+// Convert array data to MaxPlayGoData format
+function parseScrapedData(rawData: Array<[string, string, string]>): MaxPlayGoData {
+  const data: MaxPlayGoData = {};
+  for (const row of rawData) {
+    const agencyName = row[0];
+    const sales = parseAmount(row[1]);
+    const prizes = parseAmount(row[2]);
 
-  if (!username || !password) {
-    throw new Error('MaxPlayGo credentials not configured');
-  }
-
-  console.log(`🔍 Starting scrape for ${juego === "O" ? "ANIMALITOS" : "LOTERIAS"} on date ${date}`);
-
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
-  });
-
-  try {
-    const page = await browser.newPage();
-
-    // 1. Login
-    console.log('📝 Navigating to login page...');
-    await page.goto('https://web.maxplaygo.com/login', { waitUntil: 'networkidle2' });
-    
-    await page.type('#usuario', username);
-    await page.type('#clave', password);
-    await page.click('button[type="submit"]');
-    
-    await page.waitForNavigation({ waitUntil: 'networkidle2' });
-    console.log(`✅ Login successful for ${juego === "O" ? "ANIMALITOS" : "LOTERIAS"}`);
-
-    // 2. Navigate to venxcom
-    console.log('📊 Navigating to venxcom...');
-    await page.goto('https://web.maxplaygo.com/venxcom/', { waitUntil: 'networkidle2' });
-
-    // 3. Fill filters
-    console.log(`🎯 Applying filters: Date=${date}, Nivel=G, Moneda=BS, Juego=${juego}`);
-    await page.evaluate((filterDate, filterJuego) => {
-      const dateInput = document.querySelector('#id_fecha') as HTMLInputElement;
-      if (dateInput) dateInput.value = filterDate;
-
-      const nivelSelect = document.querySelector('#n-nivel') as HTMLSelectElement;
-      if (nivelSelect) nivelSelect.value = 'G';
-
-      const monedaSelect = document.querySelector('#id_moneda') as HTMLSelectElement;
-      if (monedaSelect) monedaSelect.value = 'BS';
-
-      const juegoSelect = document.querySelector('#id_juego') as HTMLSelectElement;
-      if (juegoSelect) juegoSelect.value = filterJuego;
-    }, date, juego);
-
-    // 4. Submit form
-    await page.click('button[type="submit"]');
-    await page.waitForNavigation({ waitUntil: 'networkidle2' });
-    console.log('✅ Filters applied successfully');
-
-    // 5. Click "LA NAVE GRUPO" details link
-    console.log('🎯 Clicking on LA NAVE GRUPO details...');
-    await page.waitForSelector('a[title="Detalles Ventas"]');
-    
-    const clicked = await page.evaluate(() => {
-      const links = Array.from(document.querySelectorAll('a[title="Detalles Ventas"]'));
-      const laNaveLink = links.find(link => link.textContent?.includes('LA NAVE GRUPO'));
-      if (laNaveLink) {
-        (laNaveLink as HTMLAnchorElement).click();
-        return true;
-      }
-      return false;
-    });
-
-    if (!clicked) {
-      throw new Error('LA NAVE GRUPO link not found');
+    if (agencyName && agencyName.startsWith('NAVE')) {
+      data[agencyName] = { totalSales: sales, totalPrizes: prizes };
     }
-
-    await page.waitForNavigation({ waitUntil: 'networkidle2' });
-    console.log('✅ LA NAVE GRUPO details loaded');
-
-    // 6. Extract data from table
-    console.log('📋 Extracting table data...');
-    const tableData = await page.evaluate(() => {
-      const rows = Array.from(document.querySelectorAll('table tbody tr'));
-      return rows.map(row => {
-        const cells = Array.from(row.querySelectorAll('td'));
-        return [
-          cells[0]?.textContent?.trim() || '',
-          cells[1]?.textContent?.trim() || '',
-          cells[2]?.textContent?.trim() || ''
-        ];
-      });
-    });
-
-    // 7. Parse data
-    const data: MaxPlayGoData = {};
-    for (const row of tableData) {
-      const agencyName = row[0];
-      const sales = parseAmount(row[1]);
-      const prizes = parseAmount(row[2]);
-
-      if (agencyName && agencyName.startsWith('NAVE')) {
-        data[agencyName] = { totalSales: sales, totalPrizes: prizes };
-      }
-    }
-
-    console.log(`📊 Extracted ${Object.keys(data).length} agencies for ${juego === "O" ? "ANIMALITOS" : "LOTERIAS"}`);
-    return data;
-
-  } finally {
-    await browser.close();
   }
+  return data;
 }
 
 serve(async (req) => {
@@ -155,8 +60,8 @@ serve(async (req) => {
   }
 
   try {
-    const { agency_id, target_date }: SyncRequest = await req.json();
-    console.log(`Starting MaxPlayGo sync for agency: ${agency_id}, date: ${target_date}`);
+    const { target_date, figuras_data, loterias_data }: SyncRequest = await req.json();
+    console.log(`Starting MaxPlayGo sync for date: ${target_date}`);
 
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -227,17 +132,26 @@ serve(async (req) => {
       );
     }
 
+    // Validate input data
+    if (!figuras_data || !loterias_data) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Faltan datos: figuras_data y loterias_data son requeridos' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
+
     // Convert DD-MM-YYYY -> YYYY-MM-DD
     const [day, month, year] = target_date.split('-');
     const dbDate = `${year}-${month}-${day}`;
 
-    // SCRAPE ANIMALITOS (Figuras)
-    console.log('🔍 Scraping ANIMALITOS (Figuras)...');
-    const figurasData = await scrapeMaxPlayGo(target_date, "O");
+    // Parse scraped data
+    console.log('📊 Parsing FIGURAS data...');
+    const figurasData = parseScrapedData(figuras_data);
+    console.log(`✅ Parsed ${Object.keys(figurasData).length} agencies for FIGURAS`);
 
-    // SCRAPE LOTERIAS
-    console.log('🔍 Scraping LOTERIAS...');
-    const loteriasData = await scrapeMaxPlayGo(target_date, "A");
+    console.log('📊 Parsing LOTERIAS data...');
+    const loteriasData = parseScrapedData(loterias_data);
+    console.log(`✅ Parsed ${Object.keys(loteriasData).length} agencies for LOTERIAS`);
 
     let updatedAgenciesCount = 0;
     const agencyResults: Array<{name: string, system: string, sales: number, prizes: number}> = [];

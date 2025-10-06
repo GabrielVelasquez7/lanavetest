@@ -11,8 +11,31 @@ interface MaxPlayGoSyncModalProps {
   agencyId: string;
   agencyName: string;
   targetDate: string; // Format: DD-MM-YYYY
-  onSuccess: (agencyResults?: Array<{name: string, sales: number, prizes: number}>) => void;
+  onSuccess: (agencyResults?: Array<{name: string, system: string, sales: number, prizes: number}>) => void;
 }
+
+// Mock data para testing (formato: [nombre_agencia, ventas, premios])
+const MOCK_FIGURAS_DATA: Array<[string, string, string]> = [
+  ["NAVE AV SUCRE PC", "36.950,00", "57.600,00"],
+  ["NAVE BARALT PC", "22.715,00", "19.250,00"],
+  ["NAVE CANDELARIA PC", "1.000,00", "0,00"],
+  ["NAVE CEMENTERIO PC", "21.320,00", "19.650,00"],
+  ["NAVE PANTEON 2 PC", "5.040,00", "7.800,00"],
+  ["NAVE PARQUE CENTRAL PC", "8.050,00", "0,00"],
+  ["NAVE VICTORIA 1 PC", "2.940,00", "0,00"],
+  ["NAVE VICTORIA 2 PC", "1.680,00", "0,00"]
+];
+
+const MOCK_LOTERIAS_DATA: Array<[string, string, string]> = [
+  ["NAVE AV SUCRE PC", "15.200,00", "8.400,00"],
+  ["NAVE BARALT PC", "11.350,00", "5.100,00"],
+  ["NAVE CANDELARIA PC", "2.500,00", "1.200,00"],
+  ["NAVE CEMENTERIO PC", "9.800,00", "4.300,00"],
+  ["NAVE PANTEON 2 PC", "3.200,00", "2.100,00"],
+  ["NAVE PARQUE CENTRAL PC", "4.500,00", "1.800,00"],
+  ["NAVE VICTORIA 1 PC", "1.800,00", "900,00"],
+  ["NAVE VICTORIA 2 PC", "950,00", "450,00"]
+];
 
 export function MaxPlayGoSyncModal({ 
   isOpen, 
@@ -30,10 +53,13 @@ export function MaxPlayGoSyncModal({
     setIsLoading(true);
 
     try {
+      // NOTA: Este modal usa datos mock para testing
+      // Para scraping real, usar el script Python: scripts/sync-maxplaygo.py
       const { data, error } = await supabase.functions.invoke('sync-maxplaygo-agency', {
         body: {
-          agency_id: agencyId,
-          target_date: targetDate
+          target_date: targetDate,
+          figuras_data: MOCK_FIGURAS_DATA,
+          loterias_data: MOCK_LOTERIAS_DATA
         }
       });
 
@@ -93,9 +119,16 @@ export function MaxPlayGoSyncModal({
             Sincronizar MaxPlayGo
           </DialogTitle>
           <DialogDescription>
-            Sincronizaremos los datos de MaxPlayGo solo para el sistema MAXPLAY en todas las agencias activas para la fecha seleccionada.
+            <div className="space-y-2">
+              <p>Sincronizaremos los datos de MaxPlayGo para MAXPLAY-figuras y MAXPLAY-loterias en todas las agencias activas.</p>
+              <div className="bg-amber-50 border border-amber-200 rounded-md p-3 text-sm">
+                <p className="font-semibold text-amber-900">⚠️ Modo Testing</p>
+                <p className="text-amber-800">Este modal usa datos mock. Para scraping real, usar:</p>
+                <code className="block mt-1 bg-white px-2 py-1 rounded text-xs">python scripts/sync-maxplaygo.py --date {targetDate}</code>
+              </div>
+            </div>
           </DialogDescription>
-          <div className="text-sm text-muted-foreground">
+          <div className="text-sm text-muted-foreground mt-4">
             <p><strong>Fecha:</strong> {targetDate}</p>
           </div>
         </DialogHeader>
