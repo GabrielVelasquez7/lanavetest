@@ -34,6 +34,9 @@ verify_jwt = false
 [functions.scrape-maxplaygo]
 verify_jwt = false
 
+[functions.trigger-maxplaygo-sync]
+verify_jwt = false
+
 [db]
 pooler_enabled = false
 migrations_path = "./migrations"
