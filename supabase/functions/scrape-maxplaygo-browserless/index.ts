@@ -43,20 +43,23 @@ serve(async (req) => {
     const browserlessUrl = `https://production-sfo.browserless.io/function?token=${BROWSERLESS_API_KEY}`;
 
     // Function to create Playwright script
-    const createPlaywrightScript = (juego: string, juegoName: string) => `
-async ({ page }) => {
-  const USUARIO = "${MAXPLAYGO_USERNAME}";
-  const CLAVE = "${MAXPLAYGO_PASSWORD}";
-  const FECHA = "${target_date}";
+    const createPlaywrightScript = (juego: string, juegoName: string) => {
+      // Build the code as a proper JavaScript function string
+      // Using JSON.stringify to properly escape the strings
+      const code = `async ({ page }) => {
+  const USUARIO = ${JSON.stringify(MAXPLAYGO_USERNAME)};
+  const CLAVE = ${JSON.stringify(MAXPLAYGO_PASSWORD)};
+  const FECHA = ${JSON.stringify(target_date)};
   const NIVEL = "G";
   const MONEDA = "BS";
-  const JUEGO = "${juego}";
+  const JUEGO = ${JSON.stringify(juego)};
+  const JUEGO_NAME = ${JSON.stringify(juegoName)};
   const targetSelector = "a[title='Detalles Ventas']:has-text('LA NAVE GRUPO')";
 
   let data = [];
   
   try {
-    console.log("===== INICIO SCRAPING ${juegoName} =====");
+    console.log("===== INICIO SCRAPING " + JUEGO_NAME + " =====");
     
     // === LOGIN ===
     console.log("1. Iniciando login...");
@@ -109,7 +112,7 @@ async ({ page }) => {
       data.push(rowData.map(text => text.trim()));
     }
 
-    console.log(\`✅ Extraídos \${data.length} registros de ${juegoName}\`);
+    console.log("✅ Extraídos " + data.length + " registros de " + JUEGO_NAME);
 
     // === LOGOUT ===
     console.log("5. Cerrando sesión...");
@@ -121,7 +124,7 @@ async ({ page }) => {
     }
 
   } catch (error) {
-    console.error(\`⛔️ Error en ${juegoName}:\`, error.message);
+    console.error("⛔️ Error en " + JUEGO_NAME + ":", error.message);
     return { 
       status: "error", 
       message: error.message, 
@@ -129,12 +132,15 @@ async ({ page }) => {
     }; 
   }
 
-  console.log("===== FIN SCRAPING ${juegoName} =====");
+  console.log("===== FIN SCRAPING " + JUEGO_NAME + " =====");
   return { 
     status: "success", 
     data: data 
   };
 }`;
+      
+      return code;
+    };
 
     // Function to call Browserless.io
     const callBrowserless = async (juego: string, juegoName: string) => {
