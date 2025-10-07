@@ -42,11 +42,9 @@ serve(async (req) => {
     // Browserless.io API endpoint
     const browserlessUrl = `https://production-sfo.browserless.io/function?token=${BROWSERLESS_API_KEY}`;
 
-    // Function to create Playwright script
-    const createPlaywrightScript = (juego: string, juegoName: string) => {
-      // Build the code as a proper JavaScript function string
-      // Using JSON.stringify to properly escape the strings
-      const code = `(async ({ page, context }) => {
+    // Function to create Puppeteer script (Browserless only supports Puppeteer, not Playwright)
+    const createPuppeteerScript = (juego: string, juegoName: string) => {
+      const code = `export default async function ({ page, context }) {
   const USUARIO = ${JSON.stringify(MAXPLAYGO_USERNAME)};
   const CLAVE = ${JSON.stringify(MAXPLAYGO_PASSWORD)};
   const FECHA = ${JSON.stringify(target_date)};
@@ -63,13 +61,13 @@ serve(async (req) => {
     
     // === LOGIN ===
     console.log("1. Iniciando login...");
-    await page.goto("https://web.maxplaygo.com/login", { waitUntil: 'networkidle' });
+    await page.goto("https://web.maxplaygo.com/login", { waitUntil: 'networkidle0' });
     
-    await page.fill("#usuario", USUARIO);
-    await page.fill("#clave", CLAVE);
+    await page.type("#usuario", USUARIO);
+    await page.type("#clave", CLAVE);
     await page.click('button[type="submit"]');
     
-    await page.waitForLoadState("networkidle");
+    await page.waitForNavigation({ waitUntil: 'networkidle0' });
     console.log("✅ Login exitoso");
 
     // === IR A VENTAS TOTALES Y APLICAR FILTROS ===
@@ -77,10 +75,10 @@ serve(async (req) => {
     await page.goto("https://web.maxplaygo.com/venxcom/", { waitUntil: 'domcontentloaded' });
     await page.waitForSelector("#id_fecha", { timeout: 15000 });
 
-    await page.fill("#id_fecha", FECHA);
-    await page.selectOption("#n-nivel", NIVEL);
-    await page.selectOption("#id_moneda", MONEDA);
-    await page.selectOption("#id_juego", JUEGO);
+    await page.type("#id_fecha", FECHA, { delay: 100 });
+    await page.select("#n-nivel", NIVEL);
+    await page.select("#id_moneda", MONEDA);
+    await page.select("#id_juego", JUEGO);
 
     await page.click('button[type="submit"]');
     await page.waitForSelector("table tbody tr", { timeout: 20000 });
@@ -89,35 +87,63 @@ serve(async (req) => {
     // === BUSCAR Y HACER CLIC EN LA NAVE GRUPO ===
     console.log("3. Buscando 'LA NAVE GRUPO'...");
     
-    await page.click(targetSelector, { timeout: 15000 });
-    await page.waitForLoadState("networkidle");
-    console.log("🔍 Click exitoso en 'LA NAVE GRUPO'");
+    // Buscar el enlace que contiene "LA NAVE GRUPO"
+    const linkSelector = "a[title='Detalles Ventas']";
+    const links = await page.$$(linkSelector);
     
-    await page.waitForSelector("table tbody tr", { timeout: 10000 });
-
-    // === EXTRAER DATA DE DETALLES ===
-    console.log("4. Extrayendo datos de la tabla...");
-    const detalleFilas = await page.$$("table tbody tr");
-    
-    if (detalleFilas.length === 0) {
-      console.log("⚠️ Tabla de detalles vacía");
-      return { status: "success", data: [], message: "No hay datos para esta fecha" };
+    let targetLink = null;
+    for (const link of links) {
+      const linkText = await page.evaluate(el => el.textContent, link);
+      if (linkText && linkText.includes("LA NAVE GRUPO")) {
+        targetLink = link;
+        break;
+      }
     }
     
-    for (const fila of detalleFilas) {
-      const tds = await fila.$$("td");
-      if (tds.length === 0) continue;
+    if (targetLink) {
+      await targetLink.click();
+      await page.waitForNavigation({ waitUntil: 'networkidle0' });
+      console.log("🔍 Click exitoso en 'LA NAVE GRUPO'");
       
-      const rowData = await Promise.all(tds.map(td => td.innerText()));
-      data.push(rowData.map(text => text.trim()));
-    }
+      await page.waitForSelector("table tbody tr", { timeout: 10000 });
 
-    console.log("✅ Extraídos " + data.length + " registros de " + JUEGO_NAME);
+      // === EXTRAER DATA DE DETALLES ===
+      console.log("4. Extrayendo datos de la tabla...");
+      const tableRows = await page.$$("table tbody tr");
+      
+      if (tableRows.length === 0) {
+        console.log("⚠️ Tabla de detalles vacía");
+        return {
+          data: { status: "success", data: [], message: "No hay datos para esta fecha" },
+          type: "application/json"
+        };
+      }
+      
+      for (const row of tableRows) {
+        const cells = await row.$$("td");
+        if (cells.length === 0) continue;
+        
+        const rowData = [];
+        for (const cell of cells) {
+          const cellText = await page.evaluate(el => el.textContent, cell);
+          rowData.push(cellText ? cellText.trim() : "");
+        }
+        data.push(rowData);
+      }
+
+      console.log("✅ Extraídos " + data.length + " registros de " + JUEGO_NAME);
+    } else {
+      console.log("⚠️ No se encontró el enlace de LA NAVE GRUPO");
+      return {
+        data: { status: "error", message: "No se encontró LA NAVE GRUPO", data: [] },
+        type: "application/json"
+      };
+    }
 
     // === LOGOUT ===
     console.log("5. Cerrando sesión...");
     try {
-      await page.goto("https://web.maxplaygo.com/logout", { waitUntil: 'networkidle' });
+      await page.goto("https://web.maxplaygo.com/logout", { waitUntil: 'networkidle0' });
       console.log("✅ Logout exitoso");
     } catch (e) {
       console.log("⚠️ Error en logout (no crítico):", e.message);
@@ -125,19 +151,18 @@ serve(async (req) => {
 
   } catch (error) {
     console.error("⛔️ Error en " + JUEGO_NAME + ":", error.message);
-    return { 
-      status: "error", 
-      message: error.message, 
-      data: [] 
-    }; 
+    return {
+      data: { status: "error", message: error.message, data: [] },
+      type: "application/json"
+    };
   }
 
   console.log("===== FIN SCRAPING " + JUEGO_NAME + " =====");
-  return { 
-    status: "success", 
-    data: data 
+  return {
+    data: { status: "success", data: data },
+    type: "application/json"
   };
-})`;
+}`;
       
       return code;
     };
@@ -146,7 +171,7 @@ serve(async (req) => {
     const callBrowserless = async (juego: string, juegoName: string) => {
       console.log(`\n>>> Iniciando scraping de ${juegoName}...`);
       
-      const scriptCode = createPlaywrightScript(juego, juegoName);
+      const scriptCode = createPuppeteerScript(juego, juegoName);
       console.log(`Code preview (first 150 chars): ${scriptCode.slice(0, 150)}...`);
       
       const payload = {
