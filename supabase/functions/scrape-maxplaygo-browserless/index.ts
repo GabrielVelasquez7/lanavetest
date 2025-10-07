@@ -46,7 +46,7 @@ serve(async (req) => {
     const createPlaywrightScript = (juego: string, juegoName: string) => {
       // Build the code as a proper JavaScript function string
       // Using JSON.stringify to properly escape the strings
-      const code = `async ({ page }) => {
+      const code = `module.exports = async ({ page, context }) => {
   const USUARIO = ${JSON.stringify(MAXPLAYGO_USERNAME)};
   const CLAVE = ${JSON.stringify(MAXPLAYGO_PASSWORD)};
   const FECHA = ${JSON.stringify(target_date)};
