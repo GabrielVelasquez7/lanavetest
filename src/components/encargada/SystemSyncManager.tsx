@@ -32,7 +32,7 @@ interface SystemConfig {
 }
 
 const AVAILABLE_SYSTEMS: SystemConfig[] = [
-  { code: 'MAXPLAY', name: 'MaxPlayGo', functionName: 'sync-maxplaygo-agency', enabled: true },
+  { code: 'MAXPLAY', name: 'MaxPlayGo', functionName: 'scrape-maxplaygo-browserless', enabled: true },
   { code: 'SOURCES', name: 'Sources', functionName: 'sync-sources-agency', enabled: true },
   { code: 'PREMIER', name: 'Premier', functionName: 'sync-premier-agency', enabled: false, comingSoon: true },
   { code: 'SYSTEM4', name: 'Sistema 4', functionName: 'sync-system4-agency', enabled: false, comingSoon: true }
