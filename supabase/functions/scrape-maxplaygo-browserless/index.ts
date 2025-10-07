@@ -46,7 +46,7 @@ serve(async (req) => {
     const createPlaywrightScript = (juego: string, juegoName: string) => {
       // Build the code as a proper JavaScript function string
       // Using JSON.stringify to properly escape the strings
-      const code = `module.exports = async ({ page, context }) => {
+      const code = `(async ({ page, context }) => {
   const USUARIO = ${JSON.stringify(MAXPLAYGO_USERNAME)};
   const CLAVE = ${JSON.stringify(MAXPLAYGO_PASSWORD)};
   const FECHA = ${JSON.stringify(target_date)};
@@ -137,7 +137,7 @@ serve(async (req) => {
     status: "success", 
     data: data 
   };
-}`;
+})`;
       
       return code;
     };
@@ -146,8 +146,11 @@ serve(async (req) => {
     const callBrowserless = async (juego: string, juegoName: string) => {
       console.log(`\n>>> Iniciando scraping de ${juegoName}...`);
       
+      const scriptCode = createPlaywrightScript(juego, juegoName);
+      console.log(`Code preview (first 150 chars): ${scriptCode.slice(0, 150)}...`);
+      
       const payload = {
-        code: createPlaywrightScript(juego, juegoName)
+        code: scriptCode
       };
 
       const response = await fetch(browserlessUrl, {
