@@ -194,7 +194,9 @@ serve(async (req) => {
 
       const result = await response.json();
       console.log(`<<< Scraping de ${juegoName} completado`);
+      console.log(`Full result object:`, JSON.stringify(result).slice(0, 300));
       console.log(`Status: ${result.status}`);
+      console.log(`Data array length: ${Array.isArray(result.data) ? result.data.length : 'not an array'}`);
       console.log(`Registros obtenidos: ${result.data?.length || 0}`);
       
       return result;
