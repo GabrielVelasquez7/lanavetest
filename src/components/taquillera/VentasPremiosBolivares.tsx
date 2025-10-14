@@ -219,8 +219,8 @@ export const VentasPremiosBolivares = ({ form, lotteryOptions }: VentasPremiosBo
                 );
               })}
             </div>
-
-         
+          </div>
+        )}
 
         {/* Totales Generales para Bolívares */}
         <Card className="bg-muted/30">
