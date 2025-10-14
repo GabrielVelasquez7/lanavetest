@@ -138,13 +138,14 @@ export function AllTaquillerasCuadresOptimized() {
         return;
       }
 
-      // Fetch user profiles for the found cuadres
+      // Fetch user profiles for the found cuadres, filtering only taquilleras
       const userIds = [...new Set(cuadresSummary.map(c => c.user_id))];
       
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
-        .select('user_id, full_name, agency_id')
-        .in('user_id', userIds);
+        .select('user_id, full_name, agency_id, role')
+        .in('user_id', userIds)
+        .eq('role', 'taquillero');
 
       console.log('Profiles found:', profiles?.length || 0, profiles);
 
@@ -178,10 +179,12 @@ export function AllTaquillerasCuadresOptimized() {
         return acc;
       }, {} as Record<string, any>) || {};
 
-      // Transform data to match existing interface
-      const cuadresWithData = cuadresSummary.map((cuadre) => {
-        const profile = profilesMap[cuadre.user_id];
-        const agency = agenciesMap[cuadre.agency_id];
+      // Transform data to match existing interface - only include taquilleras
+      const cuadresWithData = cuadresSummary
+        .filter((cuadre) => profilesMap[cuadre.user_id]) // Only include users with taquillero role
+        .map((cuadre) => {
+          const profile = profilesMap[cuadre.user_id];
+          const agency = agenciesMap[cuadre.agency_id];
 
         return {
           id: cuadre.id,
