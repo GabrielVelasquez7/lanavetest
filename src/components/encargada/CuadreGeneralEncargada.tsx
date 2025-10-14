@@ -28,6 +28,17 @@ interface ParleySystem {
   prizes_bs: number;
 }
 
+interface SystemSummary {
+  id: string;
+  name: string;
+  code: string;
+  sales_bs: number;
+  sales_usd: number;
+  prizes_bs: number;
+  prizes_usd: number;
+  hasSublevels: boolean;
+}
+
 interface CuadreData {
   // Sales & Prizes
   totalSales: { bs: number; usd: number };
@@ -66,6 +77,9 @@ interface CuadreData {
   
   // Parley y Caballos systems
   parleySystems: ParleySystem[];
+  
+  // All systems summary
+  systemsSummary: SystemSummary[];
 }
 
 export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKey = 0 }: CuadreGeneralEncargadaProps) => {
@@ -87,6 +101,7 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
     exchangeRate: 36.00,
     sessionsCount: 0,
     parleySystems: [],
+    systemsSummary: [],
   });
   
   // Temporary string states for input fields
@@ -129,6 +144,7 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
       exchangeRate: 36.00,
       sessionsCount: 0,
       parleySystems: [],
+      systemsSummary: [],
     });
     setExchangeRateInput('36.00');
     setCashAvailableInput('0');
@@ -260,6 +276,7 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
             exchangeRate: averageExchangeRate,
             sessionsCount: 0,
             parleySystems: [],
+            systemsSummary: [],
           });
         } else {
           setCuadre({
@@ -280,6 +297,7 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
             exchangeRate: 36.00,
             sessionsCount: 0,
             parleySystems: [],
+            systemsSummary: [],
           });
         }
         setLoading(false);
@@ -397,6 +415,7 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
             exchangeRate: averageExchangeRate,
             sessionsCount: 0,
             parleySystems: [],
+            systemsSummary: [],
           });
         } else {
           setCuadre({
@@ -417,6 +436,7 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
             exchangeRate: 36.00,
             sessionsCount: 0,
             parleySystems: [],
+            systemsSummary: [],
           });
         }
         setLoading(false);
@@ -432,7 +452,10 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
         pendingPrizesData,
         parleySalesData,
         parleyPrizesData,
-        lotterySystems
+        lotterySystems,
+        allSalesData,
+        allPrizesData,
+        allLotterySystems
       ] = await Promise.all([
         supabase
           .from('sales_transactions')
@@ -472,7 +495,19 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
         supabase
           .from('lottery_systems')
           .select('id, name, code, parent_system_id')
-          .in('code', ['INMEJORABLE-MULTIS-1', 'INMEJORABLE-MULTIS-2', 'INMEJORABLE-MULTIS-3', 'INMEJORABLE-MULTIS-4', 'INMEJORABLE-5Y6', 'POLLA', 'MULTISPORT-CABALLOS-NAC', 'MULTISPORT-CABALLOS-INT', 'MULTISPORT-5Y6'])
+          .in('code', ['INMEJORABLE-MULTIS-1', 'INMEJORABLE-MULTIS-2', 'INMEJORABLE-MULTIS-3', 'INMEJORABLE-MULTIS-4', 'INMEJORABLE-5Y6', 'POLLA', 'MULTISPORT-CABALLOS-NAC', 'MULTISPORT-CABALLOS-INT', 'MULTISPORT-5Y6']),
+        supabase
+          .from('sales_transactions')
+          .select('lottery_system_id, amount_bs, amount_usd')
+          .in('session_id', sessionIds),
+        supabase
+          .from('prize_transactions')
+          .select('lottery_system_id, amount_bs, amount_usd')
+          .in('session_id', sessionIds),
+        supabase
+          .from('lottery_systems')
+          .select('id, name, code, parent_system_id, has_subcategories')
+          .eq('is_active', true)
       ]);
 
       console.log('🔍 CUADRE ENCARGADA DEBUG - Query results:', {
@@ -594,6 +629,62 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
 
       const parleySystems = Array.from(systemsMap.values());
 
+      // Process all systems summary
+      const allSystemsMap = new Map<string, SystemSummary>();
+      
+      // Build systems map - group by parent if has sublevel
+      allLotterySystems.data?.forEach(system => {
+        const systemKey = system.parent_system_id || system.id;
+        
+        if (!allSystemsMap.has(systemKey)) {
+          // Find parent system info
+          const parentSystem = system.parent_system_id 
+            ? allLotterySystems.data?.find(s => s.id === system.parent_system_id)
+            : system;
+          
+          allSystemsMap.set(systemKey, {
+            id: systemKey,
+            name: parentSystem?.name || system.name,
+            code: parentSystem?.code || system.code,
+            sales_bs: 0,
+            sales_usd: 0,
+            prizes_bs: 0,
+            prizes_usd: 0,
+            hasSublevels: !!system.parent_system_id || system.has_subcategories,
+          });
+        }
+      });
+
+      // Aggregate sales by system (group sublevels into parent)
+      allSalesData.data?.forEach(sale => {
+        const system = allLotterySystems.data?.find(s => s.id === sale.lottery_system_id);
+        if (system) {
+          const systemKey = system.parent_system_id || system.id;
+          const summarySystem = allSystemsMap.get(systemKey);
+          if (summarySystem) {
+            summarySystem.sales_bs += Number(sale.amount_bs || 0);
+            summarySystem.sales_usd += Number(sale.amount_usd || 0);
+          }
+        }
+      });
+
+      // Aggregate prizes by system (group sublevels into parent)
+      allPrizesData.data?.forEach(prize => {
+        const system = allLotterySystems.data?.find(s => s.id === prize.lottery_system_id);
+        if (system) {
+          const systemKey = system.parent_system_id || system.id;
+          const summarySystem = allSystemsMap.get(systemKey);
+          if (summarySystem) {
+            summarySystem.prizes_bs += Number(prize.amount_bs || 0);
+            summarySystem.prizes_usd += Number(prize.amount_usd || 0);
+          }
+        }
+      });
+
+      const systemsSummary = Array.from(allSystemsMap.values())
+        .filter(s => s.sales_bs > 0 || s.prizes_bs > 0 || s.sales_usd > 0 || s.prizes_usd > 0)
+        .sort((a, b) => a.name.localeCompare(b.name));
+
       const finalCuadre = {
         totalSales,
         totalPrizes,
@@ -613,6 +704,7 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
         sessionId: sessions?.[0]?.id,
         sessionsCount: sessions?.length || 0,
         parleySystems,
+        systemsSummary,
       };
       
         setCuadre(finalCuadre);
@@ -1217,6 +1309,109 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
                         'VES'
                       )}
                     </span>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </>
+      )}
+
+      {/* Systems Summary Section */}
+      {cuadre.systemsSummary.length > 0 && (
+        <>
+          <div className="py-3">
+            <div className="flex items-center gap-3">
+              <div className="h-px flex-1 bg-gradient-to-r from-transparent via-blue-300 to-transparent"></div>
+              <h3 className="text-sm font-bold text-blue-700 uppercase tracking-wider px-4 py-2 bg-blue-50 rounded-full border border-blue-200">
+                Resumen Por Sistemas
+              </h3>
+              <div className="h-px flex-1 bg-gradient-to-r from-transparent via-blue-300 to-transparent"></div>
+            </div>
+          </div>
+
+          <Card className="border-2 border-blue-200">
+            <CardContent className="pt-6">
+              <div className="space-y-4">
+                {/* Table Header */}
+                <div className="grid grid-cols-6 gap-2 text-xs font-semibold text-muted-foreground border-b pb-2">
+                  <div>Sistema</div>
+                  <div className="text-right">Ventas Bs</div>
+                  <div className="text-right">Premios Bs</div>
+                  <div className="text-right">Ventas USD</div>
+                  <div className="text-right">Premios USD</div>
+                  <div className="text-right">Neto Bs</div>
+                </div>
+
+                {/* Systems List */}
+                <div className="space-y-1">
+                  {cuadre.systemsSummary.map((system, index) => {
+                    const netoBs = system.sales_bs - system.prizes_bs;
+                    return (
+                      <div
+                        key={index}
+                        className="grid grid-cols-6 gap-2 p-2 bg-gray-50 border border-gray-200 rounded hover:bg-gray-100 transition-colors text-xs"
+                      >
+                        <div className="font-medium flex items-center">
+                          {system.name}
+                          {system.hasSublevels && (
+                            <Badge variant="outline" className="ml-2 text-xs">Sub</Badge>
+                          )}
+                        </div>
+                        <div className="text-right text-green-600 font-medium">
+                          {formatCurrency(system.sales_bs, 'VES')}
+                        </div>
+                        <div className="text-right text-red-600 font-medium">
+                          {formatCurrency(system.prizes_bs, 'VES')}
+                        </div>
+                        <div className="text-right text-green-600">
+                          {formatCurrency(system.sales_usd, 'USD')}
+                        </div>
+                        <div className="text-right text-red-600">
+                          {formatCurrency(system.prizes_usd, 'USD')}
+                        </div>
+                        <div className={`text-right font-bold ${netoBs >= 0 ? 'text-blue-600' : 'text-destructive'}`}>
+                          {formatCurrency(netoBs, 'VES')}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Totals */}
+                <div className="pt-3 border-t-2 border-blue-300">
+                  <div className="grid grid-cols-6 gap-2 p-3 bg-blue-50 rounded border border-blue-200 text-sm font-bold">
+                    <div className="text-blue-700">TOTALES</div>
+                    <div className="text-right text-green-700">
+                      {formatCurrency(
+                        cuadre.systemsSummary.reduce((sum, sys) => sum + sys.sales_bs, 0),
+                        'VES'
+                      )}
+                    </div>
+                    <div className="text-right text-red-700">
+                      {formatCurrency(
+                        cuadre.systemsSummary.reduce((sum, sys) => sum + sys.prizes_bs, 0),
+                        'VES'
+                      )}
+                    </div>
+                    <div className="text-right text-green-700">
+                      {formatCurrency(
+                        cuadre.systemsSummary.reduce((sum, sys) => sum + sys.sales_usd, 0),
+                        'USD'
+                      )}
+                    </div>
+                    <div className="text-right text-red-700">
+                      {formatCurrency(
+                        cuadre.systemsSummary.reduce((sum, sys) => sum + sys.prizes_usd, 0),
+                        'USD'
+                      )}
+                    </div>
+                    <div className="text-right text-blue-700">
+                      {formatCurrency(
+                        cuadre.systemsSummary.reduce((sum, sys) => sum + (sys.sales_bs - sys.prizes_bs), 0),
+                        'VES'
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
