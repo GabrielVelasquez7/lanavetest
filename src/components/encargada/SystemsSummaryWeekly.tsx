@@ -83,81 +83,48 @@ export const SystemsSummaryWeekly = () => {
     try {
       setLoading(true);
 
-      // Get users from selected agency or all agencies
-      let userIds: string[] = [];
-      
-      if (selectedAgency === 'all') {
-        const { data: allProfiles, error: profilesError } = await supabase
-          .from('profiles')
-          .select('user_id');
-        
-        if (profilesError) throw profilesError;
-        userIds = allProfiles?.map(p => p.user_id) || [];
-      } else {
-        const { data: agencyProfiles, error: profilesError } = await supabase
-          .from('profiles')
-          .select('user_id')
-          .eq('agency_id', selectedAgency);
-        
-        if (profilesError) throw profilesError;
-        userIds = agencyProfiles?.map(p => p.user_id) || [];
-      }
-
-      if (userIds.length === 0) {
-        setSystemsSummary([]);
-        setLoading(false);
-        return;
-      }
-
-      // Get sessions for the week
-      const { data: sessions, error: sessionsError } = await supabase
-        .from('daily_sessions')
-        .select('id')
-        .in('user_id', userIds)
+      // Get data from daily_cuadres_summary based on selected agency
+      let query = supabase
+        .from('daily_cuadres_summary')
+        .select(`
+          lottery_system_id,
+          total_sales_bs,
+          total_sales_usd,
+          total_prizes_bs,
+          total_prizes_usd
+        `)
         .gte('session_date', weekDates.start)
-        .lte('session_date', weekDates.end);
+        .lte('session_date', weekDates.end)
+        .is('session_id', null); // Only encargada data
 
-      if (sessionsError) throw sessionsError;
-
-      const sessionIds = sessions?.map(s => s.id) || [];
-
-      if (sessionIds.length === 0) {
-        setSystemsSummary([]);
-        setLoading(false);
-        return;
+      // Filter by agency if selected
+      if (selectedAgency !== 'all') {
+        query = query.eq('agency_id', selectedAgency);
       }
 
-      // Fetch all data in parallel
-      const [allSalesData, allPrizesData, allLotterySystems] = await Promise.all([
-        supabase
-          .from('sales_transactions')
-          .select('lottery_system_id, amount_bs, amount_usd')
-          .in('session_id', sessionIds),
-        supabase
-          .from('prize_transactions')
-          .select('lottery_system_id, amount_bs, amount_usd')
-          .in('session_id', sessionIds),
-        supabase
-          .from('lottery_systems')
-          .select('id, name, code, parent_system_id, has_subcategories')
-          .eq('is_active', true)
-      ]);
+      const { data: summaryData, error: summaryError } = await query;
 
-      if (allSalesData.error) throw allSalesData.error;
-      if (allPrizesData.error) throw allPrizesData.error;
-      if (allLotterySystems.error) throw allLotterySystems.error;
+      if (summaryError) throw summaryError;
+
+      // Get all lottery systems info
+      const { data: allLotterySystems, error: systemsError } = await supabase
+        .from('lottery_systems')
+        .select('id, name, code, parent_system_id, has_subcategories')
+        .eq('is_active', true);
+
+      if (systemsError) throw systemsError;
 
       // Process all systems summary
       const allSystemsMap = new Map<string, SystemSummary>();
       
       // Build systems map - group by parent if has sublevel
-      allLotterySystems.data?.forEach(system => {
+      allLotterySystems?.forEach(system => {
         const systemKey = system.parent_system_id || system.id;
         
         if (!allSystemsMap.has(systemKey)) {
           // Find parent system info
           const parentSystem = system.parent_system_id 
-            ? allLotterySystems.data?.find(s => s.id === system.parent_system_id)
+            ? allLotterySystems?.find(s => s.id === system.parent_system_id)
             : system;
           
           allSystemsMap.set(systemKey, {
@@ -173,28 +140,19 @@ export const SystemsSummaryWeekly = () => {
         }
       });
 
-      // Aggregate sales by system (group sublevels into parent)
-      allSalesData.data?.forEach(sale => {
-        const system = allLotterySystems.data?.find(s => s.id === sale.lottery_system_id);
+      // Aggregate data by system (group sublevels into parent)
+      summaryData?.forEach(row => {
+        if (!row.lottery_system_id) return;
+        
+        const system = allLotterySystems?.find(s => s.id === row.lottery_system_id);
         if (system) {
           const systemKey = system.parent_system_id || system.id;
           const summarySystem = allSystemsMap.get(systemKey);
           if (summarySystem) {
-            summarySystem.sales_bs += Number(sale.amount_bs || 0);
-            summarySystem.sales_usd += Number(sale.amount_usd || 0);
-          }
-        }
-      });
-
-      // Aggregate prizes by system (group sublevels into parent)
-      allPrizesData.data?.forEach(prize => {
-        const system = allLotterySystems.data?.find(s => s.id === prize.lottery_system_id);
-        if (system) {
-          const systemKey = system.parent_system_id || system.id;
-          const summarySystem = allSystemsMap.get(systemKey);
-          if (summarySystem) {
-            summarySystem.prizes_bs += Number(prize.amount_bs || 0);
-            summarySystem.prizes_usd += Number(prize.amount_usd || 0);
+            summarySystem.sales_bs += Number(row.total_sales_bs || 0);
+            summarySystem.sales_usd += Number(row.total_sales_usd || 0);
+            summarySystem.prizes_bs += Number(row.total_prizes_bs || 0);
+            summarySystem.prizes_usd += Number(row.total_prizes_usd || 0);
           }
         }
       });
