@@ -219,32 +219,6 @@ export const VentasPremiosDolares = ({ form, lotteryOptions }: VentasPremiosDola
                 );
               })}
             </div>
-
-            {/* Totales de Parley */}
-            <Card className="bg-purple-500/5">
-              <CardContent className="pt-6">
-                <div className="grid grid-cols-3 gap-4 text-center">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Total Ventas</p>
-                    <p className="text-lg font-bold text-success">
-                      {formatCurrency(parleyTotals.sales_usd, 'USD')}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Total Premios</p>
-                    <p className="text-lg font-bold text-destructive">
-                      {formatCurrency(parleyTotals.prizes_usd, 'USD')}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Cuadre Total</p>
-                    <p className={`text-lg font-bold ${(parleyTotals.sales_usd - parleyTotals.prizes_usd) >= 0 ? 'text-success' : 'text-destructive'}`}>
-                      {formatCurrency(parleyTotals.sales_usd - parleyTotals.prizes_usd, 'USD')}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
           </div>
         )}
 
