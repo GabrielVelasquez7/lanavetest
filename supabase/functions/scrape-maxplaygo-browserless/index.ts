@@ -61,14 +61,62 @@ serve(async (req) => {
     
     // === LOGIN ===
     console.log("1. Iniciando login...");
-    await page.goto("https://web.maxplaygo.com/login", { waitUntil: 'networkidle0' });
-    
-    await page.type("#usuario", USUARIO);
-    await page.type("#clave", CLAVE);
-    await page.click('button[type="submit"]');
-    
-    await page.waitForNavigation({ waitUntil: 'networkidle0' });
-    console.log("✅ Login exitoso");
+    // Establecer User-Agent y viewport para evitar bloqueos por bot
+    try {
+      await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36');
+      await page.setViewport({ width: 1366, height: 768, deviceScaleFactor: 1 });
+    } catch (e) {
+      console.log('⚠️ No se pudo configurar userAgent/viewport (no crítico):', e?.message || e);
+    }
+
+    await page.goto("https://web.maxplaygo.com/login", { waitUntil: 'domcontentloaded' });
+    await page.waitForTimeout(1500);
+
+    // Buscar campo de usuario con múltiples selectores posibles
+    const userSelectors = ["#usuario", "input#usuario", "input[name='usuario']", "input[name='username']", "input[id*='usuario']", "input[placeholder*='Usuario']"]; 
+    let userInputSel = null;
+    for (const sel of userSelectors) {
+      try {
+        await page.waitForSelector(sel, { timeout: 8000 });
+        userInputSel = sel;
+        break;
+      } catch (_) {}
+    }
+    if (!userInputSel) {
+      throw new Error("No element found for username input");
+    }
+
+    // Buscar campo de clave con múltiples selectores posibles
+    const passSelectors = ["#clave", "input#clave", "input[name='clave']", "input[name='password']", "input[type='password']"]; 
+    let passInputSel = null;
+    for (const sel of passSelectors) {
+      try {
+        await page.waitForSelector(sel, { timeout: 8000 });
+        passInputSel = sel;
+        break;
+      } catch (_) {}
+    }
+    if (!passInputSel) {
+      throw new Error("No element found for password input");
+    }
+
+    await page.type(userInputSel, USUARIO, { delay: 50 });
+    await page.type(passInputSel, CLAVE, { delay: 50 });
+
+    // Intentar múltiples formas de enviar el formulario
+    const submitCandidates = ["button[type=\"submit\"]", "input[type=\"submit\"]"]; 
+    let submitted = false;
+    for (const sel of submitCandidates) {
+      const btn = await page.$(sel);
+      if (btn) { await btn.click(); submitted = true; break; }
+    }
+    if (!submitted) {
+      // Fallback: Enter
+      await page.keyboard.press('Enter');
+    }
+
+    await page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 20000 }).catch(() => {});
+    console.log("✅ Login completado (o continuando tras intento)");
 
     // === IR A VENTAS TOTALES Y APLICAR FILTROS ===
     console.log("2. Aplicando filtros...");
