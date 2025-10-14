@@ -1144,20 +1144,6 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
         </CardContent>
       </Card>
 
-      {/* Notes Section */}
-      {cuadre.closureNotes && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Notas del Cierre</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm p-3 bg-muted/50 rounded border">
-              {cuadre.closureNotes}
-            </p>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Parley y Caballos Section */}
       {cuadre.parleySystems.length > 0 && (
         <>
@@ -1237,6 +1223,20 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
             </CardContent>
           </Card>
         </>
+      )}
+
+      {/* Notes Section */}
+      {cuadre.closureNotes && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">Notas del Cierre</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm p-3 bg-muted/50 rounded border">
+              {cuadre.closureNotes}
+            </p>
+          </CardContent>
+        </Card>
       )}
     </div>
   );
