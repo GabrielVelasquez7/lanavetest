@@ -245,15 +245,15 @@ serve(async (req) => {
       console.log(`Full result object:`, JSON.stringify(raw).slice(0, 300));
 
       // Unwrap Browserless payload: sometimes returns { data: {...}, type: 'application/json' }
-      const payload = (raw && typeof raw === 'object' && 'data' in raw && (raw as any).type === 'application/json')
+      const result = (raw && typeof raw === 'object' && 'data' in raw && (raw as any).type === 'application/json')
         ? (raw as any).data
         : raw;
 
-      console.log(`Status: ${payload?.status}`);
-      console.log(`Data array length: ${Array.isArray(payload?.data) ? payload.data.length : 'not an array'}`);
-      console.log(`Registros obtenidos: ${Array.isArray(payload?.data) ? payload.data.length : 0}`);
+      console.log(`Status: ${result?.status}`);
+      console.log(`Data array length: ${Array.isArray(result?.data) ? result.data.length : 'not an array'}`);
+      console.log(`Registros obtenidos: ${Array.isArray(result?.data) ? result.data.length : 0}`);
       
-      return payload;
+      return result;
     };
 
     // Scrape both FIGURAS and LOTERIAS
