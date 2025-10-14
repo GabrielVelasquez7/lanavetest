@@ -22,6 +22,12 @@ interface CuadreGeneralEncargadaProps {
   refreshKey?: number;
 }
 
+interface ParleySystem {
+  name: string;
+  sales_bs: number;
+  prizes_bs: number;
+}
+
 interface CuadreData {
   // Sales & Prizes
   totalSales: { bs: number; usd: number };
@@ -57,6 +63,9 @@ interface CuadreData {
   
   // Multiple sessions for agency
   sessionsCount: number;
+  
+  // Parley y Caballos systems
+  parleySystems: ParleySystem[];
 }
 
 export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKey = 0 }: CuadreGeneralEncargadaProps) => {
@@ -77,6 +86,7 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
     premiosPorPagar: 0,
     exchangeRate: 36.00,
     sessionsCount: 0,
+    parleySystems: [],
   });
   
   // Temporary string states for input fields
@@ -118,6 +128,7 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
       premiosPorPagar: 0,
       exchangeRate: 36.00,
       sessionsCount: 0,
+      parleySystems: [],
     });
     setExchangeRateInput('36.00');
     setCashAvailableInput('0');
@@ -248,6 +259,7 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
             premiosPorPagar: 0,
             exchangeRate: averageExchangeRate,
             sessionsCount: 0,
+            parleySystems: [],
           });
         } else {
           setCuadre({
@@ -267,6 +279,7 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
             premiosPorPagar: 0,
             exchangeRate: 36.00,
             sessionsCount: 0,
+            parleySystems: [],
           });
         }
         setLoading(false);
@@ -383,6 +396,7 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
             premiosPorPagar: 0,
             exchangeRate: averageExchangeRate,
             sessionsCount: 0,
+            parleySystems: [],
           });
         } else {
           setCuadre({
@@ -402,6 +416,7 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
             premiosPorPagar: 0,
             exchangeRate: 36.00,
             sessionsCount: 0,
+            parleySystems: [],
           });
         }
         setLoading(false);
@@ -414,7 +429,10 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
         expensesData, 
         mobilePaymentsData, 
         posData,
-        pendingPrizesData
+        pendingPrizesData,
+        parleySalesData,
+        parleyPrizesData,
+        lotterySystems
       ] = await Promise.all([
         supabase
           .from('sales_transactions')
@@ -442,7 +460,19 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
         supabase
           .from('pending_prizes')
           .select('amount_bs, is_paid')
-          .in('session_id', sessionIds)
+          .in('session_id', sessionIds),
+        supabase
+          .from('sales_transactions')
+          .select('lottery_system_id, amount_bs')
+          .in('session_id', sessionIds),
+        supabase
+          .from('prize_transactions')
+          .select('lottery_system_id, amount_bs')
+          .in('session_id', sessionIds),
+        supabase
+          .from('lottery_systems')
+          .select('id, name, code, parent_system_id')
+          .in('code', ['INMEJORABLE-MULTIS-1', 'INMEJORABLE-MULTIS-2', 'INMEJORABLE-MULTIS-3', 'INMEJORABLE-MULTIS-4', 'INMEJORABLE-5Y6', 'POLLA', 'MULTISPORT-CABALLOS-NAC', 'MULTISPORT-CABALLOS-INT', 'MULTISPORT-5Y6'])
       ]);
 
       console.log('🔍 CUADRE ENCARGADA DEBUG - Query results:', {
@@ -451,7 +481,10 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
         expensesData: { data: expensesData.data, error: expensesData.error },
         mobilePaymentsData: { data: mobilePaymentsData.data, error: mobilePaymentsData.error },
         posData: { data: posData.data, error: posData.error },
-        pendingPrizesData: { data: pendingPrizesData.data, error: pendingPrizesData.error }
+        pendingPrizesData: { data: pendingPrizesData.data, error: pendingPrizesData.error },
+        parleySalesData: { data: parleySalesData.data, error: parleySalesData.error },
+        parleyPrizesData: { data: parleyPrizesData.data, error: parleyPrizesData.error },
+        lotterySystems: { data: lotterySystems.data, error: lotterySystems.error }
       });
 
       // Check for errors
@@ -533,6 +566,34 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
       const allConfirmed = sessions?.every(s => s.daily_closure_confirmed) || false;
       const combinedNotes = sessions?.map(s => s.closure_notes).filter(n => n).join(' | ') || '';
 
+      // Process Parley y Caballos systems
+      const systemsMap = new Map<string, ParleySystem>();
+      lotterySystems.data?.forEach(system => {
+        systemsMap.set(system.id, {
+          name: system.name,
+          sales_bs: 0,
+          prizes_bs: 0,
+        });
+      });
+
+      // Aggregate sales by system
+      parleySalesData.data?.forEach(sale => {
+        const system = systemsMap.get(sale.lottery_system_id);
+        if (system) {
+          system.sales_bs += Number(sale.amount_bs || 0);
+        }
+      });
+
+      // Aggregate prizes by system
+      parleyPrizesData.data?.forEach(prize => {
+        const system = systemsMap.get(prize.lottery_system_id);
+        if (system) {
+          system.prizes_bs += Number(prize.amount_bs || 0);
+        }
+      });
+
+      const parleySystems = Array.from(systemsMap.values());
+
       const finalCuadre = {
         totalSales,
         totalPrizes,
@@ -551,6 +612,7 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
         exchangeRate: averageExchangeRate,
         sessionId: sessions?.[0]?.id,
         sessionsCount: sessions?.length || 0,
+        parleySystems,
       };
       
         setCuadre(finalCuadre);
@@ -1081,6 +1143,80 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
           </div>
         </CardContent>
       </Card>
+
+      {/* Parley y Caballos Section */}
+      {cuadre.parleySystems.length > 0 && (
+        <Card className="border-2 border-purple-200 border-l-4 border-l-purple-500">
+          <CardHeader>
+            <CardTitle className="text-center text-lg text-purple-700 font-bold">
+              PARLEY Y CABALLOS
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {/* Totales Generales */}
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div className="text-center p-3 bg-green-50 rounded border border-green-200">
+                  <p className="text-xs text-green-700 mb-1">Total Ventas</p>
+                  <p className="text-lg font-bold text-green-600">
+                    {formatCurrency(
+                      cuadre.parleySystems.reduce((sum, sys) => sum + sys.sales_bs, 0),
+                      'VES'
+                    )}
+                  </p>
+                </div>
+                <div className="text-center p-3 bg-red-50 rounded border border-red-200">
+                  <p className="text-xs text-red-700 mb-1">Total Premios</p>
+                  <p className="text-lg font-bold text-red-600">
+                    {formatCurrency(
+                      cuadre.parleySystems.reduce((sum, sys) => sum + sys.prizes_bs, 0),
+                      'VES'
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              {/* Lista de Sistemas */}
+              <div className="space-y-2">
+                {cuadre.parleySystems.map((system, index) => (
+                  <div
+                    key={index}
+                    className="p-3 bg-gray-50 border border-gray-200 rounded hover:bg-gray-100 transition-colors"
+                  >
+                    <div className="flex justify-between items-center">
+                      <span className="font-medium text-sm">{system.name}</span>
+                      <div className="flex gap-4 text-xs">
+                        <span className="text-green-600">
+                          V: {formatCurrency(system.sales_bs, 'VES')}
+                        </span>
+                        <span className="text-red-600">
+                          P: {formatCurrency(system.prizes_bs, 'VES')}
+                        </span>
+                        <span className="text-blue-600 font-medium">
+                          Neto: {formatCurrency(system.sales_bs - system.prizes_bs, 'VES')}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Neto Total */}
+              <div className="pt-3 border-t border-purple-200">
+                <div className="flex justify-between items-center text-center p-3 bg-blue-50 rounded border border-blue-200">
+                  <span className="text-sm font-bold text-blue-700">NETO TOTAL (Ventas - Premios)</span>
+                  <span className="text-lg font-bold text-blue-600">
+                    {formatCurrency(
+                      cuadre.parleySystems.reduce((sum, sys) => sum + (sys.sales_bs - sys.prizes_bs), 0),
+                      'VES'
+                    )}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Notes Section */}
       {cuadre.closureNotes && (
