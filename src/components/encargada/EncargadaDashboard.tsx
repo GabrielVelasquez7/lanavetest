@@ -11,6 +11,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { InterAgencyManager } from "./InterAgencyManager";
 import { WeeklyCuadreView } from "./WeeklyCuadreView";
 import { WeeklyCuadreHistory } from "./WeeklyCuadreHistory";
+import { SystemsSummaryWeekly } from "./SystemsSummaryWeekly";
 
 export function EncargadaDashboard() {
   const { user, signOut } = useAuth();
@@ -85,7 +86,7 @@ export function EncargadaDashboard() {
     <div className="space-y-6">
       {/* Main Content */}
       <Tabs defaultValue="cuadre-semanal" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="cuadre-semanal">
             Cuadre Semanal
           </TabsTrigger>
@@ -100,6 +101,9 @@ export function EncargadaDashboard() {
           </TabsTrigger>
           <TabsTrigger value="prestamos-deudas">
             Préstamos y Deudas
+          </TabsTrigger>
+          <TabsTrigger value="resumen-sistemas">
+            Resumen por Sistemas
           </TabsTrigger>
         </TabsList>
 
@@ -121,6 +125,10 @@ export function EncargadaDashboard() {
 
         <TabsContent value="prestamos-deudas" className="space-y-4">
           <InterAgencyManager />
+        </TabsContent>
+
+        <TabsContent value="resumen-sistemas" className="space-y-4">
+          <SystemsSummaryWeekly />
         </TabsContent>
       </Tabs>
     </div>
