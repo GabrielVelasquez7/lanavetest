@@ -1144,80 +1144,6 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
         </CardContent>
       </Card>
 
-      {/* Parley y Caballos Section */}
-      {cuadre.parleySystems.length > 0 && (
-        <Card className="border-2 border-purple-200 border-l-4 border-l-purple-500">
-          <CardHeader>
-            <CardTitle className="text-center text-lg text-purple-700 font-bold">
-              PARLEY Y CABALLOS
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {/* Totales Generales */}
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                <div className="text-center p-3 bg-green-50 rounded border border-green-200">
-                  <p className="text-xs text-green-700 mb-1">Total Ventas</p>
-                  <p className="text-lg font-bold text-green-600">
-                    {formatCurrency(
-                      cuadre.parleySystems.reduce((sum, sys) => sum + sys.sales_bs, 0),
-                      'VES'
-                    )}
-                  </p>
-                </div>
-                <div className="text-center p-3 bg-red-50 rounded border border-red-200">
-                  <p className="text-xs text-red-700 mb-1">Total Premios</p>
-                  <p className="text-lg font-bold text-red-600">
-                    {formatCurrency(
-                      cuadre.parleySystems.reduce((sum, sys) => sum + sys.prizes_bs, 0),
-                      'VES'
-                    )}
-                  </p>
-                </div>
-              </div>
-
-              {/* Lista de Sistemas */}
-              <div className="space-y-2">
-                {cuadre.parleySystems.map((system, index) => (
-                  <div
-                    key={index}
-                    className="p-3 bg-gray-50 border border-gray-200 rounded hover:bg-gray-100 transition-colors"
-                  >
-                    <div className="flex justify-between items-center">
-                      <span className="font-medium text-sm">{system.name}</span>
-                      <div className="flex gap-4 text-xs">
-                        <span className="text-green-600">
-                          V: {formatCurrency(system.sales_bs, 'VES')}
-                        </span>
-                        <span className="text-red-600">
-                          P: {formatCurrency(system.prizes_bs, 'VES')}
-                        </span>
-                        <span className="text-blue-600 font-medium">
-                          Neto: {formatCurrency(system.sales_bs - system.prizes_bs, 'VES')}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Neto Total */}
-              <div className="pt-3 border-t border-purple-200">
-                <div className="flex justify-between items-center text-center p-3 bg-blue-50 rounded border border-blue-200">
-                  <span className="text-sm font-bold text-blue-700">NETO TOTAL (Ventas - Premios)</span>
-                  <span className="text-lg font-bold text-blue-600">
-                    {formatCurrency(
-                      cuadre.parleySystems.reduce((sum, sys) => sum + (sys.sales_bs - sys.prizes_bs), 0),
-                      'VES'
-                    )}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Notes Section */}
       {cuadre.closureNotes && (
         <Card>
@@ -1230,6 +1156,87 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
             </p>
           </CardContent>
         </Card>
+      )}
+
+      {/* Parley y Caballos Section */}
+      {cuadre.parleySystems.length > 0 && (
+        <>
+          <div className="py-3">
+            <div className="flex items-center gap-3">
+              <div className="h-px flex-1 bg-gradient-to-r from-transparent via-purple-300 to-transparent"></div>
+              <h3 className="text-sm font-bold text-purple-700 uppercase tracking-wider px-4 py-2 bg-purple-50 rounded-full border border-purple-200">
+                Parley y Caballos
+              </h3>
+              <div className="h-px flex-1 bg-gradient-to-r from-transparent via-purple-300 to-transparent"></div>
+            </div>
+          </div>
+
+          <Card className="border-2 border-purple-200">
+            <CardContent className="pt-6">
+              <div className="space-y-4">
+                {/* Totales Generales */}
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div className="text-center p-3 bg-green-50 rounded border border-green-200">
+                    <p className="text-xs text-green-700 mb-1">Total Ventas</p>
+                    <p className="text-lg font-bold text-green-600">
+                      {formatCurrency(
+                        cuadre.parleySystems.reduce((sum, sys) => sum + sys.sales_bs, 0),
+                        'VES'
+                      )}
+                    </p>
+                  </div>
+                  <div className="text-center p-3 bg-red-50 rounded border border-red-200">
+                    <p className="text-xs text-red-700 mb-1">Total Premios</p>
+                    <p className="text-lg font-bold text-red-600">
+                      {formatCurrency(
+                        cuadre.parleySystems.reduce((sum, sys) => sum + sys.prizes_bs, 0),
+                        'VES'
+                      )}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Lista de Sistemas */}
+                <div className="space-y-2">
+                  {cuadre.parleySystems.map((system, index) => (
+                    <div
+                      key={index}
+                      className="p-3 bg-gray-50 border border-gray-200 rounded hover:bg-gray-100 transition-colors"
+                    >
+                      <div className="flex justify-between items-center">
+                        <span className="font-medium text-sm">{system.name}</span>
+                        <div className="flex gap-4 text-xs">
+                          <span className="text-green-600">
+                            V: {formatCurrency(system.sales_bs, 'VES')}
+                          </span>
+                          <span className="text-red-600">
+                            P: {formatCurrency(system.prizes_bs, 'VES')}
+                          </span>
+                          <span className="text-blue-600 font-medium">
+                            Neto: {formatCurrency(system.sales_bs - system.prizes_bs, 'VES')}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Neto Total */}
+                <div className="pt-3 border-t border-purple-200">
+                  <div className="flex justify-between items-center text-center p-3 bg-blue-50 rounded border border-blue-200">
+                    <span className="text-sm font-bold text-blue-700">NETO TOTAL (Ventas - Premios)</span>
+                    <span className="text-lg font-bold text-blue-600">
+                      {formatCurrency(
+                        cuadre.parleySystems.reduce((sum, sys) => sum + (sys.sales_bs - sys.prizes_bs), 0),
+                        'VES'
+                      )}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </>
       )}
     </div>
   );
