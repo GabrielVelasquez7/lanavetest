@@ -11,8 +11,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { VentasPremiosBolivares } from '../taquillera/VentasPremiosBolivares';
-import { VentasPremiosDolares } from '../taquillera/VentasPremiosDolares';
+import { VentasPremiosBolivaresEncargada } from './VentasPremiosBolivaresEncargada';
+import { VentasPremiosDolaresEncargada } from './VentasPremiosDolaresEncargada';
 import { GastosManagerEncargada } from './GastosManagerEncargada';
 import { PagoMovilManagerEncargada } from './PagoMovilManagerEncargada';
 import { PointOfSaleFormEncargada } from './PointOfSaleFormEncargada';
@@ -596,14 +596,14 @@ export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
                 </TabsList>
 
                 <TabsContent value="bolivares" className="space-y-4">
-                  <VentasPremiosBolivares 
+                  <VentasPremiosBolivaresEncargada 
                     form={form} 
                     lotteryOptions={lotteryOptions}
                   />
                 </TabsContent>
 
                 <TabsContent value="dolares" className="space-y-4">
-                  <VentasPremiosDolares 
+                  <VentasPremiosDolaresEncargada 
                     form={form} 
                     lotteryOptions={lotteryOptions}
                   />
