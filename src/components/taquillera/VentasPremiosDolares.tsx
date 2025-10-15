@@ -20,23 +20,6 @@ export const VentasPremiosDolares = ({ form, lotteryOptions }: VentasPremiosDola
   const systems = form.watch('systems');
   const [inputValues, setInputValues] = useState<Record<string, string>>({});
 
-  // Códigos de sistemas de Parley y Caballos
-  const parleySystemCodes = [
-    'INMEJORABLE-MULTIS-1', 'INMEJORABLE-MULTIS-2', 'INMEJORABLE-MULTIS-3', 'INMEJORABLE-MULTIS-4',
-    'INMEJORABLE-5Y6', 'POLLA', 'MULTISPORT-CABALLOS-NAC', 'MULTISPORT-CABALLOS-INT', 'MULTISPORT-5Y6'
-  ];
-
-  // Filtrar sistemas normales y de parley
-  const normalSystems = systems.filter(system => {
-    const lotterySystem = lotteryOptions.find(l => l.id === system.lottery_system_id);
-    return !lotterySystem || !parleySystemCodes.includes(lotterySystem.code);
-  });
-
-  const parleySystems = systems.filter(system => {
-    const lotterySystem = lotteryOptions.find(l => l.id === system.lottery_system_id);
-    return lotterySystem && parleySystemCodes.includes(lotterySystem.code);
-  });
-
   // Sincroniza los inputs cuando cambian los valores del formulario (agencia/fecha/sync)
   useEffect(() => {
     const newInputValues: Record<string, string> = {};
@@ -95,29 +78,7 @@ export const VentasPremiosDolares = ({ form, lotteryOptions }: VentasPremiosDola
     );
   };
 
-  const calculateNormalTotals = () => {
-    return normalSystems.reduce(
-      (acc, system) => ({
-        sales_usd: acc.sales_usd + (system.sales_usd || 0),
-        prizes_usd: acc.prizes_usd + (system.prizes_usd || 0),
-      }),
-      { sales_usd: 0, prizes_usd: 0 }
-    );
-  };
-
-  const calculateParleyTotals = () => {
-    return parleySystems.reduce(
-      (acc, system) => ({
-        sales_usd: acc.sales_usd + (system.sales_usd || 0),
-        prizes_usd: acc.prizes_usd + (system.prizes_usd || 0),
-      }),
-      { sales_usd: 0, prizes_usd: 0 }
-    );
-  };
-
   const totals = calculateTotals();
-  const normalTotals = calculateNormalTotals();
-  const parleyTotals = calculateParleyTotals();
 
   return (
     <Card>
@@ -133,7 +94,7 @@ export const VentasPremiosDolares = ({ form, lotteryOptions }: VentasPremiosDola
             <div className="text-center">Cuadre USD</div>
           </div>
 
-          {normalSystems.map((system) => {
+          {systems.map((system) => {
             const systemCuadre = (system.sales_usd || 0) - (system.prizes_usd || 0);
             const index = systems.findIndex(s => s.lottery_system_id === system.lottery_system_id);
             
@@ -168,59 +129,6 @@ export const VentasPremiosDolares = ({ form, lotteryOptions }: VentasPremiosDola
             );
           })}
         </div>
-
-        {/* Sección de Parley y Caballos */}
-        {parleySystems.length > 0 && (
-          <div className="mt-6 pt-6 border-t space-y-4">
-            <div className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-lg p-3">
-              <h3 className="text-lg font-semibold text-center">PARLEY Y CABALLOS</h3>
-            </div>
-            
-            <div className="grid gap-4">
-              <div className="grid grid-cols-4 gap-2 text-sm font-medium text-muted-foreground border-b pb-2">
-                <div>Sistema</div>
-                <div className="text-center">Ventas USD</div>
-                <div className="text-center">Premios USD</div>
-                <div className="text-center">Cuadre USD</div>
-              </div>
-
-              {parleySystems.map((system) => {
-                const systemCuadre = (system.sales_usd || 0) - (system.prizes_usd || 0);
-                const index = systems.findIndex(s => s.lottery_system_id === system.lottery_system_id);
-                
-                return (
-                  <div key={system.lottery_system_id} className="grid grid-cols-4 gap-2 items-center">
-                    <div className="font-medium text-sm">
-                      {system.lottery_system_name}
-                    </div>
-                    
-                    <Input
-                      type="text"
-                      placeholder="0.00"
-                      value={inputValues[`${system.lottery_system_id}-sales_usd`] || ''}
-                      onChange={(e) => handleInputChange(system.lottery_system_id, index, 'sales_usd', e.target.value)}
-                      onBlur={() => handleInputBlur(system.lottery_system_id, index, 'sales_usd')}
-                      className="text-center"
-                    />
-                    
-                    <Input
-                      type="text"
-                      placeholder="0.00"
-                      value={inputValues[`${system.lottery_system_id}-prizes_usd`] || ''}
-                      onChange={(e) => handleInputChange(system.lottery_system_id, index, 'prizes_usd', e.target.value)}
-                      onBlur={() => handleInputBlur(system.lottery_system_id, index, 'prizes_usd')}
-                      className="text-center"
-                    />
-                    
-                    <div className={`text-center font-medium ${systemCuadre >= 0 ? 'text-success' : 'text-destructive'}`}>
-                      {formatCurrency(systemCuadre, 'USD')}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
 
         {/* Totales Generales para Dólares */}
         <Card className="bg-muted/30">
