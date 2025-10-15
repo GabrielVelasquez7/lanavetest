@@ -64,11 +64,12 @@ export const VentasPremiosManager = ({ onSuccess, dateRange }: VentasPremiosMana
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Cargar sistemas de lotería
+        // Cargar solo sistemas principales (sin subcategorías)
         const { data: systems, error: systemsError } = await supabase
           .from('lottery_systems')
           .select('id, name, code')
           .eq('is_active', true)
+          .is('parent_system_id', null)
           .order('name');
 
         if (systemsError) throw systemsError;
