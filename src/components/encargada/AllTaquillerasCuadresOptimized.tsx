@@ -630,7 +630,6 @@ export function AllTaquillerasCuadresOptimized() {
             <div>
               <p className="text-sm font-medium">Taquillera: {reviewingCuadre?.user_name}</p>
               <p className="text-sm text-muted-foreground">Fecha: {reviewingCuadre?.session_date}</p>
-              <p className="text-sm">Diferencia: Bs {reviewingCuadre?.diferencia_final?.toLocaleString() || "0"}</p>
             </div>
 
             <div className="space-y-2">
