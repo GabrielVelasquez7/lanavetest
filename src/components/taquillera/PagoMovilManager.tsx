@@ -46,7 +46,7 @@ export const PagoMovilManager = ({ onSuccess, dateRange }: PagoMovilManagerProps
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <PagoMovilRecibidos onSuccess={handleSuccess} />
+              <PagoMovilRecibidos onSuccess={handleSuccess} dateRange={dateRange} />
             </CardContent>
           </Card>
         </TabsContent>
@@ -60,7 +60,7 @@ export const PagoMovilManager = ({ onSuccess, dateRange }: PagoMovilManagerProps
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <PagoMovilPagados onSuccess={handleSuccess} />
+              <PagoMovilPagados onSuccess={handleSuccess} dateRange={dateRange} />
             </CardContent>
           </Card>
         </TabsContent>

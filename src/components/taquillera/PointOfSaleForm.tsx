@@ -1,4 +1,4 @@
-import { getTodayVenezuela } from '@/lib/dateUtils';
+import { getTodayVenezuela, formatDateForDB } from '@/lib/dateUtils';
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -107,21 +107,22 @@ export const PointOfSaleForm = ({ dateRange }: PointOfSaleFormProps) => {
 
   useEffect(() => {
     fetchCurrentPOS();
-  }, [user]);
+  }, [user, dateRange]);
 
   const fetchCurrentPOS = async () => {
-    if (!user) return;
+    if (!user || !dateRange) return;
 
     try {
-      const today = getTodayVenezuela();
+      // Use the selected date from dateRange
+      const targetDate = formatDateForDB(dateRange.from);
       
-      // Get today's session
+      // Get session for the selected date
       const { data: session } = await supabase
         .from('daily_sessions')
         .select('id')
         .eq('user_id', user.id)
-        .eq('session_date', today)
-        .single();
+        .eq('session_date', targetDate)
+        .maybeSingle();
 
       if (session) {
         const { data: posData } = await supabase
@@ -142,27 +143,27 @@ export const PointOfSaleForm = ({ dateRange }: PointOfSaleFormProps) => {
   };
 
   const onSubmit = async (data: POSForm) => {
-    if (!user) return;
+    if (!user || !dateRange) return;
 
     setLoading(true);
     try {
-      // First, ensure we have a daily session for today
-      const today = getTodayVenezuela();
+      // Use the selected date from dateRange
+      const targetDate = formatDateForDB(dateRange.from);
       
       let { data: session, error: sessionError } = await supabase
         .from('daily_sessions')
         .select('id')
         .eq('user_id', user.id)
-        .eq('session_date', today)
-        .single();
+        .eq('session_date', targetDate)
+        .maybeSingle();
 
-      if (sessionError && sessionError.code === 'PGRST116') {
+      if (!session) {
         // Session doesn't exist, create it
         const { data: newSession, error: createError } = await supabase
           .from('daily_sessions')
           .insert({
             user_id: user.id,
-            session_date: today,
+            session_date: targetDate,
           })
           .select('id')
           .single();
@@ -199,7 +200,7 @@ export const PointOfSaleForm = ({ dateRange }: PointOfSaleFormProps) => {
       setCurrentAmount(data.amount_bs);
 
       // Update or create daily_cuadres_summary
-      await updateDailyCuadresSummary(session.id, user.id, today);
+      await updateDailyCuadresSummary(session.id, user.id, targetDate);
 
       toast({
         title: 'Éxito',

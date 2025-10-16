@@ -1,4 +1,5 @@
 import { getTodayVenezuela } from '@/lib/dateUtils';
+import { format } from 'date-fns';
 
 // Helper function to update daily cuadres summary
 const updateDailyCuadresSummary = async (sessionId: string, userId: string, sessionDate: string) => {
@@ -86,9 +87,13 @@ interface PagoMovilPagadosProps {
   onSuccess?: () => void;
   selectedAgency?: string;
   selectedDate?: Date;
+  dateRange?: {
+    from: Date;
+    to: Date;
+  };
 }
 
-export const PagoMovilPagados = ({ onSuccess, selectedAgency: propSelectedAgency, selectedDate: propSelectedDate }: PagoMovilPagadosProps) => {
+export const PagoMovilPagados = ({ onSuccess, selectedAgency: propSelectedAgency, selectedDate: propSelectedDate, dateRange }: PagoMovilPagadosProps) => {
   const [loading, setLoading] = useState(false);
   const [pagos, setPagos] = useState<PagoPagado[]>([
     { id: '1', amount_bs: '', reference_number: '', description: '' }
@@ -137,8 +142,8 @@ export const PagoMovilPagados = ({ onSuccess, selectedAgency: propSelectedAgency
 
     setLoading(true);
     try {
-      // First, ensure we have a daily session for today
-      const today = getTodayVenezuela();
+      // Use the selected date from dateRange if available, otherwise use today
+      const today = dateRange ? format(dateRange.from, 'yyyy-MM-dd') : getTodayVenezuela();
       
       let { data: session, error: sessionError } = await supabase
         .from('daily_sessions')

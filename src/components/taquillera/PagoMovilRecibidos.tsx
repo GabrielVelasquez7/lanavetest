@@ -1,4 +1,5 @@
 import { getTodayVenezuela } from '@/lib/dateUtils';
+import { format as formatDate } from 'date-fns';
 
 // Helper function to update daily cuadres summary
 const updateDailyCuadresSummary = async (sessionId: string, userId: string, sessionDate: string) => {
@@ -92,9 +93,13 @@ interface PagoMovilRecibidosProps {
   onSuccess?: () => void;
   selectedAgency?: string;
   selectedDate?: Date;
+  dateRange?: {
+    from: Date;
+    to: Date;
+  };
 }
 
-export const PagoMovilRecibidos = ({ onSuccess, selectedAgency: propSelectedAgency, selectedDate: propSelectedDate }: PagoMovilRecibidosProps) => {
+export const PagoMovilRecibidos = ({ onSuccess, selectedAgency: propSelectedAgency, selectedDate: propSelectedDate, dateRange }: PagoMovilRecibidosProps) => {
   const [loading, setLoading] = useState(false);
   const [userProfile, setUserProfile] = useState<any>(null);
   const [agencies, setAgencies] = useState<any[]>([]);
@@ -209,8 +214,9 @@ export const PagoMovilRecibidos = ({ onSuccess, selectedAgency: propSelectedAgen
 
         if (error) throw error;
       } else {
-        // Taquillera workflow - use session_id (existing logic)
-        const today = getTodayVenezuela();
+        // Taquillera workflow - use session_id
+        // Use the selected date from dateRange if available, otherwise use today
+        const today = dateRange ? formatDate(dateRange.from, 'yyyy-MM-dd') : getTodayVenezuela();
         
         let { data: session, error: sessionError } = await supabase
           .from('daily_sessions')
