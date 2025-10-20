@@ -294,10 +294,13 @@ export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
         exchange_rate: 36,
       }));
 
-      // Insertar nuevos cuadres
+      // Insertar o actualizar cuadres
       const { error: insertError } = await supabase
         .from('daily_cuadres_summary')
-        .insert(cuadresData);
+        .upsert(cuadresData, {
+          onConflict: 'agency_id,session_date,user_id',
+          ignoreDuplicates: false
+        });
 
       if (insertError) throw insertError;
 
