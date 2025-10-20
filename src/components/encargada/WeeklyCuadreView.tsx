@@ -705,6 +705,25 @@ export function WeeklyCuadreView() {
       const startStr = format(currentWeek.start, 'yyyy-MM-dd');
       const endStr = format(currentWeek.end, 'yyyy-MM-dd');
       
+      // First, check if there are any records for this week
+      const { data: existingRecords, error: checkError } = await supabase
+        .from('daily_cuadres_summary')
+        .select('id')
+        .gte('session_date', startStr)
+        .lte('session_date', endStr)
+        .limit(1);
+
+      if (checkError) throw checkError;
+
+      if (!existingRecords || existingRecords.length === 0) {
+        toast({
+          title: 'Error',
+          description: 'No hay cuadres registrados para esta semana. Primero debe guardar los cuadres diarios.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      
       // Mark all daily summaries as weekly closed
       const { error } = await supabase
         .from('daily_cuadres_summary')
@@ -727,6 +746,7 @@ export function WeeklyCuadreView() {
       // Refresh data
       fetchWeeklyData();
     } catch (error: any) {
+      console.error('Error closing week:', error);
       toast({
         title: 'Error',
         description: error.message || 'Error al cerrar la semana',

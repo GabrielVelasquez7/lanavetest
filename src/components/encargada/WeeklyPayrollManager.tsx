@@ -214,6 +214,29 @@ export function WeeklyPayrollManager() {
     }
   }, [weekStart]);
 
+  // Recalculate all totals in Bs when exchange rate changes
+  useEffect(() => {
+    if (Object.keys(payrollData).length === 0) return;
+    
+    const updatedData: Record<string, PayrollEntry> = {};
+    let hasChanges = false;
+    
+    Object.entries(payrollData).forEach(([employeeId, entry]) => {
+      const newTotalBs = entry.total_usd * exchangeRate;
+      if (Math.abs(newTotalBs - entry.total_bs) > 0.01) {
+        hasChanges = true;
+      }
+      updatedData[employeeId] = {
+        ...entry,
+        total_bs: newTotalBs,
+      };
+    });
+    
+    if (hasChanges) {
+      setPayrollData(updatedData);
+    }
+  }, [exchangeRate]);
+
   const totals = Object.values(payrollData).reduce(
     (acc, entry) => ({
       totalUsd: acc.totalUsd + entry.total_usd,
