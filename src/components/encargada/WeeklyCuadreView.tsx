@@ -893,25 +893,46 @@ export function WeeklyCuadreView() {
             </div>
             
             <Button 
-              onClick={() => {
+              onClick={async () => {
                 const newRate = parseFloat(exchangeRateInput) || 36.00;
-                if (weeklyData) {
-                  setWeeklyData({
-                    ...weeklyData,
-                    averageExchangeRate: newRate
-                  });
-                  setExchangeRateInput(newRate.toFixed(2));
-                  toast({
-                    title: "Tasa actualizada",
-                    description: `Nueva tasa: ${newRate.toFixed(2)} Bs/$`,
-                  });
+                if (weeklyData && currentWeek) {
+                  try {
+                    const startStr = format(currentWeek.start, 'yyyy-MM-dd');
+                    const endStr = format(currentWeek.end, 'yyyy-MM-dd');
+                    
+                    // Update all records for this week with the new exchange rate
+                    const { error } = await supabase
+                      .from('daily_cuadres_summary')
+                      .update({ exchange_rate: newRate })
+                      .gte('session_date', startStr)
+                      .lte('session_date', endStr);
+
+                    if (error) throw error;
+
+                    setWeeklyData({
+                      ...weeklyData,
+                      averageExchangeRate: newRate
+                    });
+                    setExchangeRateInput(newRate.toFixed(2));
+                    toast({
+                      title: "Tasa actualizada",
+                      description: `Nueva tasa guardada: ${newRate.toFixed(2)} Bs/$`,
+                    });
+                  } catch (error: any) {
+                    console.error('Error updating exchange rate:', error);
+                    toast({
+                      title: "Error",
+                      description: "No se pudo actualizar la tasa de cambio",
+                      variant: "destructive",
+                    });
+                  }
                 }
               }}
               className="mt-6"
               size="sm"
             >
               <Save className="h-4 w-4 mr-2" />
-              Aplicar
+              Guardar Tasa
             </Button>
             
             <div className="text-xs text-muted-foreground mt-6">
