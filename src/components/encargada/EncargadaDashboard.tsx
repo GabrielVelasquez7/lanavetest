@@ -12,6 +12,8 @@ import { InterAgencyManager } from "./InterAgencyManager";
 import { WeeklyCuadreView } from "./WeeklyCuadreView";
 import { WeeklyCuadreHistory } from "./WeeklyCuadreHistory";
 import { SystemsSummaryWeekly } from "./SystemsSummaryWeekly";
+import { EmployeesCrud } from "./EmployeesCrud";
+import { WeeklyPayrollManager } from "./WeeklyPayrollManager";
 
 export function EncargadaDashboard() {
   const { user, signOut } = useAuth();
@@ -86,7 +88,7 @@ export function EncargadaDashboard() {
     <div className="space-y-6">
       {/* Main Content */}
       <Tabs defaultValue="cuadre-semanal" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-4 lg:grid-cols-8">
           <TabsTrigger value="cuadre-semanal">
             Cuadre Semanal
           </TabsTrigger>
@@ -104,6 +106,12 @@ export function EncargadaDashboard() {
           </TabsTrigger>
           <TabsTrigger value="resumen-sistemas">
             Resumen por Sistemas
+          </TabsTrigger>
+          <TabsTrigger value="empleados">
+            Empleados
+          </TabsTrigger>
+          <TabsTrigger value="nomina">
+            Nómina
           </TabsTrigger>
         </TabsList>
 
@@ -129,6 +137,14 @@ export function EncargadaDashboard() {
 
         <TabsContent value="resumen-sistemas" className="space-y-4">
           <SystemsSummaryWeekly />
+        </TabsContent>
+
+        <TabsContent value="empleados" className="space-y-4">
+          <EmployeesCrud />
+        </TabsContent>
+
+        <TabsContent value="nomina" className="space-y-4">
+          <WeeklyPayrollManager />
         </TabsContent>
       </Tabs>
     </div>

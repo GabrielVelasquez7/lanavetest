@@ -234,6 +234,50 @@ export type Database = {
         }
         Relationships: []
       }
+      employees: {
+        Row: {
+          agency_id: string | null
+          base_salary_bs: number
+          base_salary_usd: number
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          sunday_rate_usd: number
+          updated_at: string
+        }
+        Insert: {
+          agency_id?: string | null
+          base_salary_bs?: number
+          base_salary_usd?: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          sunday_rate_usd?: number
+          updated_at?: string
+        }
+        Update: {
+          agency_id?: string | null
+          base_salary_bs?: number
+          base_salary_usd?: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          sunday_rate_usd?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employees_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       expenses: {
         Row: {
           agency_id: string | null
@@ -744,6 +788,68 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      weekly_payroll: {
+        Row: {
+          absences_deductions: number
+          bonuses_extras: number
+          created_at: string
+          employee_id: string
+          exchange_rate: number
+          id: string
+          notes: string | null
+          other_deductions: number
+          sunday_payment: number
+          total_bs: number
+          total_usd: number
+          updated_at: string
+          week_end_date: string
+          week_start_date: string
+          weekly_base_salary: number
+        }
+        Insert: {
+          absences_deductions?: number
+          bonuses_extras?: number
+          created_at?: string
+          employee_id: string
+          exchange_rate?: number
+          id?: string
+          notes?: string | null
+          other_deductions?: number
+          sunday_payment?: number
+          total_bs?: number
+          total_usd?: number
+          updated_at?: string
+          week_end_date: string
+          week_start_date: string
+          weekly_base_salary?: number
+        }
+        Update: {
+          absences_deductions?: number
+          bonuses_extras?: number
+          created_at?: string
+          employee_id?: string
+          exchange_rate?: number
+          id?: string
+          notes?: string | null
+          other_deductions?: number
+          sunday_payment?: number
+          total_bs?: number
+          total_usd?: number
+          updated_at?: string
+          week_end_date?: string
+          week_start_date?: string
+          weekly_base_salary?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "weekly_payroll_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
