@@ -317,8 +317,9 @@ export function WeeklyPayrollManager() {
                         type="number"
                         step="0.01"
                         className="text-right"
-                        value={entry.weekly_base_salary || 0}
+                        value={entry.weekly_base_salary || ''}
                         onChange={(e) => updatePayrollEntry(employee.id, 'weekly_base_salary', parseFloat(e.target.value) || 0)}
+                        placeholder="0.00"
                       />
                     </TableCell>
                     <TableCell>
@@ -326,8 +327,9 @@ export function WeeklyPayrollManager() {
                         type="number"
                         step="0.01"
                         className="text-right"
-                        value={entry.absences_deductions || 0}
+                        value={entry.absences_deductions || ''}
                         onChange={(e) => updatePayrollEntry(employee.id, 'absences_deductions', parseFloat(e.target.value) || 0)}
+                        placeholder="0.00"
                       />
                     </TableCell>
                     <TableCell>
@@ -335,8 +337,9 @@ export function WeeklyPayrollManager() {
                         type="number"
                         step="0.01"
                         className="text-right"
-                        value={entry.other_deductions || 0}
+                        value={entry.other_deductions || ''}
                         onChange={(e) => updatePayrollEntry(employee.id, 'other_deductions', parseFloat(e.target.value) || 0)}
+                        placeholder="0.00"
                       />
                     </TableCell>
                     <TableCell>
@@ -344,8 +347,9 @@ export function WeeklyPayrollManager() {
                         type="number"
                         step="0.01"
                         className="text-right"
-                        value={entry.bonuses_extras || 0}
+                        value={entry.bonuses_extras || ''}
                         onChange={(e) => updatePayrollEntry(employee.id, 'bonuses_extras', parseFloat(e.target.value) || 0)}
+                        placeholder="0.00"
                       />
                     </TableCell>
                     <TableCell>
@@ -353,8 +357,9 @@ export function WeeklyPayrollManager() {
                         type="number"
                         step="0.01"
                         className="text-right"
-                        value={entry.sunday_payment || 0}
+                        value={entry.sunday_payment || ''}
                         onChange={(e) => updatePayrollEntry(employee.id, 'sunday_payment', parseFloat(e.target.value) || 0)}
+                        placeholder="0.00"
                       />
                     </TableCell>
                     <TableCell className="text-right font-medium">

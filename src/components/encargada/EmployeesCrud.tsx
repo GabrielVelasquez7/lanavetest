@@ -36,9 +36,9 @@ export function EmployeesCrud() {
   const [formData, setFormData] = useState({
     name: '',
     agency_id: '',
-    base_salary_usd: 0,
-    base_salary_bs: 0,
-    sunday_rate_usd: 0,
+    base_salary_usd: '',
+    base_salary_bs: '',
+    sunday_rate_usd: '',
   });
 
   useEffect(() => {
@@ -90,9 +90,9 @@ export function EmployeesCrud() {
         .update({
           name: formData.name,
           agency_id: formData.agency_id || null,
-          base_salary_usd: formData.base_salary_usd,
-          base_salary_bs: formData.base_salary_bs,
-          sunday_rate_usd: formData.sunday_rate_usd,
+          base_salary_usd: parseFloat(formData.base_salary_usd as string) || 0,
+          base_salary_bs: parseFloat(formData.base_salary_bs as string) || 0,
+          sunday_rate_usd: parseFloat(formData.sunday_rate_usd as string) || 0,
         })
         .eq('id', editingEmployee.id);
 
@@ -108,9 +108,9 @@ export function EmployeesCrud() {
         .insert({
           name: formData.name,
           agency_id: formData.agency_id || null,
-          base_salary_usd: formData.base_salary_usd,
-          base_salary_bs: formData.base_salary_bs,
-          sunday_rate_usd: formData.sunday_rate_usd,
+          base_salary_usd: parseFloat(formData.base_salary_usd as string) || 0,
+          base_salary_bs: parseFloat(formData.base_salary_bs as string) || 0,
+          sunday_rate_usd: parseFloat(formData.sunday_rate_usd as string) || 0,
         });
 
       if (error) {
@@ -132,9 +132,9 @@ export function EmployeesCrud() {
     setFormData({
       name: employee.name,
       agency_id: employee.agency_id || '',
-      base_salary_usd: employee.base_salary_usd,
-      base_salary_bs: employee.base_salary_bs,
-      sunday_rate_usd: employee.sunday_rate_usd,
+      base_salary_usd: employee.base_salary_usd.toString(),
+      base_salary_bs: employee.base_salary_bs.toString(),
+      sunday_rate_usd: employee.sunday_rate_usd.toString(),
     });
     setIsDialogOpen(true);
   };
@@ -167,9 +167,9 @@ export function EmployeesCrud() {
     setFormData({
       name: '',
       agency_id: '',
-      base_salary_usd: 0,
-      base_salary_bs: 0,
-      sunday_rate_usd: 0,
+      base_salary_usd: '',
+      base_salary_bs: '',
+      sunday_rate_usd: '',
     });
   };
 
@@ -244,7 +244,8 @@ export function EmployeesCrud() {
                       type="number"
                       step="0.01"
                       value={formData.base_salary_usd}
-                      onChange={(e) => setFormData({ ...formData, base_salary_usd: parseFloat(e.target.value) || 0 })}
+                      onChange={(e) => setFormData({ ...formData, base_salary_usd: e.target.value })}
+                      placeholder="0.00"
                     />
                   </div>
                   <div className="grid gap-2">
@@ -254,7 +255,8 @@ export function EmployeesCrud() {
                       type="number"
                       step="0.01"
                       value={formData.base_salary_bs}
-                      onChange={(e) => setFormData({ ...formData, base_salary_bs: parseFloat(e.target.value) || 0 })}
+                      onChange={(e) => setFormData({ ...formData, base_salary_bs: e.target.value })}
+                      placeholder="0.00"
                     />
                   </div>
                   <div className="grid gap-2">
@@ -264,7 +266,8 @@ export function EmployeesCrud() {
                       type="number"
                       step="0.01"
                       value={formData.sunday_rate_usd}
-                      onChange={(e) => setFormData({ ...formData, sunday_rate_usd: parseFloat(e.target.value) || 0 })}
+                      onChange={(e) => setFormData({ ...formData, sunday_rate_usd: e.target.value })}
+                      placeholder="0.00"
                     />
                   </div>
                 </div>
