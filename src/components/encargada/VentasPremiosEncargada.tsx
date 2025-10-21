@@ -23,6 +23,7 @@ import { formatCurrency, cn } from '@/lib/utils';
 import { formatDateForDB } from '@/lib/dateUtils';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { useFormPersist } from '@/hooks/useFormPersist';
 
 const systemEntrySchema = z.object({
   lottery_system_id: z.string(),
@@ -80,6 +81,10 @@ export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
       systems: [],
     },
   });
+
+  // Persist form by user + agency + date to avoid losing values on navigation/tab switch
+  const persistKey = user ? `enc:ventas-premios:${user.id}:${selectedAgency || 'na'}:${format(selectedDate, 'yyyy-MM-dd')}` : null;
+  const { clearDraft } = useFormPersist<VentasPremiosForm>(persistKey, form);
 
   // Cargar agencias y sistemas de lotería
   useEffect(() => {
@@ -249,15 +254,13 @@ export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
 
     setLoading(true);
     try {
-      // Si estamos en modo edición, eliminar cuadres existentes para esta fecha y agencia
-      if (editMode) {
-        await supabase
-          .from('daily_cuadres_summary')
-          .delete()
-          .eq('agency_id', selectedAgency)
-          .eq('session_date', dateStr)
-          .is('session_id', null); // Solo registros de encargada
-      }
+      // Eliminar cualquier cuadre existente de encargada para esta fecha y agencia (evita duplicados previos)
+      await supabase
+        .from('daily_cuadres_summary')
+        .delete()
+        .eq('agency_id', selectedAgency)
+        .eq('session_date', dateStr)
+        .is('session_id', null); // Solo registros de encargada
 
       // Filtrar sistemas con datos (cuadre neto = ventas - premios)
       const systemsWithData = data.systems.filter(
@@ -277,27 +280,37 @@ export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
         return;
       }
 
-      // Preparar datos para insertar (datos completos de la encargada)
-      const cuadresData = systemsWithData.map(system => ({
+      // Calcular totales agregados de la encargada
+      const totals = systemsWithData.reduce(
+        (acc, system) => ({
+          sales_bs: acc.sales_bs + system.sales_bs,
+          sales_usd: acc.sales_usd + system.sales_usd,
+          prizes_bs: acc.prizes_bs + system.prizes_bs,
+          prizes_usd: acc.prizes_usd + system.prizes_usd,
+        }),
+        { sales_bs: 0, sales_usd: 0, prizes_bs: 0, prizes_usd: 0 }
+      );
+
+      // Fila única de resumen por agencia/fecha/usuario
+      const summaryRow = {
         user_id: user.id,
         agency_id: selectedAgency,
         session_date: dateStr,
-        lottery_system_id: system.lottery_system_id,
         session_id: null, // Encargada no tiene session_id
-        total_sales_bs: system.sales_bs,
-        total_sales_usd: system.sales_usd,
-        total_prizes_bs: system.prizes_bs,
-        total_prizes_usd: system.prizes_usd,
-        balance_bs: system.sales_bs - system.prizes_bs,
+        total_sales_bs: totals.sales_bs,
+        total_sales_usd: totals.sales_usd,
+        total_prizes_bs: totals.prizes_bs,
+        total_prizes_usd: totals.prizes_usd,
+        balance_bs: totals.sales_bs - totals.prizes_bs,
         cash_available_bs: 0,
         cash_available_usd: 0,
         exchange_rate: 36,
-      }));
+      };
 
-      // Insertar o actualizar cuadres
+      // Insertar o actualizar resumen (única fila)
       const { error: insertError } = await supabase
         .from('daily_cuadres_summary')
-        .upsert(cuadresData, {
+        .upsert([summaryRow], {
           onConflict: 'agency_id,session_date,user_id',
           ignoreDuplicates: false
         });
@@ -308,8 +321,11 @@ export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
         title: 'Éxito',
         description: editMode 
           ? 'Cuadre actualizado correctamente'
-          : `Registrados ${cuadresData.length} cuadres correctamente`,
+          : 'Cuadre registrado correctamente',
       });
+
+      // Limpiar borrador tras guardar
+      clearDraft();
 
       setEditMode(true);
       await loadAgencyData();
