@@ -6,7 +6,6 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Switch } from '@/components/ui/switch';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -22,14 +21,18 @@ interface CuadreGeneralEncargadaProps {
   refreshKey?: number;
 }
 
-interface ParleySystem {
-  name: string;
-  sales_bs: number;
-  prizes_bs: number;
+interface SystemBreakdown {
+  systemId: string;
+  systemName: string;
+  systemCode: string;
+  salesBs: number;
+  salesUsd: number;
+  prizesBs: number;
+  prizesUsd: number;
 }
 
 interface CuadreData {
-  // Sales & Prizes
+  // Sales & Prizes from encargada_cuadre_details
   totalSales: { bs: number; usd: number };
   totalPrizes: { bs: number; usd: number };
   
@@ -48,24 +51,17 @@ interface CuadreData {
   // Point of sale
   totalPointOfSale: number;
   
-  // Daily closure data
+  // Daily closure data (editable fields)
   cashAvailable: number;
   cashAvailableUsd: number;
   closureConfirmed: boolean;
   closureNotes: string;
-  premiosPorPagar: number;
   
   // Exchange rate
   exchangeRate: number;
   
-  // Session info
-  sessionId?: string;
-  
-  // Multiple sessions for agency
-  sessionsCount: number;
-  
-  // Parley y Caballos systems
-  parleySystems: ParleySystem[];
+  // Systems breakdown
+  systemsBreakdown: SystemBreakdown[];
 }
 
 export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKey = 0 }: CuadreGeneralEncargadaProps) => {
@@ -83,18 +79,17 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
     cashAvailableUsd: 0,
     closureConfirmed: false,
     closureNotes: '',
-    premiosPorPagar: 0,
     exchangeRate: 36.00,
-    sessionsCount: 0,
-    parleySystems: [],
+    systemsBreakdown: [],
   });
   
-  // Temporary string states for input fields
+  // Input states for editable fields
   const [exchangeRateInput, setExchangeRateInput] = useState<string>('36.00');
   const [cashAvailableInput, setCashAvailableInput] = useState<string>('0');
   const [cashAvailableUsdInput, setCashAvailableUsdInput] = useState<string>('0');
+  const [closureNotesInput, setClosureNotesInput] = useState<string>('');
   
-  // Track if user has manually edited the fields to prevent overriding them
+  // Track if user has manually edited fields
   const [fieldsEditedByUser, setFieldsEditedByUser] = useState({
     exchangeRate: false,
     cashAvailable: false,
@@ -106,11 +101,12 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
   const [deudasOpen, setDeudasOpen] = useState(false);
   
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
 
   useEffect(() => {
-    // Limpiar datos anteriores al cambiar agencia/fecha
+    // Reset state when agency/date changes
     setCuadre({
       totalSales: { bs: 0, usd: 0 },
       totalPrizes: { bs: 0, usd: 0 },
@@ -125,14 +121,13 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
       cashAvailableUsd: 0,
       closureConfirmed: false,
       closureNotes: '',
-      premiosPorPagar: 0,
       exchangeRate: 36.00,
-      sessionsCount: 0,
-      parleySystems: [],
+      systemsBreakdown: [],
     });
     setExchangeRateInput('36.00');
     setCashAvailableInput('0');
     setCashAvailableUsdInput('0');
+    setClosureNotesInput('');
     setFieldsEditedByUser({
       exchangeRate: false,
       cashAvailable: false,
@@ -142,11 +137,6 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
     if (user && selectedAgency && selectedDate) {
       fetchCuadreData();
     }
-    
-    // Cleanup
-    return () => {
-      setLoading(false);
-    };
   }, [user, selectedAgency, selectedDate, refreshKey]);
 
   const fetchCuadreData = async () => {
@@ -156,391 +146,32 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
       setLoading(true);
       const dateStr = formatDateForDB(selectedDate);
 
-      console.log('🔍 CUADRE ENCARGADA DEBUG - Fechas:', { dateStr, selectedAgency });
+      console.log('📊 CuadreGeneralEncargada - Consultando datos de encargada para:', {
+        agency: selectedAgency,
+        date: dateStr
+      });
 
-      // First get users from the selected agency
-      const { data: agencyUsers, error: usersError } = await supabase
-        .from('profiles')
-        .select('user_id')
-        .eq('agency_id', selectedAgency);
-
-      console.log('🔍 CUADRE ENCARGADA DEBUG - Agency users:', { agencyUsers, usersError });
-
-      if (usersError) throw usersError;
-
-      const userIds = agencyUsers?.map(u => u.user_id) || [];
-      
-      if (userIds.length === 0) {
-        // No users found for agency; fallback to daily_cuadres_summary
-        const { data: summaryRows, error: summaryError } = await supabase
-          .from('daily_cuadres_summary')
-          .select(`
-            total_sales_bs, total_sales_usd,
-            total_prizes_bs, total_prizes_usd,
-            total_expenses_bs, total_expenses_usd,
-            total_mobile_payments_bs, total_pos_bs,
-            cash_available_bs, cash_available_usd,
-            exchange_rate, daily_closure_confirmed, closure_notes
-          `)
-          .eq('agency_id', selectedAgency)
-          .eq('session_date', dateStr)
-          .is('session_id', null);
-
-        console.log('🔍 CUADRE ENCARGADA DEBUG - Summary fallback (no users):', { summaryRows, summaryError });
-        if (summaryError) throw summaryError;
-
-        // Además consultar gastos/deudas a nivel de agencia para el día
-        const { data: expensesFallback, error: expensesFallbackError } = await supabase
-          .from('expenses')
-          .select('amount_bs, amount_usd, category, description, created_at')
-          .eq('agency_id', selectedAgency)
-          .eq('transaction_date', dateStr);
-
-        // También consultar ventas/premios por sistema (encargada_cuadre_details), pagos móviles y POS a nivel de agencia para el día
-        const [detailsAgg, mobileAgg, posAgg] = await Promise.all([
-          supabase
-            .from('encargada_cuadre_details')
-            .select('sales_bs, sales_usd, prizes_bs, prizes_usd')
-            .eq('agency_id', selectedAgency)
-            .eq('session_date', dateStr),
-          supabase
-            .from('mobile_payments')
-            .select('amount_bs')
-            .eq('agency_id', selectedAgency)
-            .eq('transaction_date', dateStr),
-          supabase
-            .from('point_of_sale')
-            .select('amount_bs')
-            .eq('agency_id', selectedAgency)
-            .eq('transaction_date', dateStr),
-        ]);
-
-        if (expensesFallbackError) throw expensesFallbackError;
-
-        const gastosList = (expensesFallback || []).filter(e => e.category === 'gasto_operativo');
-        const deudasList = (expensesFallback || []).filter(e => e.category === 'deuda');
-
-        const totalGastosFromExpenses = gastosList.reduce(
-          (acc, item: any) => ({
-            bs: acc.bs + Number(item.amount_bs || 0),
-            usd: acc.usd + Number(item.amount_usd || 0),
-          }),
-          { bs: 0, usd: 0 }
-        );
-
-        const totalDeudasFromExpenses = deudasList.reduce(
-          (acc, item: any) => ({
-            bs: acc.bs + Number(item.amount_bs || 0),
-            usd: acc.usd + Number(item.amount_usd || 0),
-          }),
-          { bs: 0, usd: 0 }
-        );
-
-        // Totales calculados directamente de tablas por agencia/fecha
-        const totalSalesFromDetails = (detailsAgg.data || []).reduce(
-          (acc, r: any) => ({
-            bs: acc.bs + Number(r.sales_bs || 0),
-            usd: acc.usd + Number(r.sales_usd || 0),
-          }),
-          { bs: 0, usd: 0 }
-        );
-        const totalPrizesFromDetails = (detailsAgg.data || []).reduce(
-          (acc, r: any) => ({
-            bs: acc.bs + Number(r.prizes_bs || 0),
-            usd: acc.usd + Number(r.prizes_usd || 0),
-          }),
-          { bs: 0, usd: 0 }
-        );
-        const pagoMovilRecibidosCalc = (mobileAgg.data || []).reduce((sum: number, r: any) => {
-          const n = Number(r.amount_bs || 0);
-          return n > 0 ? sum + n : sum;
-        }, 0);
-        const pagoMovilPagadosCalc = Math.abs((mobileAgg.data || []).reduce((sum: number, r: any) => {
-          const n = Number(r.amount_bs || 0);
-          return n < 0 ? sum + n : sum;
-        }, 0));
-        const totalPointOfSaleCalc = (posAgg.data || []).reduce((sum: number, r: any) => sum + Number(r.amount_bs || 0), 0);
-
-        if ((summaryRows?.length || 0) > 0) {
-          // Usar resumen pero priorizando cálculos directos si existen
-          const totalSales = {
-            bs: totalSalesFromDetails.bs || summaryRows!.reduce((acc, r: any) => acc + Number(r.total_sales_bs || 0), 0),
-            usd: totalSalesFromDetails.usd || summaryRows!.reduce((acc, r: any) => acc + Number(r.total_sales_usd || 0), 0),
-          };
-          const totalPrizes = {
-            bs: totalPrizesFromDetails.bs || summaryRows!.reduce((acc, r: any) => acc + Number(r.total_prizes_bs || 0), 0),
-            usd: totalPrizesFromDetails.usd || summaryRows!.reduce((acc, r: any) => acc + Number(r.total_prizes_usd || 0), 0),
-          };
-          const totalGastos = summaryRows!.reduce((acc, r: any) => ({
-            bs: acc.bs + Number(r.total_expenses_bs || 0),
-            usd: acc.usd + Number(r.total_expenses_usd || 0),
-          }), { bs: 0, usd: 0 });
-
-          const pagoMovilRecibidos = pagoMovilRecibidosCalc !== 0
-            ? pagoMovilRecibidosCalc
-            : summaryRows!.reduce((sum, r: any) => sum + Number(r.total_mobile_payments_bs || 0), 0);
-          const totalPointOfSale = totalPointOfSaleCalc !== 0
-            ? totalPointOfSaleCalc
-            : summaryRows!.reduce((sum, r: any) => sum + Number(r.total_pos_bs || 0), 0);
-          const cashAvailable = summaryRows!.reduce((sum, r: any) => sum + Number(r.cash_available_bs || 0), 0);
-          const cashAvailableUsd = summaryRows!.reduce((sum, r: any) => sum + Number(r.cash_available_usd || 0), 0);
-          const averageExchangeRate = summaryRows!.reduce((sum, r: any) => sum + Number(r.exchange_rate || 36), 0) / summaryRows!.length;
-          const closureConfirmed = summaryRows!.every((r: any) => !!r.daily_closure_confirmed);
-          const closureNotes = summaryRows!.map((r: any) => r.closure_notes).filter(Boolean).join(' | ');
-
-          setCuadre({
-            totalSales,
-            totalPrizes,
-            // Sumar también los gastos de la tabla expenses (por si el resumen aún no los refleja)
-            totalGastos: {
-              bs: totalGastos.bs + totalGastosFromExpenses.bs,
-              usd: totalGastos.usd + totalGastosFromExpenses.usd,
-            },
-            totalDeudas: totalDeudasFromExpenses,
-            gastosDetails: gastosList as any,
-            deudasDetails: deudasList as any,
-            pagoMovilRecibidos,
-            pagoMovilPagados: pagoMovilPagadosCalc,
-            totalPointOfSale,
-            cashAvailable,
-            cashAvailableUsd,
-            closureConfirmed,
-            closureNotes,
-            premiosPorPagar: 0,
-            exchangeRate: averageExchangeRate,
-            sessionsCount: 0,
-            parleySystems: [],
-          });
-        } else {
-          setCuadre({
-            totalSales: totalSalesFromDetails,
-            totalPrizes: totalPrizesFromDetails,
-            totalGastos: totalGastosFromExpenses,
-            totalDeudas: totalDeudasFromExpenses,
-            gastosDetails: gastosList as any,
-            deudasDetails: deudasList as any,
-            pagoMovilRecibidos: pagoMovilRecibidosCalc,
-            pagoMovilPagados: pagoMovilPagadosCalc,
-            totalPointOfSale: totalPointOfSaleCalc,
-            cashAvailable: 0,
-            cashAvailableUsd: 0,
-            closureConfirmed: false,
-            closureNotes: '',
-            premiosPorPagar: 0,
-            exchangeRate: 36.00,
-            sessionsCount: 0,
-            parleySystems: [],
-          });
-        }
-        setLoading(false);
-        return;
-      }
-
-      // Get sessions for the agency users on the selected date
-      const { data: sessions, error: sessionsError } = await supabase
-        .from('daily_sessions')
+      // 1. FUENTE PRINCIPAL: encargada_cuadre_details (datos de ventas/premios)
+      const { data: detailsData, error: detailsError } = await supabase
+        .from('encargada_cuadre_details')
         .select(`
-          id, 
-          cash_available_bs, 
-          cash_available_usd, 
-          daily_closure_confirmed, 
-          closure_notes, 
-          exchange_rate,
-          user_id
+          id,
+          lottery_system_id,
+          sales_bs,
+          sales_usd,
+          prizes_bs,
+          prizes_usd,
+          lottery_systems(name, code)
         `)
-        .in('user_id', userIds)
+        .eq('agency_id', selectedAgency)
         .eq('session_date', dateStr);
 
-      console.log('🔍 CUADRE ENCARGADA DEBUG - Sessions query:', { sessions, sessionsError });
+      if (detailsError) throw detailsError;
 
-      if (sessionsError) throw sessionsError;
+      console.log('📊 Detalles de encargada encontrados:', detailsData?.length || 0);
 
-      const sessionIds = sessions?.map(s => s.id) || [];
-      console.log('🔍 CUADRE ENCARGADA DEBUG - Session IDs to query:', sessionIds);
-
-        // No sessions found; fallback to daily_cuadres_summary (agency-level)
-        const { data: summaryRows, error: summaryError } = await supabase
-          .from('daily_cuadres_summary')
-          .select(`
-            total_sales_bs, total_sales_usd,
-            total_prizes_bs, total_prizes_usd,
-            total_expenses_bs, total_expenses_usd,
-            total_mobile_payments_bs, total_pos_bs,
-            cash_available_bs, cash_available_usd,
-            exchange_rate, daily_closure_confirmed, closure_notes
-          `)
-          .eq('agency_id', selectedAgency)
-          .eq('session_date', dateStr)
-          .is('session_id', null);
-
-        console.log('🔍 CUADRE ENCARGADA DEBUG - Summary fallback (no sessions):', { summaryRows, summaryError });
-        if (summaryError) throw summaryError;
-
-        // Además consultar gastos/deudas a nivel de agencia para el día
-        const { data: expensesFallback, error: expensesFallbackError } = await supabase
-          .from('expenses')
-          .select('amount_bs, amount_usd, category, description, created_at')
-          .eq('agency_id', selectedAgency)
-          .eq('transaction_date', dateStr);
-
-        // También consultar ventas/premios por sistema (encargada_cuadre_details), pagos móviles y POS a nivel de agencia para el día
-        const [detailsAgg, mobileAgg, posAgg] = await Promise.all([
-          supabase
-            .from('encargada_cuadre_details')
-            .select('sales_bs, sales_usd, prizes_bs, prizes_usd')
-            .eq('agency_id', selectedAgency)
-            .eq('session_date', dateStr),
-          supabase
-            .from('mobile_payments')
-            .select('amount_bs')
-            .eq('agency_id', selectedAgency)
-            .eq('transaction_date', dateStr),
-          supabase
-            .from('point_of_sale')
-            .select('amount_bs')
-            .eq('agency_id', selectedAgency)
-            .eq('transaction_date', dateStr),
-        ]);
-
-        if (expensesFallbackError) throw expensesFallbackError;
-
-        const gastosList = (expensesFallback || []).filter(e => e.category === 'gasto_operativo');
-        const deudasList = (expensesFallback || []).filter(e => e.category === 'deuda');
-
-        const totalGastosFromExpenses = gastosList.reduce(
-          (acc, item: any) => ({
-            bs: acc.bs + Number(item.amount_bs || 0),
-            usd: acc.usd + Number(item.amount_usd || 0),
-          }),
-          { bs: 0, usd: 0 }
-        );
-
-        const totalDeudasFromExpenses = deudasList.reduce(
-          (acc, item: any) => ({
-            bs: acc.bs + Number(item.amount_bs || 0),
-            usd: acc.usd + Number(item.amount_usd || 0),
-          }),
-          { bs: 0, usd: 0 }
-        );
-
-        // Totales calculados directamente de tablas por agencia/fecha
-        const totalSalesFromDetails = (detailsAgg.data || []).reduce(
-          (acc, r: any) => ({
-            bs: acc.bs + Number(r.sales_bs || 0),
-            usd: acc.usd + Number(r.sales_usd || 0),
-          }),
-          { bs: 0, usd: 0 }
-        );
-        const totalPrizesFromDetails = (detailsAgg.data || []).reduce(
-          (acc, r: any) => ({
-            bs: acc.bs + Number(r.prizes_bs || 0),
-            usd: acc.usd + Number(r.prizes_usd || 0),
-          }),
-          { bs: 0, usd: 0 }
-        );
-        const pagoMovilRecibidosCalc = (mobileAgg.data || []).reduce((sum: number, r: any) => {
-          const n = Number(r.amount_bs || 0);
-          return n > 0 ? sum + n : sum;
-        }, 0);
-        const pagoMovilPagadosCalc = Math.abs((mobileAgg.data || []).reduce((sum: number, r: any) => {
-          const n = Number(r.amount_bs || 0);
-          return n < 0 ? sum + n : sum;
-        }, 0));
-        const totalPointOfSaleCalc = (posAgg.data || []).reduce((sum: number, r: any) => sum + Number(r.amount_bs || 0), 0);
-
-        if ((summaryRows?.length || 0) > 0) {
-          const totalSales = {
-            bs: totalSalesFromDetails.bs || summaryRows!.reduce((acc, r: any) => acc + Number(r.total_sales_bs || 0), 0),
-            usd: totalSalesFromDetails.usd || summaryRows!.reduce((acc, r: any) => acc + Number(r.total_sales_usd || 0), 0),
-          };
-          const totalPrizes = {
-            bs: totalPrizesFromDetails.bs || summaryRows!.reduce((acc, r: any) => acc + Number(r.total_prizes_bs || 0), 0),
-            usd: totalPrizesFromDetails.usd || summaryRows!.reduce((acc, r: any) => acc + Number(r.total_prizes_usd || 0), 0),
-          };
-          const totalGastos = summaryRows!.reduce((acc, r: any) => ({
-            bs: acc.bs + Number(r.total_expenses_bs || 0),
-            usd: acc.usd + Number(r.total_expenses_usd || 0),
-          }), { bs: 0, usd: 0 });
-
-          const pagoMovilRecibidos = pagoMovilRecibidosCalc !== 0
-            ? pagoMovilRecibidosCalc
-            : summaryRows!.reduce((sum, r: any) => sum + Number(r.total_mobile_payments_bs || 0), 0);
-          const totalPointOfSale = totalPointOfSaleCalc !== 0
-            ? totalPointOfSaleCalc
-            : summaryRows!.reduce((sum, r: any) => sum + Number(r.total_pos_bs || 0), 0);
-          const cashAvailable = summaryRows!.reduce((sum, r: any) => sum + Number(r.cash_available_bs || 0), 0);
-          const cashAvailableUsd = summaryRows!.reduce((sum, r: any) => sum + Number(r.cash_available_usd || 0), 0);
-          const averageExchangeRate = summaryRows!.reduce((sum, r: any) => sum + Number(r.exchange_rate || 36), 0) / summaryRows!.length;
-          const closureConfirmed = summaryRows!.every((r: any) => !!r.daily_closure_confirmed);
-          const closureNotes = summaryRows!.map((r: any) => r.closure_notes).filter(Boolean).join(' | ');
-
-          setCuadre({
-            totalSales,
-            totalPrizes,
-            // Sumar también los gastos de la tabla expenses (por si el resumen aún no los refleja)
-            totalGastos: {
-              bs: totalGastos.bs + totalGastosFromExpenses.bs,
-              usd: totalGastos.usd + totalGastosFromExpenses.usd,
-            },
-            totalDeudas: totalDeudasFromExpenses,
-            gastosDetails: gastosList as any,
-            deudasDetails: deudasList as any,
-            pagoMovilRecibidos,
-            pagoMovilPagados: pagoMovilPagadosCalc,
-            totalPointOfSale,
-            cashAvailable,
-            cashAvailableUsd,
-            closureConfirmed,
-            closureNotes,
-            premiosPorPagar: 0,
-            exchangeRate: averageExchangeRate,
-            sessionsCount: 0,
-            parleySystems: [],
-          });
-        } else {
-          setCuadre({
-            totalSales: totalSalesFromDetails,
-            totalPrizes: totalPrizesFromDetails,
-            totalGastos: totalGastosFromExpenses,
-            totalDeudas: totalDeudasFromExpenses,
-            gastosDetails: gastosList as any,
-            deudasDetails: deudasList as any,
-            pagoMovilRecibidos: pagoMovilRecibidosCalc,
-            pagoMovilPagados: pagoMovilPagadosCalc,
-            totalPointOfSale: totalPointOfSaleCalc,
-            cashAvailable: 0,
-            cashAvailableUsd: 0,
-            closureConfirmed: false,
-            closureNotes: '',
-            premiosPorPagar: 0,
-            exchangeRate: 36.00,
-            sessionsCount: 0,
-            parleySystems: [],
-          });
-        }
-        setLoading(false);
-        return;
-
-      // Fetch all data in parallel
-      const [
-        salesData, 
-        prizesData, 
-        expensesData, 
-        mobilePaymentsData, 
-        posData,
-        pendingPrizesData,
-        parleySalesData,
-        parleyPrizesData,
-        lotterySystems
-      ] = await Promise.all([
-        supabase
-          .from('sales_transactions')
-          .select('amount_bs, amount_usd')
-          .in('session_id', sessionIds),
-        supabase
-          .from('prize_transactions')
-          .select('amount_bs, amount_usd')
-          .in('session_id', sessionIds),
+      // 2. DATOS COMPLEMENTARIOS (por agencia + fecha)
+      const [expensesResult, mobileResult, posResult, summaryResult] = await Promise.all([
         supabase
           .from('expenses')
           .select('amount_bs, amount_usd, category, description, created_at')
@@ -548,7 +179,7 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
           .eq('transaction_date', dateStr),
         supabase
           .from('mobile_payments')
-          .select('amount_bs, description')
+          .select('amount_bs, reference_number, description')
           .eq('agency_id', selectedAgency)
           .eq('transaction_date', dateStr),
         supabase
@@ -557,183 +188,130 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
           .eq('agency_id', selectedAgency)
           .eq('transaction_date', dateStr),
         supabase
-          .from('pending_prizes')
-          .select('amount_bs, is_paid')
-          .in('session_id', sessionIds),
-        supabase
-          .from('sales_transactions')
-          .select('lottery_system_id, amount_bs')
-          .in('session_id', sessionIds),
-        supabase
-          .from('prize_transactions')
-          .select('lottery_system_id, amount_bs')
-          .in('session_id', sessionIds),
-        supabase
-          .from('lottery_systems')
-          .select('id, name, code, parent_system_id')
-          .in('code', ['INMEJORABLE-MULTIS-1', 'INMEJORABLE-MULTIS-2', 'INMEJORABLE-MULTIS-3', 'INMEJORABLE-MULTIS-4', 'INMEJORABLE-5Y6', 'POLLA', 'MULTISPORT-CABALLOS-NAC', 'MULTISPORT-CABALLOS-INT', 'MULTISPORT-5Y6'])
+          .from('daily_cuadres_summary')
+          .select('cash_available_bs, cash_available_usd, exchange_rate, closure_notes, daily_closure_confirmed')
+          .eq('agency_id', selectedAgency)
+          .eq('session_date', dateStr)
+          .is('session_id', null)
+          .maybeSingle()
       ]);
 
-      console.log('🔍 CUADRE ENCARGADA DEBUG - Query results:', {
-        salesData: { data: salesData.data, error: salesData.error },
-        prizesData: { data: prizesData.data, error: prizesData.error },
-        expensesData: { data: expensesData.data, error: expensesData.error },
-        mobilePaymentsData: { data: mobilePaymentsData.data, error: mobilePaymentsData.error },
-        posData: { data: posData.data, error: posData.error },
-        pendingPrizesData: { data: pendingPrizesData.data, error: pendingPrizesData.error },
-        parleySalesData: { data: parleySalesData.data, error: parleySalesData.error },
-        parleyPrizesData: { data: parleyPrizesData.data, error: parleyPrizesData.error },
-        lotterySystems: { data: lotterySystems.data, error: lotterySystems.error }
-      });
+      if (expensesResult.error) throw expensesResult.error;
+      if (mobileResult.error) throw mobileResult.error;
+      if (posResult.error) throw posResult.error;
 
-      // Check for errors
-      if (salesData.error) throw salesData.error;
-      if (prizesData.error) throw prizesData.error;
-      if (expensesData.error) throw expensesData.error;
-      if (mobilePaymentsData.error) throw mobilePaymentsData.error;
-      if (posData.error) throw posData.error;
-      if (pendingPrizesData.error) throw pendingPrizesData.error;
+      // 3. CALCULAR TOTALES DE VENTAS Y PREMIOS
+      const totalSales = {
+        bs: (detailsData || []).reduce((sum, d) => sum + Number(d.sales_bs || 0), 0),
+        usd: (detailsData || []).reduce((sum, d) => sum + Number(d.sales_usd || 0), 0)
+      };
 
-      // Calculate totals
-      const totalSales = salesData.data?.reduce(
-        (acc, item) => ({
-          bs: acc.bs + Number(item.amount_bs || 0),
-          usd: acc.usd + Number(item.amount_usd || 0),
-        }),
-        { bs: 0, usd: 0 }
-      ) || { bs: 0, usd: 0 };
+      const totalPrizes = {
+        bs: (detailsData || []).reduce((sum, d) => sum + Number(d.prizes_bs || 0), 0),
+        usd: (detailsData || []).reduce((sum, d) => sum + Number(d.prizes_usd || 0), 0)
+      };
 
-      const totalPrizes = prizesData.data?.reduce(
-        (acc, item) => ({
-          bs: acc.bs + Number(item.amount_bs || 0),
-          usd: acc.usd + Number(item.amount_usd || 0),
-        }),
-        { bs: 0, usd: 0 }
-      ) || { bs: 0, usd: 0 };
+      // 4. DESGLOSE POR SISTEMA
+      const systemsBreakdown: SystemBreakdown[] = (detailsData || [])
+        .map(d => ({
+          systemId: d.lottery_system_id,
+          systemName: (d.lottery_systems as any)?.name || 'Sistema',
+          systemCode: (d.lottery_systems as any)?.code || '',
+          salesBs: Number(d.sales_bs || 0),
+          salesUsd: Number(d.sales_usd || 0),
+          prizesBs: Number(d.prizes_bs || 0),
+          prizesUsd: Number(d.prizes_usd || 0)
+        }))
+        .filter(s => s.salesBs > 0 || s.salesUsd > 0 || s.prizesBs > 0 || s.prizesUsd > 0);
 
-      // Separate expenses by category
-      const gastos = expensesData.data?.filter(e => e.category === 'gasto_operativo') || [];
-      const deudas = expensesData.data?.filter(e => e.category === 'deuda') || [];
+      // 5. PROCESAR GASTOS Y DEUDAS
+      const expensesList = expensesResult.data || [];
+      const gastosList = expensesList.filter(e => e.category === 'gasto_operativo');
+      const deudasList = expensesList.filter(e => e.category === 'deuda');
 
-      const totalGastos = gastos.reduce(
-        (acc, item) => ({
-          bs: acc.bs + Number(item.amount_bs || 0),
-          usd: acc.usd + Number(item.amount_usd || 0),
-        }),
-        { bs: 0, usd: 0 }
+      const totalGastos = {
+        bs: gastosList.reduce((sum, g) => sum + Number(g.amount_bs || 0), 0),
+        usd: gastosList.reduce((sum, g) => sum + Number(g.amount_usd || 0), 0)
+      };
+
+      const totalDeudas = {
+        bs: deudasList.reduce((sum, d) => sum + Number(d.amount_bs || 0), 0),
+        usd: deudasList.reduce((sum, d) => sum + Number(d.amount_usd || 0), 0)
+      };
+
+      // 6. PROCESAR PAGOS MÓVILES
+      const mobileList = mobileResult.data || [];
+      const pagoMovilRecibidos = mobileList
+        .filter(m => Number(m.amount_bs || 0) > 0)
+        .reduce((sum, m) => sum + Number(m.amount_bs), 0);
+      const pagoMovilPagados = Math.abs(
+        mobileList
+          .filter(m => Number(m.amount_bs || 0) < 0)
+          .reduce((sum, m) => sum + Number(m.amount_bs), 0)
       );
 
-      const totalDeudas = deudas.reduce(
-        (acc, item) => ({
-          bs: acc.bs + Number(item.amount_bs || 0),
-          usd: acc.usd + Number(item.amount_usd || 0),
-        }),
-        { bs: 0, usd: 0 }
-      );
+      // 7. PROCESAR PUNTO DE VENTA
+      const totalPointOfSale = (posResult.data || [])
+        .reduce((sum, p) => sum + Number(p.amount_bs || 0), 0);
 
-      // Separate mobile payments (positive = received, negative = paid)
-      const pagoMovilRecibidos = mobilePaymentsData.data?.reduce(
-        (sum, item) => {
-          const amount = Number(item.amount_bs || 0);
-          return amount > 0 ? sum + amount : sum;
-        },
-        0
-      ) || 0;
+      // 8. CAMPOS EDITABLES DEL RESUMEN
+      const summaryData = summaryResult.data;
+      const exchangeRate = summaryData?.exchange_rate || 36.00;
+      const cashAvailable = summaryData?.cash_available_bs || 0;
+      const cashAvailableUsd = summaryData?.cash_available_usd || 0;
+      const closureNotes = summaryData?.closure_notes || '';
+      const closureConfirmed = summaryData?.daily_closure_confirmed || false;
 
-      const pagoMovilPagados = Math.abs(mobilePaymentsData.data?.reduce(
-        (sum, item) => {
-          const amount = Number(item.amount_bs || 0);
-          return amount < 0 ? sum + amount : sum;
-        },
-        0
-      ) || 0);
-
-      const totalPointOfSale = posData.data?.reduce(
-        (sum, item) => sum + Number(item.amount_bs || 0),
-        0
-      ) || 0;
-
-      // Calculate pending prizes from new table
-      const premiosPorPagarFromDB = pendingPrizesData.data?.filter(p => !p.is_paid)
-        .reduce((sum, item) => sum + Number(item.amount_bs || 0), 0) || 0;
-
-      // Aggregate session data
-      const totalCashAvailable = sessions?.reduce((sum, s) => sum + Number(s.cash_available_bs || 0), 0) || 0;
-      const totalCashAvailableUsd = sessions?.reduce((sum, s) => sum + Number(s.cash_available_usd || 0), 0) || 0;
-      const averageExchangeRate = sessions?.length ? 
-        sessions.reduce((sum, s) => sum + Number(s.exchange_rate || 36), 0) / sessions.length : 36;
-      const allConfirmed = sessions?.every(s => s.daily_closure_confirmed) || false;
-      const combinedNotes = sessions?.map(s => s.closure_notes).filter(n => n).join(' | ') || '';
-
-      // Process Parley y Caballos systems
-      const systemsMap = new Map<string, ParleySystem>();
-      lotterySystems.data?.forEach(system => {
-        systemsMap.set(system.id, {
-          name: system.name,
-          sales_bs: 0,
-          prizes_bs: 0,
-        });
+      console.log('✅ Totales calculados (SOLO datos de encargada):', {
+        ventas: totalSales,
+        premios: totalPrizes,
+        gastos: totalGastos,
+        sistemas: systemsBreakdown.length
       });
 
-      // Aggregate sales by system
-      parleySalesData.data?.forEach(sale => {
-        const system = systemsMap.get(sale.lottery_system_id);
-        if (system) {
-          system.sales_bs += Number(sale.amount_bs || 0);
-        }
-      });
-
-      // Aggregate prizes by system
-      parleyPrizesData.data?.forEach(prize => {
-        const system = systemsMap.get(prize.lottery_system_id);
-        if (system) {
-          system.prizes_bs += Number(prize.amount_bs || 0);
-        }
-      });
-
-      const parleySystems = Array.from(systemsMap.values());
-
-      const finalCuadre = {
+      // 9. ACTUALIZAR ESTADO
+      setCuadre({
         totalSales,
         totalPrizes,
         totalGastos,
         totalDeudas,
-        gastosDetails: gastos,
-        deudasDetails: deudas,
+        gastosDetails: gastosList as any,
+        deudasDetails: deudasList as any,
         pagoMovilRecibidos,
         pagoMovilPagados,
         totalPointOfSale,
-        cashAvailable: totalCashAvailable,
-        cashAvailableUsd: totalCashAvailableUsd,
-        closureConfirmed: allConfirmed,
-        closureNotes: combinedNotes,
-        premiosPorPagar: premiosPorPagarFromDB,
-        exchangeRate: averageExchangeRate,
-        sessionId: sessions?.[0]?.id,
-        sessionsCount: sessions?.length || 0,
-        parleySystems,
-      };
-      
-        setCuadre(finalCuadre);
-        
-        // Update input states only if user hasn't edited them manually
-        if (!fieldsEditedByUser.exchangeRate) {
-          setExchangeRateInput(finalCuadre.exchangeRate.toString());
-        }
-        if (!fieldsEditedByUser.cashAvailable) {
-          setCashAvailableInput(finalCuadre.cashAvailable.toString());
-        }
-        if (!fieldsEditedByUser.cashAvailableUsd) {
-          setCashAvailableUsdInput(finalCuadre.cashAvailableUsd.toString());
-        }
-    } catch (error) {
-      console.error('Error fetching cuadre data:', error);
+        cashAvailable,
+        cashAvailableUsd,
+        exchangeRate,
+        closureConfirmed,
+        closureNotes,
+        systemsBreakdown
+      });
+
+      // Update input fields only if user hasn't edited them
+      if (!fieldsEditedByUser.exchangeRate) {
+        setExchangeRateInput(exchangeRate.toString());
+      }
+      if (!fieldsEditedByUser.cashAvailable) {
+        setCashAvailableInput(cashAvailable.toString());
+      }
+      if (!fieldsEditedByUser.cashAvailableUsd) {
+        setCashAvailableUsdInput(cashAvailableUsd.toString());
+      }
+      setClosureNotesInput(closureNotes);
+
+    } catch (error: any) {
+      console.error('❌ Error en CuadreGeneralEncargada:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Error al cargar el cuadre',
+        variant: 'destructive'
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  // Save daily closure function
   const saveDailyClosure = async () => {
     if (!user || !selectedAgency || !selectedDate) {
       toast({
@@ -745,64 +323,73 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
     }
 
     try {
+      setSaving(true);
       const dateStr = formatDateForDB(selectedDate);
       
-      // Update the cuadre with current input values
-      const updatedCuadre = {
-        ...cuadre,
-        exchangeRate: parseFloat(exchangeRateInput) || 36.00,
-        cashAvailable: parseFloat(cashAvailableInput) || 0,
-        cashAvailableUsd: parseFloat(cashAvailableUsdInput) || 0,
-      };
+      const inputExchangeRate = parseFloat(exchangeRateInput) || 36.00;
+      const inputCashAvailableBs = parseFloat(cashAvailableInput) || 0;
+      const inputCashAvailableUsd = parseFloat(cashAvailableUsdInput) || 0;
 
-      // Save to daily_cuadres_summary (agency level)
-      const payload = {
+      // Calculate balance
+      const balance_bs = 
+        cuadre.totalSales.bs 
+        - cuadre.totalPrizes.bs 
+        - cuadre.totalGastos.bs 
+        - cuadre.totalDeudas.bs
+        + cuadre.pagoMovilRecibidos 
+        - cuadre.pagoMovilPagados
+        + cuadre.totalPointOfSale;
+
+      const summaryData = {
+        user_id: user.id,
         agency_id: selectedAgency,
         session_date: dateStr,
-        total_sales_bs: updatedCuadre.totalSales.bs,
-        total_sales_usd: updatedCuadre.totalSales.usd,
-        total_prizes_bs: updatedCuadre.totalPrizes.bs,
-        total_prizes_usd: updatedCuadre.totalPrizes.usd,
-        total_expenses_bs: updatedCuadre.totalGastos.bs + updatedCuadre.totalDeudas.bs,
-        total_expenses_usd: updatedCuadre.totalGastos.usd + updatedCuadre.totalDeudas.usd,
-        total_debt_bs: updatedCuadre.totalDeudas.bs,
-        total_debt_usd: updatedCuadre.totalDeudas.usd,
-        total_mobile_payments_bs: updatedCuadre.pagoMovilRecibidos - updatedCuadre.pagoMovilPagados,
-        total_pos_bs: updatedCuadre.totalPointOfSale,
-        cash_available_bs: updatedCuadre.cashAvailable,
-        cash_available_usd: updatedCuadre.cashAvailableUsd,
-        exchange_rate: updatedCuadre.exchangeRate,
-        pending_prizes: updatedCuadre.premiosPorPagar,
-        daily_closure_confirmed: updatedCuadre.closureConfirmed,
-        closure_notes: updatedCuadre.closureNotes,
-        session_id: null, // Encargada level entry
-        user_id: user.id,
-        is_closed: true,
+        session_id: null, // Indica que es nivel agencia (encargada)
+        total_sales_bs: cuadre.totalSales.bs,
+        total_sales_usd: cuadre.totalSales.usd,
+        total_prizes_bs: cuadre.totalPrizes.bs,
+        total_prizes_usd: cuadre.totalPrizes.usd,
+        total_expenses_bs: cuadre.totalGastos.bs + cuadre.totalDeudas.bs,
+        total_expenses_usd: cuadre.totalGastos.usd + cuadre.totalDeudas.usd,
+        total_debt_bs: cuadre.totalDeudas.bs,
+        total_debt_usd: cuadre.totalDeudas.usd,
+        total_mobile_payments_bs: cuadre.pagoMovilRecibidos - cuadre.pagoMovilPagados,
+        total_pos_bs: cuadre.totalPointOfSale,
+        balance_bs,
+        exchange_rate: inputExchangeRate,
+        cash_available_bs: inputCashAvailableBs,
+        cash_available_usd: inputCashAvailableUsd,
+        closure_notes: closureNotesInput,
+        daily_closure_confirmed: true,
+        is_closed: true
       };
 
       const { error } = await supabase
         .from('daily_cuadres_summary')
-        .upsert(payload, { 
+        .upsert([summaryData], {
           onConflict: 'agency_id,session_date,user_id',
-          ignoreDuplicates: false 
+          ignoreDuplicates: false
         });
 
       if (error) throw error;
 
       toast({
         title: 'Éxito',
-        description: 'Cuadre guardado correctamente',
+        description: 'Cierre diario guardado correctamente'
       });
 
-      // Update local state
-      setCuadre(updatedCuadre);
-      
+      // Reload data
+      await fetchCuadreData();
+
     } catch (error: any) {
+      console.error('Error saving closure:', error);
       toast({
         title: 'Error',
-        description: error.message || 'Error al guardar el cuadre',
-        variant: 'destructive',
+        description: error.message || 'Error al guardar el cierre',
+        variant: 'destructive'
       });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -814,6 +401,32 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
           <p>Calculando resumen general...</p>
         </div>
       </div>
+    );
+  }
+
+  // Check if there's any data
+  const hasData = cuadre.totalSales.bs > 0 || cuadre.totalSales.usd > 0 || 
+                  cuadre.totalPrizes.bs > 0 || cuadre.totalPrizes.usd > 0 ||
+                  cuadre.totalGastos.bs > 0 || cuadre.totalGastos.usd > 0 ||
+                  cuadre.pagoMovilRecibidos > 0 || cuadre.pagoMovilPagados > 0 ||
+                  cuadre.totalPointOfSale > 0;
+
+  if (!hasData) {
+    return (
+      <Card className="border-2 border-dashed">
+        <CardContent className="pt-8 pb-8">
+          <div className="text-center text-muted-foreground space-y-2">
+            <Calculator className="h-12 w-12 mx-auto opacity-50" />
+            <p className="text-lg font-medium">No hay datos registrados</p>
+            <p className="text-sm">
+              No se encontraron ventas, premios ni gastos para esta agencia y fecha.
+            </p>
+            <p className="text-xs mt-4">
+              Los datos deben ser registrados en la pestaña "Ventas/Premios" primero.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 
@@ -838,7 +451,7 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
     (excessUsd * cuadre.exchangeRate);
 
   const diferenciaCierre = sumatoriaBolivares - cuadreVentasPremios.bs;
-  const diferenciaFinal = diferenciaCierre - cuadre.premiosPorPagar;
+  const diferenciaFinal = diferenciaCierre;
   const isCuadreBalanced = Math.abs(diferenciaFinal) <= 100; // Allow 100 Bs tolerance
 
   return (
@@ -846,10 +459,10 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
       {/* Title and Status */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <h2 className="text-lg font-semibold">Resumen General</h2>
-          {cuadre.sessionsCount > 0 && (
+          <h2 className="text-lg font-semibold">Resumen General (Encargada)</h2>
+          {cuadre.systemsBreakdown.length > 0 && (
             <Badge variant="outline">
-              {cuadre.sessionsCount} sesión{cuadre.sessionsCount !== 1 ? 'es' : ''}
+              {cuadre.systemsBreakdown.length} sistema{cuadre.systemsBreakdown.length !== 1 ? 's' : ''}
             </Badge>
           )}
         </div>
@@ -867,13 +480,13 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
           <div className="text-center space-y-2">
             <div className="text-lg">💱</div>
             <p className="text-sm text-muted-foreground">
-              Tasa promedio del día: <span className="font-bold">{cuadre.exchangeRate.toFixed(2)} Bs por USD</span>
+              Tasa del día: <span className="font-bold">{cuadre.exchangeRate.toFixed(2)} Bs por USD</span>
             </p>
           </div>
         </CardContent>
       </Card>
 
-      {/* Campos editables para encargada */}
+      {/* Editable Fields */}
       <Card className="border-2 border-amber-200 bg-amber-50/50">
         <CardHeader>
           <CardTitle className="text-amber-700 flex items-center gap-2">
@@ -934,10 +547,21 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
               />
             </div>
           </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="closure-notes">Notas del Cierre</Label>
+            <Textarea
+              id="closure-notes"
+              value={closureNotesInput}
+              onChange={(e) => setClosureNotesInput(e.target.value)}
+              placeholder="Observaciones del día..."
+              className="min-h-[80px]"
+            />
+          </div>
           
-          <Button onClick={saveDailyClosure} className="w-full">
+          <Button onClick={saveDailyClosure} disabled={saving} className="w-full">
             <Save className="h-4 w-4 mr-2" />
-            Guardar Cuadre del Día
+            {saving ? 'Guardando...' : 'Guardar Cuadre del Día'}
           </Button>
         </CardContent>
       </Card>
@@ -990,7 +614,6 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
         </Card>
       </div>
 
-
       {/* Detailed Breakdown */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
@@ -1035,7 +658,7 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
         </Card>
       </div>
 
-      {/* Closure Formula Card */}
+      {/* Closure Formula Card - Bolivares */}
       <Card className="border-2 border-primary/20 border-l-4 border-l-primary">
         <CardHeader>
           <CardTitle className="text-primary">Resumen en Bolívares</CardTitle>
@@ -1147,14 +770,6 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
                     <span>Cuadre (V-P):</span>
                     <span className="font-medium">{formatCurrency(cuadreVentasPremios.bs, 'VES')}</span>
                   </div>
-                  <div className="flex justify-between text-sm text-muted-foreground">
-                    <span>Diferencia inicial:</span>
-                    <span className="font-medium">{formatCurrency(diferenciaCierre, 'VES')}</span>
-                  </div>
-                  <div className="flex justify-between text-sm text-muted-foreground">
-                    <span>Menos: Premios por pagar:</span>
-                    <span className="font-medium">-{formatCurrency(cuadre.premiosPorPagar, 'VES')}</span>
-                  </div>
                   <Separator className="my-3" />
                   <div className="flex justify-between font-bold text-xl mb-4">
                     <span>Diferencia Final:</span>
@@ -1243,14 +858,14 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
         </CardContent>
       </Card>
 
-      {/* Parley y Caballos Section */}
-      {cuadre.parleySystems.length > 0 && (
+      {/* Systems Breakdown */}
+      {cuadre.systemsBreakdown.length > 0 && (
         <>
           <div className="py-3">
             <div className="flex items-center gap-3">
               <div className="h-px flex-1 bg-gradient-to-r from-transparent via-purple-300 to-transparent"></div>
               <h3 className="text-sm font-bold text-purple-700 uppercase tracking-wider px-4 py-2 bg-purple-50 rounded-full border border-purple-200">
-                Parley y Caballos
+                Desglose por Sistema
               </h3>
               <div className="h-px flex-1 bg-gradient-to-r from-transparent via-purple-300 to-transparent"></div>
             </div>
@@ -1259,64 +874,49 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
           <Card className="border-2 border-purple-200">
             <CardContent className="pt-6">
               <div className="space-y-4">
-                {/* Totales Generales */}
+                {/* Overall Totals */}
                 <div className="grid grid-cols-2 gap-4 mb-4">
                   <div className="text-center p-3 bg-green-50 rounded border border-green-200">
                     <p className="text-xs text-green-700 mb-1">Total Ventas</p>
                     <p className="text-lg font-bold text-green-600">
-                      {formatCurrency(
-                        cuadre.parleySystems.reduce((sum, sys) => sum + sys.sales_bs, 0),
-                        'VES'
-                      )}
+                      {formatCurrency(cuadre.totalSales.bs, 'VES')}
                     </p>
                   </div>
                   <div className="text-center p-3 bg-red-50 rounded border border-red-200">
                     <p className="text-xs text-red-700 mb-1">Total Premios</p>
                     <p className="text-lg font-bold text-red-600">
-                      {formatCurrency(
-                        cuadre.parleySystems.reduce((sum, sys) => sum + sys.prizes_bs, 0),
-                        'VES'
-                      )}
+                      {formatCurrency(cuadre.totalPrizes.bs, 'VES')}
                     </p>
                   </div>
                 </div>
 
-                {/* Lista de Sistemas */}
-                <div className="space-y-2">
-                  {cuadre.parleySystems.map((system, index) => (
-                    <div
-                      key={index}
-                      className="p-3 bg-gray-50 border border-gray-200 rounded hover:bg-gray-100 transition-colors"
-                    >
-                      <div className="flex justify-between items-center">
-                        <span className="font-medium text-sm">{system.name}</span>
-                        <div className="flex gap-4 text-xs">
-                          <span className="text-green-600">
-                            V: {formatCurrency(system.sales_bs, 'VES')}
-                          </span>
-                          <span className="text-red-600">
-                            P: {formatCurrency(system.prizes_bs, 'VES')}
-                          </span>
-                          <span className="text-blue-600 font-medium">
-                            Neto: {formatCurrency(system.sales_bs - system.prizes_bs, 'VES')}
-                          </span>
+                <Separator />
+
+                {/* Individual Systems */}
+                <div className="space-y-3">
+                  {cuadre.systemsBreakdown.map((system, idx) => (
+                    <div key={idx} className="p-3 bg-purple-50/50 rounded border border-purple-100">
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <h4 className="font-semibold text-purple-900">{system.systemName}</h4>
+                          <p className="text-xs text-purple-600">{system.systemCode}</p>
+                        </div>
+                        <Badge variant="outline" className="text-purple-700 border-purple-300">
+                          {formatCurrency(system.salesBs - system.prizesBs, 'VES')}
+                        </Badge>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div>
+                          <span className="text-green-600">Ventas: </span>
+                          <span className="font-medium">{formatCurrency(system.salesBs, 'VES')}</span>
+                        </div>
+                        <div>
+                          <span className="text-red-600">Premios: </span>
+                          <span className="font-medium">{formatCurrency(system.prizesBs, 'VES')}</span>
                         </div>
                       </div>
                     </div>
                   ))}
-                </div>
-
-                {/* Neto Total */}
-                <div className="pt-3 border-t border-purple-200">
-                  <div className="flex justify-between items-center text-center p-3 bg-blue-50 rounded border border-blue-200">
-                    <span className="text-sm font-bold text-blue-700">NETO TOTAL (Ventas - Premios)</span>
-                    <span className="text-lg font-bold text-blue-600">
-                      {formatCurrency(
-                        cuadre.parleySystems.reduce((sum, sys) => sum + (sys.sales_bs - sys.prizes_bs), 0),
-                        'VES'
-                      )}
-                    </span>
-                  </div>
                 </div>
               </div>
             </CardContent>
@@ -1324,16 +924,14 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
         </>
       )}
 
-      {/* Notes Section */}
+      {/* Closure Notes Display */}
       {cuadre.closureNotes && (
-        <Card>
+        <Card className="border-l-4 border-l-blue-500">
           <CardHeader>
-            <CardTitle className="text-sm">Notas del Cierre</CardTitle>
+            <CardTitle className="text-sm text-blue-700">Notas del Cierre</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm p-3 bg-muted/50 rounded border">
-              {cuadre.closureNotes}
-            </p>
+            <p className="text-sm whitespace-pre-wrap">{cuadre.closureNotes}</p>
           </CardContent>
         </Card>
       )}
