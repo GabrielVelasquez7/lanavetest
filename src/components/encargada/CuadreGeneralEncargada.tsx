@@ -21,16 +21,6 @@ interface CuadreGeneralEncargadaProps {
   refreshKey?: number;
 }
 
-interface SystemBreakdown {
-  systemId: string;
-  systemName: string;
-  systemCode: string;
-  salesBs: number;
-  salesUsd: number;
-  prizesBs: number;
-  prizesUsd: number;
-}
-
 interface CuadreData {
   // Sales & Prizes from encargada_cuadre_details
   totalSales: { bs: number; usd: number };
@@ -59,9 +49,6 @@ interface CuadreData {
   
   // Exchange rate
   exchangeRate: number;
-  
-  // Systems breakdown
-  systemsBreakdown: SystemBreakdown[];
 }
 
 export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKey = 0 }: CuadreGeneralEncargadaProps) => {
@@ -80,7 +67,6 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
     closureConfirmed: false,
     closureNotes: '',
     exchangeRate: 36.00,
-    systemsBreakdown: [],
   });
   
   // Input states for editable fields
@@ -122,7 +108,6 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
       closureConfirmed: false,
       closureNotes: '',
       exchangeRate: 36.00,
-      systemsBreakdown: [],
     });
     setExchangeRateInput('36.00');
     setCashAvailableInput('0');
@@ -154,30 +139,13 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
       // 1. FUENTE PRINCIPAL: encargada_cuadre_details (datos de ventas/premios)
       const { data: detailsData, error: detailsError } = await supabase
         .from('encargada_cuadre_details')
-        .select('id, lottery_system_id, sales_bs, sales_usd, prizes_bs, prizes_usd')
+        .select('sales_bs, sales_usd, prizes_bs, prizes_usd')
         .eq('agency_id', selectedAgency)
         .eq('session_date', dateStr);
 
       if (detailsError) throw detailsError;
 
       console.log('📊 Detalles de encargada encontrados:', detailsData?.length || 0);
-
-      // Get lottery systems info separately
-      const systemIds = [...new Set((detailsData || []).map(d => d.lottery_system_id))];
-      let systemsMap = new Map<string, { name: string; code: string }>();
-      
-      if (systemIds.length > 0) {
-        const { data: systemsData, error: systemsError } = await supabase
-          .from('lottery_systems')
-          .select('id, name, code')
-          .in('id', systemIds);
-        
-        if (!systemsError && systemsData) {
-          systemsData.forEach(sys => {
-            systemsMap.set(sys.id, { name: sys.name, code: sys.code });
-          });
-        }
-      }
 
       // 2. DATOS COMPLEMENTARIOS (por agencia + fecha)
       const [expensesResult, mobileResult, posResult, summaryResult] = await Promise.all([
@@ -220,23 +188,7 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
         usd: (detailsData || []).reduce((sum, d) => sum + Number(d.prizes_usd || 0), 0)
       };
 
-      // 4. DESGLOSE POR SISTEMA
-      const systemsBreakdown: SystemBreakdown[] = (detailsData || [])
-        .map(d => {
-          const sysInfo = systemsMap.get(d.lottery_system_id);
-          return {
-            systemId: d.lottery_system_id,
-            systemName: sysInfo?.name || 'Sistema',
-            systemCode: sysInfo?.code || '',
-            salesBs: Number(d.sales_bs || 0),
-            salesUsd: Number(d.sales_usd || 0),
-            prizesBs: Number(d.prizes_bs || 0),
-            prizesUsd: Number(d.prizes_usd || 0)
-          };
-        })
-        .filter(s => s.salesBs > 0 || s.salesUsd > 0 || s.prizesBs > 0 || s.prizesUsd > 0);
-
-      // 5. PROCESAR GASTOS Y DEUDAS
+      // 4. PROCESAR GASTOS Y DEUDAS
       const expensesList = expensesResult.data || [];
       const gastosList = expensesList.filter(e => e.category === 'gasto_operativo');
       const deudasList = expensesList.filter(e => e.category === 'deuda');
@@ -251,7 +203,7 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
         usd: deudasList.reduce((sum, d) => sum + Number(d.amount_usd || 0), 0)
       };
 
-      // 6. PROCESAR PAGOS MÓVILES
+      // 5. PROCESAR PAGOS MÓVILES
       const mobileList = mobileResult.data || [];
       const pagoMovilRecibidos = mobileList
         .filter(m => Number(m.amount_bs || 0) > 0)
@@ -262,11 +214,11 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
           .reduce((sum, m) => sum + Number(m.amount_bs), 0)
       );
 
-      // 7. PROCESAR PUNTO DE VENTA
+      // 6. PROCESAR PUNTO DE VENTA
       const totalPointOfSale = (posResult.data || [])
         .reduce((sum, p) => sum + Number(p.amount_bs || 0), 0);
 
-      // 8. CAMPOS EDITABLES DEL RESUMEN
+      // 7. CAMPOS EDITABLES DEL RESUMEN
       const summaryData = summaryResult.data;
       const exchangeRate = summaryData?.exchange_rate || 36.00;
       const cashAvailable = summaryData?.cash_available_bs || 0;
@@ -277,11 +229,10 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
       console.log('✅ Totales calculados (SOLO datos de encargada):', {
         ventas: totalSales,
         premios: totalPrizes,
-        gastos: totalGastos,
-        sistemas: systemsBreakdown.length
+        gastos: totalGastos
       });
 
-      // 9. ACTUALIZAR ESTADO
+      // 8. ACTUALIZAR ESTADO
       setCuadre({
         totalSales,
         totalPrizes,
@@ -296,8 +247,7 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
         cashAvailableUsd,
         exchangeRate,
         closureConfirmed,
-        closureNotes,
-        systemsBreakdown
+        closureNotes
       });
 
       // Update input fields only if user hasn't edited them
@@ -472,11 +422,6 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <h2 className="text-lg font-semibold">Resumen General (Encargada)</h2>
-          {cuadre.systemsBreakdown.length > 0 && (
-            <Badge variant="outline">
-              {cuadre.systemsBreakdown.length} sistema{cuadre.systemsBreakdown.length !== 1 ? 's' : ''}
-            </Badge>
-          )}
         </div>
         {cuadre.closureConfirmed && (
           <Badge variant="default" className="flex items-center gap-1">
@@ -869,72 +814,6 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
           </div>
         </CardContent>
       </Card>
-
-      {/* Systems Breakdown */}
-      {cuadre.systemsBreakdown.length > 0 && (
-        <>
-          <div className="py-3">
-            <div className="flex items-center gap-3">
-              <div className="h-px flex-1 bg-gradient-to-r from-transparent via-purple-300 to-transparent"></div>
-              <h3 className="text-sm font-bold text-purple-700 uppercase tracking-wider px-4 py-2 bg-purple-50 rounded-full border border-purple-200">
-                Desglose por Sistema
-              </h3>
-              <div className="h-px flex-1 bg-gradient-to-r from-transparent via-purple-300 to-transparent"></div>
-            </div>
-          </div>
-
-          <Card className="border-2 border-purple-200">
-            <CardContent className="pt-6">
-              <div className="space-y-4">
-                {/* Overall Totals */}
-                <div className="grid grid-cols-2 gap-4 mb-4">
-                  <div className="text-center p-3 bg-green-50 rounded border border-green-200">
-                    <p className="text-xs text-green-700 mb-1">Total Ventas</p>
-                    <p className="text-lg font-bold text-green-600">
-                      {formatCurrency(cuadre.totalSales.bs, 'VES')}
-                    </p>
-                  </div>
-                  <div className="text-center p-3 bg-red-50 rounded border border-red-200">
-                    <p className="text-xs text-red-700 mb-1">Total Premios</p>
-                    <p className="text-lg font-bold text-red-600">
-                      {formatCurrency(cuadre.totalPrizes.bs, 'VES')}
-                    </p>
-                  </div>
-                </div>
-
-                <Separator />
-
-                {/* Individual Systems */}
-                <div className="space-y-3">
-                  {cuadre.systemsBreakdown.map((system, idx) => (
-                    <div key={idx} className="p-3 bg-purple-50/50 rounded border border-purple-100">
-                      <div className="flex justify-between items-start mb-2">
-                        <div>
-                          <h4 className="font-semibold text-purple-900">{system.systemName}</h4>
-                          <p className="text-xs text-purple-600">{system.systemCode}</p>
-                        </div>
-                        <Badge variant="outline" className="text-purple-700 border-purple-300">
-                          {formatCurrency(system.salesBs - system.prizesBs, 'VES')}
-                        </Badge>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div>
-                          <span className="text-green-600">Ventas: </span>
-                          <span className="font-medium">{formatCurrency(system.salesBs, 'VES')}</span>
-                        </div>
-                        <div>
-                          <span className="text-red-600">Premios: </span>
-                          <span className="font-medium">{formatCurrency(system.prizesBs, 'VES')}</span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </>
-      )}
 
       {/* Closure Notes Display */}
       {cuadre.closureNotes && (
