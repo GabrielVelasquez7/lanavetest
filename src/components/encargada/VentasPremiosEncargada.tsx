@@ -176,40 +176,79 @@ export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
         prizes_usd: 0,
       }));
 
-      // Buscar detalles existentes por sistema
-      const { data: details } = await supabase
+      // Buscar detalles existentes por sistema en la nueva tabla
+      let { data: details } = await supabase
         .from('encargada_cuadre_details')
         .select('*')
         .eq('agency_id', selectedAgency)
         .eq('session_date', dateStr)
         .eq('user_id', user.id);
 
-      if (details && details.length > 0) {
-        // Mapear detalles guardados a los sistemas
-        const systemsWithData = systemsData.map(system => {
-          const detail = details.find(d => d.lottery_system_id === system.lottery_system_id);
-          
-          return {
-            ...system,
-            sales_bs: detail ? Number(detail.sales_bs || 0) : 0,
-            sales_usd: detail ? Number(detail.sales_usd || 0) : 0,
-            prizes_bs: detail ? Number(detail.prizes_bs || 0) : 0,
-            prizes_usd: detail ? Number(detail.prizes_usd || 0) : 0,
-          };
-        });
+      // Si no hay datos en la nueva tabla, intentar migrar desde daily_cuadres_summary
+      if (!details || details.length === 0) {
+        const { data: oldSummary } = await supabase
+          .from('daily_cuadres_summary')
+          .select('*, lottery_systems!inner(id, name)')
+          .eq('agency_id', selectedAgency)
+          .eq('session_date', dateStr)
+          .eq('user_id', user.id)
+          .is('session_id', null);
 
-        // Reemplazar completamente los valores del formulario con los datos cargados
-        form.reset({ systems: systemsWithData });
-        
-        // Determinar si estamos en modo edición
-        const hasData = systemsWithData.some(s => s.sales_bs > 0 || s.sales_usd > 0 || s.prizes_bs > 0 || s.prizes_usd > 0);
-        setEditMode(hasData);
-        setCurrentCuadreId(details[0]?.id || null);
-      } else {
-        form.reset({ systems: systemsData });
-        setEditMode(false);
-        setCurrentCuadreId(null);
+        if (oldSummary && oldSummary.length > 0) {
+          // Migrar datos antiguos a la nueva estructura
+          const migrationData = oldSummary
+            .filter(s => s.lottery_system_id) // Solo los que tienen sistema
+            .map(s => ({
+              user_id: user.id,
+              agency_id: selectedAgency,
+              session_date: dateStr,
+              lottery_system_id: s.lottery_system_id!,
+              sales_bs: Number(s.total_sales_bs || 0),
+              sales_usd: Number(s.total_sales_usd || 0),
+              prizes_bs: Number(s.total_prizes_bs || 0),
+              prizes_usd: Number(s.total_prizes_usd || 0),
+            }));
+
+          if (migrationData.length > 0) {
+            await supabase
+              .from('encargada_cuadre_details')
+              .upsert(migrationData, {
+                onConflict: 'agency_id,session_date,user_id,lottery_system_id'
+              });
+
+            // Recargar después de migrar
+            const { data: newDetails } = await supabase
+              .from('encargada_cuadre_details')
+              .select('*')
+              .eq('agency_id', selectedAgency)
+              .eq('session_date', dateStr)
+              .eq('user_id', user.id);
+
+            details = newDetails;
+          }
+        }
       }
+
+      // Mapear detalles guardados a los sistemas
+      const systemsWithData = systemsData.map(system => {
+        const detail = details?.find(d => d.lottery_system_id === system.lottery_system_id);
+        
+        return {
+          ...system,
+          sales_bs: detail ? Number(detail.sales_bs || 0) : 0,
+          sales_usd: detail ? Number(detail.sales_usd || 0) : 0,
+          prizes_bs: detail ? Number(detail.prizes_bs || 0) : 0,
+          prizes_usd: detail ? Number(detail.prizes_usd || 0) : 0,
+        };
+      });
+
+      // Usar setValue en lugar de reset para mantener la estructura
+      form.setValue('systems', systemsWithData);
+      
+      // Determinar si estamos en modo edición
+      const hasData = systemsWithData.some(s => s.sales_bs > 0 || s.sales_usd > 0 || s.prizes_bs > 0 || s.prizes_usd > 0);
+      setEditMode(hasData);
+      setCurrentCuadreId(details?.[0]?.id || null);
     } catch (error) {
       console.error('Error loading agency data:', error);
       const systemsData: SystemEntry[] = lotteryOptions.map(system => ({
