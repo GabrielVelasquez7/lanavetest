@@ -222,6 +222,41 @@ export const PagoMovilRecibidos = ({ onSuccess, selectedAgency: propSelectedAgen
           .insert(paymentsToInsert);
 
         if (error) throw error;
+
+        // Update agency-level daily summary (session_id = null)
+        const dateStr = format(selectedDate, 'yyyy-MM-dd');
+        const [{ data: mpData }, { data: existingSummary }] = await Promise.all([
+          supabase
+            .from('mobile_payments')
+            .select('amount_bs')
+            .eq('agency_id', selectedAgency)
+            .eq('transaction_date', dateStr),
+          supabase
+            .from('daily_cuadres_summary')
+            .select('id')
+            .eq('agency_id', selectedAgency)
+            .eq('session_date', dateStr)
+            .is('session_id', null)
+            .maybeSingle(),
+        ]);
+
+        const totalMobile = mpData?.reduce((sum, i) => sum + Number(i.amount_bs), 0) || 0;
+
+        if (existingSummary) {
+          await supabase
+            .from('daily_cuadres_summary')
+            .update({ total_mobile_payments_bs: totalMobile })
+            .eq('id', existingSummary.id);
+        } else {
+          await supabase
+            .from('daily_cuadres_summary')
+            .insert({
+              user_id: user.id,
+              agency_id: selectedAgency,
+              session_date: dateStr,
+              total_mobile_payments_bs: totalMobile,
+            });
+        }
       } else {
         // Taquillera workflow - use session_id
         // Use the selected date from dateRange if available, otherwise use today

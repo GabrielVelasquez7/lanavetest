@@ -207,6 +207,40 @@ export const PagoMovilPagados = ({ onSuccess, selectedAgency: propSelectedAgency
       // Update daily cuadres summary only if we have a session
       if (sessionId) {
         await updateDailyCuadresSummary(sessionId, user.id, transactionDate);
+      } else if (propSelectedAgency) {
+        // Encargada mode: update agency-level daily summary (session_id = null)
+        const [{ data: mpData }, { data: existingSummary }] = await Promise.all([
+          supabase
+            .from('mobile_payments')
+            .select('amount_bs')
+            .eq('agency_id', propSelectedAgency)
+            .eq('transaction_date', transactionDate),
+          supabase
+            .from('daily_cuadres_summary')
+            .select('id')
+            .eq('agency_id', propSelectedAgency)
+            .eq('session_date', transactionDate)
+            .is('session_id', null)
+            .maybeSingle(),
+        ]);
+
+        const totalMobile = mpData?.reduce((sum, i) => sum + Number(i.amount_bs), 0) || 0;
+
+        if (existingSummary) {
+          await supabase
+            .from('daily_cuadres_summary')
+            .update({ total_mobile_payments_bs: totalMobile })
+            .eq('id', existingSummary.id);
+        } else {
+          await supabase
+            .from('daily_cuadres_summary')
+            .insert({
+              user_id: user.id,
+              agency_id: propSelectedAgency,
+              session_date: transactionDate,
+              total_mobile_payments_bs: totalMobile,
+            });
+        }
       }
 
       toast({
