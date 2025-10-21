@@ -328,7 +328,6 @@ export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
       clearDraft();
 
       setEditMode(true);
-      await loadAgencyData();
 
     } catch (error: any) {
       toast({
