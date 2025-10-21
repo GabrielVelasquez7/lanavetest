@@ -154,21 +154,30 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
       // 1. FUENTE PRINCIPAL: encargada_cuadre_details (datos de ventas/premios)
       const { data: detailsData, error: detailsError } = await supabase
         .from('encargada_cuadre_details')
-        .select(`
-          id,
-          lottery_system_id,
-          sales_bs,
-          sales_usd,
-          prizes_bs,
-          prizes_usd,
-          lottery_systems(name, code)
-        `)
+        .select('id, lottery_system_id, sales_bs, sales_usd, prizes_bs, prizes_usd')
         .eq('agency_id', selectedAgency)
         .eq('session_date', dateStr);
 
       if (detailsError) throw detailsError;
 
       console.log('📊 Detalles de encargada encontrados:', detailsData?.length || 0);
+
+      // Get lottery systems info separately
+      const systemIds = [...new Set((detailsData || []).map(d => d.lottery_system_id))];
+      let systemsMap = new Map<string, { name: string; code: string }>();
+      
+      if (systemIds.length > 0) {
+        const { data: systemsData, error: systemsError } = await supabase
+          .from('lottery_systems')
+          .select('id, name, code')
+          .in('id', systemIds);
+        
+        if (!systemsError && systemsData) {
+          systemsData.forEach(sys => {
+            systemsMap.set(sys.id, { name: sys.name, code: sys.code });
+          });
+        }
+      }
 
       // 2. DATOS COMPLEMENTARIOS (por agencia + fecha)
       const [expensesResult, mobileResult, posResult, summaryResult] = await Promise.all([
@@ -213,15 +222,18 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
 
       // 4. DESGLOSE POR SISTEMA
       const systemsBreakdown: SystemBreakdown[] = (detailsData || [])
-        .map(d => ({
-          systemId: d.lottery_system_id,
-          systemName: (d.lottery_systems as any)?.name || 'Sistema',
-          systemCode: (d.lottery_systems as any)?.code || '',
-          salesBs: Number(d.sales_bs || 0),
-          salesUsd: Number(d.sales_usd || 0),
-          prizesBs: Number(d.prizes_bs || 0),
-          prizesUsd: Number(d.prizes_usd || 0)
-        }))
+        .map(d => {
+          const sysInfo = systemsMap.get(d.lottery_system_id);
+          return {
+            systemId: d.lottery_system_id,
+            systemName: sysInfo?.name || 'Sistema',
+            systemCode: sysInfo?.code || '',
+            salesBs: Number(d.sales_bs || 0),
+            salesUsd: Number(d.sales_usd || 0),
+            prizesBs: Number(d.prizes_bs || 0),
+            prizesUsd: Number(d.prizes_usd || 0)
+          };
+        })
         .filter(s => s.salesBs > 0 || s.salesUsd > 0 || s.prizesBs > 0 || s.prizesUsd > 0);
 
       // 5. PROCESAR GASTOS Y DEUDAS
