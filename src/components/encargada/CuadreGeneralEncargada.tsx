@@ -196,6 +196,25 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
           .eq('agency_id', selectedAgency)
           .eq('transaction_date', dateStr);
 
+        // También consultar ventas/premios por sistema (encargada_cuadre_details), pagos móviles y POS a nivel de agencia para el día
+        const [detailsAgg, mobileAgg, posAgg] = await Promise.all([
+          supabase
+            .from('encargada_cuadre_details')
+            .select('sales_bs, sales_usd, prizes_bs, prizes_usd')
+            .eq('agency_id', selectedAgency)
+            .eq('session_date', dateStr),
+          supabase
+            .from('mobile_payments')
+            .select('amount_bs')
+            .eq('agency_id', selectedAgency)
+            .eq('transaction_date', dateStr),
+          supabase
+            .from('point_of_sale')
+            .select('amount_bs')
+            .eq('agency_id', selectedAgency)
+            .eq('transaction_date', dateStr),
+        ]);
+
         if (expensesFallbackError) throw expensesFallbackError;
 
         const gastosList = (expensesFallback || []).filter(e => e.category === 'gasto_operativo');
@@ -217,21 +236,52 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
           { bs: 0, usd: 0 }
         );
 
+        // Totales calculados directamente de tablas por agencia/fecha
+        const totalSalesFromDetails = (detailsAgg.data || []).reduce(
+          (acc, r: any) => ({
+            bs: acc.bs + Number(r.sales_bs || 0),
+            usd: acc.usd + Number(r.sales_usd || 0),
+          }),
+          { bs: 0, usd: 0 }
+        );
+        const totalPrizesFromDetails = (detailsAgg.data || []).reduce(
+          (acc, r: any) => ({
+            bs: acc.bs + Number(r.prizes_bs || 0),
+            usd: acc.usd + Number(r.prizes_usd || 0),
+          }),
+          { bs: 0, usd: 0 }
+        );
+        const pagoMovilRecibidosCalc = (mobileAgg.data || []).reduce((sum: number, r: any) => {
+          const n = Number(r.amount_bs || 0);
+          return n > 0 ? sum + n : sum;
+        }, 0);
+        const pagoMovilPagadosCalc = Math.abs((mobileAgg.data || []).reduce((sum: number, r: any) => {
+          const n = Number(r.amount_bs || 0);
+          return n < 0 ? sum + n : sum;
+        }, 0));
+        const totalPointOfSaleCalc = (posAgg.data || []).reduce((sum: number, r: any) => sum + Number(r.amount_bs || 0), 0);
+
         if ((summaryRows?.length || 0) > 0) {
-          const totalSales = summaryRows!.reduce((acc, r: any) => ({
-            bs: acc.bs + Number(r.total_sales_bs || 0),
-            usd: acc.usd + Number(r.total_sales_usd || 0),
-          }), { bs: 0, usd: 0 });
-          const totalPrizes = summaryRows!.reduce((acc, r: any) => ({
-            bs: acc.bs + Number(r.total_prizes_bs || 0),
-            usd: acc.usd + Number(r.total_prizes_usd || 0),
-          }), { bs: 0, usd: 0 });
+          // Usar resumen pero priorizando cálculos directos si existen
+          const totalSales = {
+            bs: totalSalesFromDetails.bs || summaryRows!.reduce((acc, r: any) => acc + Number(r.total_sales_bs || 0), 0),
+            usd: totalSalesFromDetails.usd || summaryRows!.reduce((acc, r: any) => acc + Number(r.total_sales_usd || 0), 0),
+          };
+          const totalPrizes = {
+            bs: totalPrizesFromDetails.bs || summaryRows!.reduce((acc, r: any) => acc + Number(r.total_prizes_bs || 0), 0),
+            usd: totalPrizesFromDetails.usd || summaryRows!.reduce((acc, r: any) => acc + Number(r.total_prizes_usd || 0), 0),
+          };
           const totalGastos = summaryRows!.reduce((acc, r: any) => ({
             bs: acc.bs + Number(r.total_expenses_bs || 0),
             usd: acc.usd + Number(r.total_expenses_usd || 0),
           }), { bs: 0, usd: 0 });
-          const pagoMovilRecibidos = summaryRows!.reduce((sum, r: any) => sum + Number(r.total_mobile_payments_bs || 0), 0);
-          const totalPointOfSale = summaryRows!.reduce((sum, r: any) => sum + Number(r.total_pos_bs || 0), 0);
+
+          const pagoMovilRecibidos = pagoMovilRecibidosCalc !== 0
+            ? pagoMovilRecibidosCalc
+            : summaryRows!.reduce((sum, r: any) => sum + Number(r.total_mobile_payments_bs || 0), 0);
+          const totalPointOfSale = totalPointOfSaleCalc !== 0
+            ? totalPointOfSaleCalc
+            : summaryRows!.reduce((sum, r: any) => sum + Number(r.total_pos_bs || 0), 0);
           const cashAvailable = summaryRows!.reduce((sum, r: any) => sum + Number(r.cash_available_bs || 0), 0);
           const cashAvailableUsd = summaryRows!.reduce((sum, r: any) => sum + Number(r.cash_available_usd || 0), 0);
           const averageExchangeRate = summaryRows!.reduce((sum, r: any) => sum + Number(r.exchange_rate || 36), 0) / summaryRows!.length;
@@ -250,7 +300,7 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
             gastosDetails: gastosList as any,
             deudasDetails: deudasList as any,
             pagoMovilRecibidos,
-            pagoMovilPagados: 0,
+            pagoMovilPagados: pagoMovilPagadosCalc,
             totalPointOfSale,
             cashAvailable,
             cashAvailableUsd,
@@ -263,15 +313,15 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
           });
         } else {
           setCuadre({
-            totalSales: { bs: 0, usd: 0 },
-            totalPrizes: { bs: 0, usd: 0 },
+            totalSales: totalSalesFromDetails,
+            totalPrizes: totalPrizesFromDetails,
             totalGastos: totalGastosFromExpenses,
             totalDeudas: totalDeudasFromExpenses,
             gastosDetails: gastosList as any,
             deudasDetails: deudasList as any,
-            pagoMovilRecibidos: 0,
-            pagoMovilPagados: 0,
-            totalPointOfSale: 0,
+            pagoMovilRecibidos: pagoMovilRecibidosCalc,
+            pagoMovilPagados: pagoMovilPagadosCalc,
+            totalPointOfSale: totalPointOfSaleCalc,
             cashAvailable: 0,
             cashAvailableUsd: 0,
             closureConfirmed: false,
@@ -333,6 +383,25 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
           .eq('agency_id', selectedAgency)
           .eq('transaction_date', dateStr);
 
+        // También consultar ventas/premios por sistema (encargada_cuadre_details), pagos móviles y POS a nivel de agencia para el día
+        const [detailsAgg, mobileAgg, posAgg] = await Promise.all([
+          supabase
+            .from('encargada_cuadre_details')
+            .select('sales_bs, sales_usd, prizes_bs, prizes_usd')
+            .eq('agency_id', selectedAgency)
+            .eq('session_date', dateStr),
+          supabase
+            .from('mobile_payments')
+            .select('amount_bs')
+            .eq('agency_id', selectedAgency)
+            .eq('transaction_date', dateStr),
+          supabase
+            .from('point_of_sale')
+            .select('amount_bs')
+            .eq('agency_id', selectedAgency)
+            .eq('transaction_date', dateStr),
+        ]);
+
         if (expensesFallbackError) throw expensesFallbackError;
 
         const gastosList = (expensesFallback || []).filter(e => e.category === 'gasto_operativo');
@@ -354,21 +423,51 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
           { bs: 0, usd: 0 }
         );
 
+        // Totales calculados directamente de tablas por agencia/fecha
+        const totalSalesFromDetails = (detailsAgg.data || []).reduce(
+          (acc, r: any) => ({
+            bs: acc.bs + Number(r.sales_bs || 0),
+            usd: acc.usd + Number(r.sales_usd || 0),
+          }),
+          { bs: 0, usd: 0 }
+        );
+        const totalPrizesFromDetails = (detailsAgg.data || []).reduce(
+          (acc, r: any) => ({
+            bs: acc.bs + Number(r.prizes_bs || 0),
+            usd: acc.usd + Number(r.prizes_usd || 0),
+          }),
+          { bs: 0, usd: 0 }
+        );
+        const pagoMovilRecibidosCalc = (mobileAgg.data || []).reduce((sum: number, r: any) => {
+          const n = Number(r.amount_bs || 0);
+          return n > 0 ? sum + n : sum;
+        }, 0);
+        const pagoMovilPagadosCalc = Math.abs((mobileAgg.data || []).reduce((sum: number, r: any) => {
+          const n = Number(r.amount_bs || 0);
+          return n < 0 ? sum + n : sum;
+        }, 0));
+        const totalPointOfSaleCalc = (posAgg.data || []).reduce((sum: number, r: any) => sum + Number(r.amount_bs || 0), 0);
+
         if ((summaryRows?.length || 0) > 0) {
-          const totalSales = summaryRows!.reduce((acc, r: any) => ({
-            bs: acc.bs + Number(r.total_sales_bs || 0),
-            usd: acc.usd + Number(r.total_sales_usd || 0),
-          }), { bs: 0, usd: 0 });
-          const totalPrizes = summaryRows!.reduce((acc, r: any) => ({
-            bs: acc.bs + Number(r.total_prizes_bs || 0),
-            usd: acc.usd + Number(r.total_prizes_usd || 0),
-          }), { bs: 0, usd: 0 });
+          const totalSales = {
+            bs: totalSalesFromDetails.bs || summaryRows!.reduce((acc, r: any) => acc + Number(r.total_sales_bs || 0), 0),
+            usd: totalSalesFromDetails.usd || summaryRows!.reduce((acc, r: any) => acc + Number(r.total_sales_usd || 0), 0),
+          };
+          const totalPrizes = {
+            bs: totalPrizesFromDetails.bs || summaryRows!.reduce((acc, r: any) => acc + Number(r.total_prizes_bs || 0), 0),
+            usd: totalPrizesFromDetails.usd || summaryRows!.reduce((acc, r: any) => acc + Number(r.total_prizes_usd || 0), 0),
+          };
           const totalGastos = summaryRows!.reduce((acc, r: any) => ({
             bs: acc.bs + Number(r.total_expenses_bs || 0),
             usd: acc.usd + Number(r.total_expenses_usd || 0),
           }), { bs: 0, usd: 0 });
-          const pagoMovilRecibidos = summaryRows!.reduce((sum, r: any) => sum + Number(r.total_mobile_payments_bs || 0), 0);
-          const totalPointOfSale = summaryRows!.reduce((sum, r: any) => sum + Number(r.total_pos_bs || 0), 0);
+
+          const pagoMovilRecibidos = pagoMovilRecibidosCalc !== 0
+            ? pagoMovilRecibidosCalc
+            : summaryRows!.reduce((sum, r: any) => sum + Number(r.total_mobile_payments_bs || 0), 0);
+          const totalPointOfSale = totalPointOfSaleCalc !== 0
+            ? totalPointOfSaleCalc
+            : summaryRows!.reduce((sum, r: any) => sum + Number(r.total_pos_bs || 0), 0);
           const cashAvailable = summaryRows!.reduce((sum, r: any) => sum + Number(r.cash_available_bs || 0), 0);
           const cashAvailableUsd = summaryRows!.reduce((sum, r: any) => sum + Number(r.cash_available_usd || 0), 0);
           const averageExchangeRate = summaryRows!.reduce((sum, r: any) => sum + Number(r.exchange_rate || 36), 0) / summaryRows!.length;
@@ -387,7 +486,7 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
             gastosDetails: gastosList as any,
             deudasDetails: deudasList as any,
             pagoMovilRecibidos,
-            pagoMovilPagados: 0,
+            pagoMovilPagados: pagoMovilPagadosCalc,
             totalPointOfSale,
             cashAvailable,
             cashAvailableUsd,
@@ -400,15 +499,15 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
           });
         } else {
           setCuadre({
-            totalSales: { bs: 0, usd: 0 },
-            totalPrizes: { bs: 0, usd: 0 },
+            totalSales: totalSalesFromDetails,
+            totalPrizes: totalPrizesFromDetails,
             totalGastos: totalGastosFromExpenses,
             totalDeudas: totalDeudasFromExpenses,
             gastosDetails: gastosList as any,
             deudasDetails: deudasList as any,
-            pagoMovilRecibidos: 0,
-            pagoMovilPagados: 0,
-            totalPointOfSale: 0,
+            pagoMovilRecibidos: pagoMovilRecibidosCalc,
+            pagoMovilPagados: pagoMovilPagadosCalc,
+            totalPointOfSale: totalPointOfSaleCalc,
             cashAvailable: 0,
             cashAvailableUsd: 0,
             closureConfirmed: false,
