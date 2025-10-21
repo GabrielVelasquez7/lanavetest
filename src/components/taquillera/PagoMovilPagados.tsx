@@ -142,34 +142,47 @@ export const PagoMovilPagados = ({ onSuccess, selectedAgency: propSelectedAgency
 
     setLoading(true);
     try {
-      // Use the selected date from dateRange if available, otherwise use today
-      const today = dateRange ? format(dateRange.from, 'yyyy-MM-dd') : getTodayVenezuela();
+      // Use the selected date if provided, otherwise use dateRange or today
+      const transactionDate = propSelectedDate 
+        ? format(propSelectedDate, 'yyyy-MM-dd')
+        : dateRange 
+        ? format(dateRange.from, 'yyyy-MM-dd') 
+        : getTodayVenezuela();
       
-      let { data: session, error: sessionError } = await supabase
-        .from('daily_sessions')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('session_date', today)
-        .maybeSingle();
-
-      if (!session) {
-        // Session doesn't exist, create it
-        const { data: newSession, error: createError } = await supabase
+      let sessionId = null;
+      
+      // If no agency is provided (taquillera mode), use session
+      if (!propSelectedAgency) {
+        let { data: session, error: sessionError } = await supabase
           .from('daily_sessions')
-          .insert({
-            user_id: user.id,
-            session_date: today,
-          })
           .select('id')
-          .single();
+          .eq('user_id', user.id)
+          .eq('session_date', transactionDate)
+          .maybeSingle();
 
-        if (createError) throw createError;
-        session = newSession;
+        if (!session) {
+          // Session doesn't exist, create it
+          const { data: newSession, error: createError } = await supabase
+            .from('daily_sessions')
+            .insert({
+              user_id: user.id,
+              session_date: transactionDate,
+            })
+            .select('id')
+            .single();
+
+          if (createError) throw createError;
+          session = newSession;
+        }
+        
+        sessionId = session.id;
       }
 
       // Prepare payments for insertion (negative amounts for paid out)
       const paymentsToInsert = validPagos.map(pago => ({
-        session_id: session.id,
+        session_id: sessionId,
+        agency_id: propSelectedAgency || null,
+        transaction_date: transactionDate,
         amount_bs: -Math.abs(parseFloat(pago.amount_bs.replace(',', '.'))),
         reference_number: pago.reference_number,
         description: pago.description ? `[PAGADO] ${pago.description}` : '[PAGADO]',
@@ -182,8 +195,10 @@ export const PagoMovilPagados = ({ onSuccess, selectedAgency: propSelectedAgency
 
       if (error) throw error;
 
-      // Update daily cuadres summary
-      await updateDailyCuadresSummary(session.id, user.id, today);
+      // Update daily cuadres summary only if we have a session
+      if (sessionId) {
+        await updateDailyCuadresSummary(sessionId, user.id, transactionDate);
+      }
 
       toast({
         title: 'Éxito',
