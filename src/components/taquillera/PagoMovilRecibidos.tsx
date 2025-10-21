@@ -169,9 +169,12 @@ export const PagoMovilRecibidos = ({ onSuccess, selectedAgency: propSelectedAgen
     if (!user || !userProfile) return;
 
     // Validate all fields
-    const validPagos = pagos.filter(p => 
-      p.amount_bs && p.reference_number && parseFloat(p.amount_bs.replace(',', '.')) > 0
-    );
+    const validPagos = pagos.filter(p => {
+      if (!p.amount_bs || !p.reference_number) return false;
+      // Parse Venezuelan format correctly
+      const cleanAmount = p.amount_bs.replace(/\./g, '').replace(',', '.');
+      return parseFloat(cleanAmount) > 0;
+    });
 
     if (validPagos.length === 0) {
       toast({
@@ -198,14 +201,20 @@ export const PagoMovilRecibidos = ({ onSuccess, selectedAgency: propSelectedAgen
         }
 
         // Prepare payments for insertion
-        const paymentsToInsert = validPagos.map(pago => ({
-          agency_id: selectedAgency,
-          transaction_date: format(selectedDate, 'yyyy-MM-dd'),
-          amount_bs: parseFloat(pago.amount_bs.replace(',', '.')),
-          reference_number: pago.reference_number,
-          description: pago.description ? `[RECIBIDO] ${pago.description}` : '[RECIBIDO]',
-          session_id: null, // Encargada doesn't have sessions
-        }));
+        const paymentsToInsert = validPagos.map(pago => {
+          // Parse Venezuelan format: remove thousand separators (.) and replace decimal (,) with (.)
+          const cleanAmount = pago.amount_bs.replace(/\./g, '').replace(',', '.');
+          const parsedAmount = parseFloat(cleanAmount);
+          
+          return {
+            agency_id: selectedAgency,
+            transaction_date: format(selectedDate, 'yyyy-MM-dd'),
+            amount_bs: parsedAmount,
+            reference_number: pago.reference_number,
+            description: pago.description ? `[RECIBIDO] ${pago.description}` : '[RECIBIDO]',
+            session_id: null, // Encargada doesn't have sessions
+          };
+        });
 
         // Insert all payments
         const { error } = await supabase
@@ -240,12 +249,18 @@ export const PagoMovilRecibidos = ({ onSuccess, selectedAgency: propSelectedAgen
         }
 
         // Prepare payments for insertion
-        const paymentsToInsert = validPagos.map(pago => ({
-          session_id: session.id,
-          amount_bs: parseFloat(pago.amount_bs.replace(',', '.')),
-          reference_number: pago.reference_number,
-          description: pago.description ? `[RECIBIDO] ${pago.description}` : '[RECIBIDO]',
-        }));
+        const paymentsToInsert = validPagos.map(pago => {
+          // Parse Venezuelan format: remove thousand separators (.) and replace decimal (,) with (.)
+          const cleanAmount = pago.amount_bs.replace(/\./g, '').replace(',', '.');
+          const parsedAmount = parseFloat(cleanAmount);
+          
+          return {
+            session_id: session.id,
+            amount_bs: parsedAmount,
+            reference_number: pago.reference_number,
+            description: pago.description ? `[RECIBIDO] ${pago.description}` : '[RECIBIDO]',
+          };
+        });
 
         // Insert all payments
         const { error } = await supabase

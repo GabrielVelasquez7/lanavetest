@@ -127,9 +127,12 @@ export const PagoMovilPagados = ({ onSuccess, selectedAgency: propSelectedAgency
     if (!user) return;
 
     // Validate all fields
-    const validPagos = pagos.filter(p => 
-      p.amount_bs && p.reference_number && parseFloat(p.amount_bs.replace(',', '.')) > 0
-    );
+    const validPagos = pagos.filter(p => {
+      if (!p.amount_bs || !p.reference_number) return false;
+      // Parse Venezuelan format correctly
+      const cleanAmount = p.amount_bs.replace(/\./g, '').replace(',', '.');
+      return parseFloat(cleanAmount) > 0;
+    });
 
     if (validPagos.length === 0) {
       toast({
@@ -179,14 +182,20 @@ export const PagoMovilPagados = ({ onSuccess, selectedAgency: propSelectedAgency
       }
 
       // Prepare payments for insertion (negative amounts for paid out)
-      const paymentsToInsert = validPagos.map(pago => ({
-        session_id: sessionId,
-        agency_id: propSelectedAgency || null,
-        transaction_date: transactionDate,
-        amount_bs: -Math.abs(parseFloat(pago.amount_bs.replace(',', '.'))),
-        reference_number: pago.reference_number,
-        description: pago.description ? `[PAGADO] ${pago.description}` : '[PAGADO]',
-      }));
+      const paymentsToInsert = validPagos.map(pago => {
+        // Parse Venezuelan format: remove thousand separators (.) and replace decimal (,) with (.)
+        const cleanAmount = pago.amount_bs.replace(/\./g, '').replace(',', '.');
+        const parsedAmount = parseFloat(cleanAmount);
+        
+        return {
+          session_id: sessionId,
+          agency_id: propSelectedAgency || null,
+          transaction_date: transactionDate,
+          amount_bs: -Math.abs(parsedAmount),
+          reference_number: pago.reference_number,
+          description: pago.description ? `[PAGADO] ${pago.description}` : '[PAGADO]',
+        };
+      });
 
       // Insert all payments
       const { error } = await supabase
