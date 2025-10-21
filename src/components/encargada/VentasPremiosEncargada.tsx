@@ -328,6 +328,8 @@ export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
       clearDraft();
 
       setEditMode(true);
+      
+      // NO recargar datos, mantener los valores en el formulario para que sean visibles
 
     } catch (error: any) {
       toast({
