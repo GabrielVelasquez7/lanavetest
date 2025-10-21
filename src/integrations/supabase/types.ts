@@ -278,6 +278,48 @@ export type Database = {
           },
         ]
       }
+      encargada_cuadre_details: {
+        Row: {
+          agency_id: string
+          created_at: string
+          id: string
+          lottery_system_id: string
+          prizes_bs: number
+          prizes_usd: number
+          sales_bs: number
+          sales_usd: number
+          session_date: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          agency_id: string
+          created_at?: string
+          id?: string
+          lottery_system_id: string
+          prizes_bs?: number
+          prizes_usd?: number
+          sales_bs?: number
+          sales_usd?: number
+          session_date: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          agency_id?: string
+          created_at?: string
+          id?: string
+          lottery_system_id?: string
+          prizes_bs?: number
+          prizes_usd?: number
+          sales_bs?: number
+          sales_usd?: number
+          session_date?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       expenses: {
         Row: {
           agency_id: string | null

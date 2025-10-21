@@ -176,25 +176,25 @@ export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
         prizes_usd: 0,
       }));
 
-      // Buscar cuadres existentes para la agencia en la fecha seleccionada (datos de encargada)
-      const { data: cuadres } = await supabase
-        .from('daily_cuadres_summary')
+      // Buscar detalles existentes por sistema
+      const { data: details } = await supabase
+        .from('encargada_cuadre_details')
         .select('*')
         .eq('agency_id', selectedAgency)
         .eq('session_date', dateStr)
-        .is('session_id', null); // Solo registros de encargada (sin session_id)
+        .eq('user_id', user.id);
 
-      if (cuadres && cuadres.length > 0) {
-        // Agrupar por sistema de lotería y sumar los montos
+      if (details && details.length > 0) {
+        // Mapear detalles guardados a los sistemas
         const systemsWithData = systemsData.map(system => {
-          const systemCuadres = cuadres.filter(c => c.lottery_system_id === system.lottery_system_id);
+          const detail = details.find(d => d.lottery_system_id === system.lottery_system_id);
           
           return {
             ...system,
-            sales_bs: systemCuadres.reduce((sum, c) => sum + Number(c.total_sales_bs || 0), 0),
-            sales_usd: systemCuadres.reduce((sum, c) => sum + Number(c.total_sales_usd || 0), 0),
-            prizes_bs: systemCuadres.reduce((sum, c) => sum + Number(c.total_prizes_bs || 0), 0),
-            prizes_usd: systemCuadres.reduce((sum, c) => sum + Number(c.total_prizes_usd || 0), 0),
+            sales_bs: detail ? Number(detail.sales_bs || 0) : 0,
+            sales_usd: detail ? Number(detail.sales_usd || 0) : 0,
+            prizes_bs: detail ? Number(detail.prizes_bs || 0) : 0,
+            prizes_usd: detail ? Number(detail.prizes_usd || 0) : 0,
           };
         });
 
@@ -204,13 +204,7 @@ export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
         // Determinar si estamos en modo edición
         const hasData = systemsWithData.some(s => s.sales_bs > 0 || s.sales_usd > 0 || s.prizes_bs > 0 || s.prizes_usd > 0);
         setEditMode(hasData);
-        
-        // Establecer ID del cuadre
-        if (cuadres.length > 0) {
-          setCurrentCuadreId(cuadres[0].id);
-        } else {
-          setCurrentCuadreId(null);
-        }
+        setCurrentCuadreId(details[0]?.id || null);
       } else {
         form.reset({ systems: systemsData });
         setEditMode(false);
@@ -254,33 +248,48 @@ export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
 
     setLoading(true);
     try {
-      // Eliminar cualquier cuadre existente de encargada para esta fecha y agencia (evita duplicados previos)
-      await supabase
-        .from('daily_cuadres_summary')
-        .delete()
-        .eq('agency_id', selectedAgency)
-        .eq('session_date', dateStr)
-        .is('session_id', null); // Solo registros de encargada
-
-      // Filtrar sistemas con datos (cuadre neto = ventas - premios)
+      // Filtrar sistemas con datos
       const systemsWithData = data.systems.filter(
-        system => {
-          const cuadreNeto = (system.sales_bs - system.prizes_bs) !== 0 || 
-                           (system.sales_usd - system.prizes_usd) !== 0;
-          return cuadreNeto;
-        }
+        system => system.sales_bs > 0 || system.sales_usd > 0 || system.prizes_bs > 0 || system.prizes_usd > 0
       );
 
       if (systemsWithData.length === 0) {
         toast({
           title: 'Error',
-          description: 'Debe ingresar al menos un cuadre con datos',
+          description: 'Debe ingresar al menos un monto',
           variant: 'destructive',
         });
         return;
       }
 
-      // Calcular totales agregados de la encargada
+      // Preparar datos de detalles por sistema
+      const detailsData = systemsWithData.map(system => ({
+        user_id: user.id,
+        agency_id: selectedAgency,
+        session_date: dateStr,
+        lottery_system_id: system.lottery_system_id,
+        sales_bs: system.sales_bs,
+        sales_usd: system.sales_usd,
+        prizes_bs: system.prizes_bs,
+        prizes_usd: system.prizes_usd,
+      }));
+
+      // Eliminar detalles existentes para evitar duplicados
+      await supabase
+        .from('encargada_cuadre_details')
+        .delete()
+        .eq('agency_id', selectedAgency)
+        .eq('session_date', dateStr)
+        .eq('user_id', user.id);
+
+      // Insertar nuevos detalles
+      const { error: detailsError } = await supabase
+        .from('encargada_cuadre_details')
+        .insert(detailsData);
+
+      if (detailsError) throw detailsError;
+
+      // Calcular totales para el resumen
       const totals = systemsWithData.reduce(
         (acc, system) => ({
           sales_bs: acc.sales_bs + system.sales_bs,
@@ -291,12 +300,12 @@ export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
         { sales_bs: 0, sales_usd: 0, prizes_bs: 0, prizes_usd: 0 }
       );
 
-      // Fila única de resumen por agencia/fecha/usuario
+      // Actualizar resumen agregado
       const summaryRow = {
         user_id: user.id,
         agency_id: selectedAgency,
         session_date: dateStr,
-        session_id: null, // Encargada no tiene session_id
+        session_id: null,
         total_sales_bs: totals.sales_bs,
         total_sales_usd: totals.sales_usd,
         total_prizes_bs: totals.prizes_bs,
@@ -307,15 +316,14 @@ export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
         exchange_rate: 36,
       };
 
-      // Insertar o actualizar resumen (única fila)
-      const { error: insertError } = await supabase
+      const { error: summaryError } = await supabase
         .from('daily_cuadres_summary')
         .upsert([summaryRow], {
           onConflict: 'agency_id,session_date,user_id',
           ignoreDuplicates: false
         });
 
-      if (insertError) throw insertError;
+      if (summaryError) throw summaryError;
 
       toast({
         title: 'Éxito',
