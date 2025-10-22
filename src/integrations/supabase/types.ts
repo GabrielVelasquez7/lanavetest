@@ -783,7 +783,7 @@ export type Database = {
           details: Json | null
           event_type: string
           id: string
-          ip_address: unknown | null
+          ip_address: unknown
           user_agent: string | null
           user_id: string | null
         }
@@ -792,7 +792,7 @@ export type Database = {
           details?: Json | null
           event_type: string
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           user_agent?: string | null
           user_id?: string | null
         }
@@ -801,7 +801,7 @@ export type Database = {
           details?: Json | null
           event_type?: string
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           user_agent?: string | null
           user_id?: string | null
         }
@@ -903,11 +903,11 @@ export type Database = {
         Returns: boolean
       }
       get_current_user_role: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: Database["public"]["Enums"]["user_role"]
       }
       get_current_week_boundaries: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           week_end: string
           week_number: number
@@ -940,18 +940,12 @@ export type Database = {
         }
         Returns: undefined
       }
-      user_owns_session: {
-        Args: { session_id: string }
-        Returns: boolean
-      }
+      user_owns_session: { Args: { session_id: string }; Returns: boolean }
       validate_password_strength: {
         Args: { password: string }
         Returns: boolean
       }
-      venezuela_now: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
+      venezuela_now: { Args: never; Returns: string }
     }
     Enums: {
       expense_category: "deuda" | "gasto_operativo" | "otros"
