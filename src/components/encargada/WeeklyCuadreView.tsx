@@ -286,14 +286,21 @@ export function WeeklyCuadreView() {
       const startStr = format(currentWeek.start, 'yyyy-MM-dd');
       const endStr = format(currentWeek.end, 'yyyy-MM-dd');
 
-      // Get encargada data from daily_cuadres_summary (session_id IS NULL)
+      // Get sales and prizes from encargada_cuadre_details (the source of truth for ventas/premios)
+      const { data: encargadaCuadreDetails, error: cuadreDetailsError } = await supabase
+        .from('encargada_cuadre_details')
+        .select('agency_id, session_date, lottery_system_id, sales_bs, sales_usd, prizes_bs, prizes_usd')
+        .gte('session_date', startStr)
+        .lte('session_date', endStr);
+
+      if (cuadreDetailsError) throw cuadreDetailsError;
+
+      // Get encargada editable fields from daily_cuadres_summary (session_id IS NULL)
       const { data: encargadaData, error: encargadaError } = await supabase
         .from('daily_cuadres_summary')
         .select(`
-          total_sales_bs, total_sales_usd, total_prizes_bs, total_prizes_usd,
-          total_expenses_bs, total_expenses_usd, total_mobile_payments_bs, total_pos_bs,
           cash_available_bs, cash_available_usd, exchange_rate, agency_id, session_date,
-          is_weekly_closed, weekly_closure_notes, pending_prizes
+          is_weekly_closed, weekly_closure_notes, pending_prizes, total_mobile_payments_bs, total_pos_bs
         `)
         .is('session_id', null)  // Encargada data
         .gte('session_date', startStr)
@@ -367,7 +374,7 @@ export function WeeklyCuadreView() {
       if (interAgencyLoans.error) throw interAgencyLoans.error;
 
       // If no data, return empty state
-      if (!encargadaData?.length && !taquilleraData?.length) {
+      if (!encargadaCuadreDetails?.length && !taquilleraData?.length) {
         setWeeklyData({
           totalSales: { bs: 0, usd: 0 },
           totalPrizes: { bs: 0, usd: 0 },
@@ -393,19 +400,19 @@ export function WeeklyCuadreView() {
         return;
       }
 
-      // Calculate totals from encargada cuadres
-      const totalSales = encargadaData?.reduce(
+      // Calculate totals from encargada_cuadre_details (source of truth for sales/prizes)
+      const totalSales = encargadaCuadreDetails?.reduce(
         (acc, item) => ({
-          bs: acc.bs + Number(item.total_sales_bs || 0),
-          usd: acc.usd + Number(item.total_sales_usd || 0),
+          bs: acc.bs + Number(item.sales_bs || 0),
+          usd: acc.usd + Number(item.sales_usd || 0),
         }),
         { bs: 0, usd: 0 }
       ) || { bs: 0, usd: 0 };
 
-      const totalPrizes = encargadaData?.reduce(
+      const totalPrizes = encargadaCuadreDetails?.reduce(
         (acc, item) => ({
-          bs: acc.bs + Number(item.total_prizes_bs || 0),
-          usd: acc.usd + Number(item.total_prizes_usd || 0),
+          bs: acc.bs + Number(item.prizes_bs || 0),
+          usd: acc.usd + Number(item.prizes_usd || 0),
         }),
         { bs: 0, usd: 0 }
       ) || { bs: 0, usd: 0 };
@@ -525,14 +532,21 @@ export function WeeklyCuadreView() {
         };
       });
 
-      // Aggregate encargada data by agency
+      // Aggregate sales and prizes from encargada_cuadre_details
+      encargadaCuadreDetails?.forEach(detail => {
+        if (detail.agency_id && agencyData[detail.agency_id]) {
+          const agency = agencyData[detail.agency_id];
+          agency.totalSales.bs += Number(detail.sales_bs || 0);
+          agency.totalSales.usd += Number(detail.sales_usd || 0);
+          agency.totalPrizes.bs += Number(detail.prizes_bs || 0);
+          agency.totalPrizes.usd += Number(detail.prizes_usd || 0);
+        }
+      });
+
+      // Aggregate editable fields from encargada daily_cuadres_summary
       encargadaData?.forEach(cuadre => {
         if (cuadre.agency_id && agencyData[cuadre.agency_id]) {
           const agency = agencyData[cuadre.agency_id];
-          agency.totalSales.bs += Number(cuadre.total_sales_bs || 0);
-          agency.totalSales.usd += Number(cuadre.total_sales_usd || 0);
-          agency.totalPrizes.bs += Number(cuadre.total_prizes_bs || 0);
-          agency.totalPrizes.usd += Number(cuadre.total_prizes_usd || 0);
           agency.totalCashAvailable += Number(cuadre.cash_available_bs || 0);
           agency.totalCashAvailableUsd += Number(cuadre.cash_available_usd || 0);
           agency.pagoMovilRecibidos += Number(cuadre.total_mobile_payments_bs || 0);
@@ -588,26 +602,26 @@ export function WeeklyCuadreView() {
         }
       });
 
-      // Create daily breakdown (simplified for encargada view)
+      // Create daily breakdown from encargada_cuadre_details
       const dailyData: { [key: string]: DailyDetail } = {};
       const weekDays = eachDayOfInterval({ start: currentWeek.start, end: currentWeek.end });
 
       weekDays.forEach(day => {
         const dayKey = format(day, 'yyyy-MM-dd');
-        const dayData = encargadaData?.filter(item => item.session_date === dayKey) || [];
+        const dayDetails = encargadaCuadreDetails?.filter(item => item.session_date === dayKey) || [];
         
-        const dailySales = dayData.reduce(
+        const dailySales = dayDetails.reduce(
           (acc, item) => ({
-            bs: acc.bs + Number(item.total_sales_bs || 0),
-            usd: acc.usd + Number(item.total_sales_usd || 0),
+            bs: acc.bs + Number(item.sales_bs || 0),
+            usd: acc.usd + Number(item.sales_usd || 0),
           }),
           { bs: 0, usd: 0 }
         );
 
-        const dailyPrizes = dayData.reduce(
+        const dailyPrizes = dayDetails.reduce(
           (acc, item) => ({
-            bs: acc.bs + Number(item.total_prizes_bs || 0),
-            usd: acc.usd + Number(item.total_prizes_usd || 0),
+            bs: acc.bs + Number(item.prizes_bs || 0),
+            usd: acc.usd + Number(item.prizes_usd || 0),
           }),
           { bs: 0, usd: 0 }
         );
@@ -621,8 +635,8 @@ export function WeeklyCuadreView() {
           total_prizes_usd: dailyPrizes.usd,
           balance_bs: dailySales.bs - dailyPrizes.bs,
           balance_usd: dailySales.usd - dailyPrizes.usd,
-          sessions_count: dayData.length,
-          is_completed: dayData.length > 0,
+          sessions_count: dayDetails.length,
+          is_completed: dayDetails.length > 0,
         };
       });
 
