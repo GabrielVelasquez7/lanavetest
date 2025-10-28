@@ -355,12 +355,31 @@ export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
         exchange_rate: 36,
       };
 
-      const { error: summaryError } = await supabase
+      // Deterministic merge to avoid ON CONFLICT affecting row twice
+      const { data: existingSummary, error: findSummaryError } = await supabase
         .from('daily_cuadres_summary')
-        .upsert([summaryRow], {
-          onConflict: 'agency_id,session_date,user_id',
-          ignoreDuplicates: false
-        });
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('agency_id', selectedAgency)
+        .eq('session_date', dateStr)
+        .is('session_id', null)
+        .maybeSingle();
+
+      if (findSummaryError) throw findSummaryError;
+
+      let summaryError = null as any;
+      if (existingSummary?.id) {
+        const { error: updateErr } = await supabase
+          .from('daily_cuadres_summary')
+          .update(summaryRow)
+          .eq('id', existingSummary.id);
+        summaryError = updateErr || null;
+      } else {
+        const { error: insertErr } = await supabase
+          .from('daily_cuadres_summary')
+          .insert(summaryRow);
+        summaryError = insertErr || null;
+      }
 
       if (summaryError) throw summaryError;
 

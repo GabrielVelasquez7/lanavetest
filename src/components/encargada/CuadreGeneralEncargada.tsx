@@ -326,12 +326,31 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
         is_closed: true
       };
 
-      const { error } = await supabase
+      // Deterministic merge to avoid ON CONFLICT affecting row twice
+      const { data: existingSummary, error: findSummaryError } = await supabase
         .from('daily_cuadres_summary')
-        .upsert([summaryData], {
-          onConflict: 'agency_id,session_date,user_id',
-          ignoreDuplicates: false
-        });
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('agency_id', selectedAgency)
+        .eq('session_date', dateStr)
+        .is('session_id', null)
+        .maybeSingle();
+
+      if (findSummaryError) throw findSummaryError;
+
+      let error = null as any;
+      if (existingSummary?.id) {
+        const { error: updateErr } = await supabase
+          .from('daily_cuadres_summary')
+          .update(summaryData)
+          .eq('id', existingSummary.id);
+        error = updateErr || null;
+      } else {
+        const { error: insertErr } = await supabase
+          .from('daily_cuadres_summary')
+          .insert(summaryData);
+        error = insertErr || null;
+      }
 
       if (error) throw error;
 
