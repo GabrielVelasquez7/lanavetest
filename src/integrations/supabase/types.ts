@@ -69,6 +69,7 @@ export type Database = {
           pending_prizes: number
           session_date: string
           session_id: string | null
+          total_banco_bs: number
           total_debt_bs: number | null
           total_debt_usd: number | null
           total_expenses_bs: number
@@ -109,6 +110,7 @@ export type Database = {
           pending_prizes?: number
           session_date: string
           session_id?: string | null
+          total_banco_bs?: number
           total_debt_bs?: number | null
           total_debt_usd?: number | null
           total_expenses_bs?: number
@@ -149,6 +151,7 @@ export type Database = {
           pending_prizes?: number
           session_date?: string
           session_id?: string | null
+          total_banco_bs?: number
           total_debt_bs?: number | null
           total_debt_usd?: number | null
           total_expenses_bs?: number

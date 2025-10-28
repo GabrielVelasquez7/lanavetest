@@ -302,6 +302,9 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
         - cuadre.pagoMovilPagados
         + cuadre.totalPointOfSale;
 
+      // Calculate total en banco
+      const totalBancoBs = cuadre.pagoMovilRecibidos + cuadre.totalPointOfSale - cuadre.pagoMovilPagados;
+
       const summaryData = {
         user_id: user.id,
         agency_id: selectedAgency,
@@ -317,6 +320,7 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
         total_debt_usd: cuadre.totalDeudas.usd,
         total_mobile_payments_bs: cuadre.pagoMovilRecibidos - cuadre.pagoMovilPagados,
         total_pos_bs: cuadre.totalPointOfSale,
+        total_banco_bs: totalBancoBs,
         balance_bs,
         exchange_rate: inputExchangeRate,
         cash_available_bs: inputCashAvailableBs,

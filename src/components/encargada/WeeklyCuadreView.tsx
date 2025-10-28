@@ -30,12 +30,8 @@ interface WeeklyData {
   gastosDetails: Array<{ description: string; amount_bs: number; amount_usd: number; created_at: string; agency_name?: string }>;
   deudasDetails: Array<{ description: string; amount_bs: number; amount_usd: number; created_at: string; agency_name?: string }>;
   
-  // Mobile payments separated
-  pagoMovilRecibidos: number;
-  pagoMovilPagados: number;
-  
-  // Point of sale
-  totalPointOfSale: number;
+  // Total en banco (Pago Móvil Recibidos + POS - Pago Móvil Pagados)
+  totalBanco: number;
   
   // Cash available (aggregated)
   totalCashAvailable: number;
@@ -64,9 +60,7 @@ interface AgencyWeeklyData {
   totalPrizes: { bs: number; usd: number };
   totalGastos: { bs: number; usd: number };
   totalDeudas: { bs: number; usd: number };
-  pagoMovilRecibidos: number;
-  pagoMovilPagados: number;
-  totalPointOfSale: number;
+  totalBanco: number;
   totalCashAvailable: number;
   totalCashAvailableUsd: number;
   premiosPorPagar: number;
@@ -134,9 +128,7 @@ export function WeeklyCuadreView() {
       totalDeudas: { bs: 0, usd: 0 },
       gastosDetails: [],
       deudasDetails: [],
-      pagoMovilRecibidos: 0,
-      pagoMovilPagados: 0,
-      totalPointOfSale: 0,
+      totalBanco: 0,
       totalCashAvailable: 0,
       totalCashAvailableUsd: 0,
       premiosPorPagar: 0,
@@ -161,9 +153,7 @@ export function WeeklyCuadreView() {
         totalDeudas: { bs: 0, usd: 0 },
         gastosDetails: [],
         deudasDetails: [],
-        pagoMovilRecibidos: 0,
-        pagoMovilPagados: 0,
-        totalPointOfSale: 0,
+        totalBanco: 0,
         totalCashAvailable: 0,
         totalCashAvailableUsd: 0,
         premiosPorPagar: 0,
@@ -182,9 +172,7 @@ export function WeeklyCuadreView() {
       totalPrizes: agencyData.totalPrizes,
       totalGastos: agencyData.totalGastos,
       totalDeudas: agencyData.totalDeudas,
-      pagoMovilRecibidos: agencyData.pagoMovilRecibidos,
-      pagoMovilPagados: agencyData.pagoMovilPagados,
-      totalPointOfSale: agencyData.totalPointOfSale,
+      totalBanco: agencyData.totalBanco,
       totalCashAvailable: agencyData.totalCashAvailable,
       totalCashAvailableUsd: agencyData.totalCashAvailableUsd,
       premiosPorPagar: agencyData.premiosPorPagar,
@@ -300,7 +288,7 @@ export function WeeklyCuadreView() {
         .from('daily_cuadres_summary')
         .select(`
           cash_available_bs, cash_available_usd, exchange_rate, agency_id, session_date,
-          is_weekly_closed, weekly_closure_notes, pending_prizes, total_mobile_payments_bs, total_pos_bs
+          is_weekly_closed, weekly_closure_notes, pending_prizes, total_mobile_payments_bs, total_pos_bs, total_banco_bs
         `)
         .is('session_id', null)  // Encargada data
         .gte('session_date', startStr)
@@ -382,9 +370,7 @@ export function WeeklyCuadreView() {
           totalDeudas: { bs: 0, usd: 0 },
           gastosDetails: [],
           deudasDetails: [],
-          pagoMovilRecibidos: 0,
-          pagoMovilPagados: 0,
-          totalPointOfSale: 0,
+          totalBanco: 0,
           totalCashAvailable: 0,
           totalCashAvailableUsd: 0,
           premiosPorPagar: 0,
@@ -498,6 +484,9 @@ export function WeeklyCuadreView() {
         0
       ) || 0) + (encargadaData?.reduce((sum, item) => sum + Number(item.total_pos_bs || 0), 0) || 0);
 
+      // Calculate Total en Banco (Pago Móvil Recibidos + POS - Pago Móvil Pagados)
+      const totalBanco = pagoMovilRecibidos + totalPointOfSale - pagoMovilPagados;
+
       // Calculate pending prizes from encargada cuadres
       const premiosPorPagar = encargadaData?.reduce((sum, item) => sum + Number(item.pending_prizes || 0), 0) || 0;
 
@@ -518,9 +507,7 @@ export function WeeklyCuadreView() {
           totalPrizes: { bs: 0, usd: 0 },
           totalGastos: { bs: 0, usd: 0 },
           totalDeudas: { bs: 0, usd: 0 },
-          pagoMovilRecibidos: 0,
-          pagoMovilPagados: 0,
-          totalPointOfSale: 0,
+          totalBanco: 0,
           totalCashAvailable: 0,
           totalCashAvailableUsd: 0,
           premiosPorPagar: 0,
@@ -549,8 +536,7 @@ export function WeeklyCuadreView() {
           const agency = agencyData[cuadre.agency_id];
           agency.totalCashAvailable += Number(cuadre.cash_available_bs || 0);
           agency.totalCashAvailableUsd += Number(cuadre.cash_available_usd || 0);
-          agency.pagoMovilRecibidos += Number(cuadre.total_mobile_payments_bs || 0);
-          agency.totalPointOfSale += Number(cuadre.total_pos_bs || 0);
+          agency.totalBanco += Number(cuadre.total_banco_bs || 0);
           agency.premiosPorPagar += Number(cuadre.pending_prizes || 0);
           agency.total_sessions += 1;
           agency.averageExchangeRate = Number(cuadre.exchange_rate || 36);
@@ -664,9 +650,7 @@ export function WeeklyCuadreView() {
         totalDeudas,
         gastosDetails,
         deudasDetails,
-        pagoMovilRecibidos,
-        pagoMovilPagados,
-        totalPointOfSale,
+        totalBanco,
         totalCashAvailable,
         totalCashAvailableUsd,
         premiosPorPagar,
@@ -801,8 +785,8 @@ export function WeeklyCuadreView() {
     usd: summary.totalSales.usd - summary.totalPrizes.usd,
   };
 
-  // Calculate bank total (Mobile received + POS - Mobile paid)
-  const totalBanco = summary.pagoMovilRecibidos + summary.totalPointOfSale - summary.pagoMovilPagados;
+  // Use totalBanco from summary (no need to recalculate)
+  const totalBanco = summary.totalBanco;
 
   // Calculate USD excess (difference) for BS formula
   const excessUsd = summary.totalCashAvailableUsd - cuadreVentasPremios.usd;
@@ -1057,44 +1041,21 @@ export function WeeklyCuadreView() {
         </Card>
       </div>
 
-       {/* Mobile Payments and POS Section */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pago Móvil Recibidos</CardTitle>
-            <Smartphone className="h-4 w-4 text-green-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              {formatCurrency(summary.pagoMovilRecibidos, 'VES')}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pago Móvil Pagados</CardTitle>
-            <Smartphone className="h-4 w-4 text-red-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">
-              {formatCurrency(summary.pagoMovilPagados, 'VES')}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Punto de Venta</CardTitle>
-            <CreditCard className="h-4 w-4 text-blue-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-600">
-              {formatCurrency(summary.totalPointOfSale, 'VES')}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+       {/* Total en Banco Section */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Total en Banco</CardTitle>
+          <DollarSign className="h-4 w-4 text-blue-600" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold text-blue-600">
+            {formatCurrency(summary.totalBanco, 'VES')}
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">
+            Incluye Pago Móvil y Punto de Venta
+          </p>
+        </CardContent>
+      </Card>
 
       {/* Closure Formula Card - identical to CuadreGeneral */}
       <Card>
@@ -1404,7 +1365,7 @@ export function WeeklyCuadreView() {
               bs: agency.totalSales.bs - agency.totalPrizes.bs,
               usd: agency.totalSales.usd - agency.totalPrizes.usd,
             };
-            const agencyBanco = agency.pagoMovilRecibidos + agency.totalPointOfSale - agency.pagoMovilPagados;
+            const agencyBanco = agency.totalBanco;
             const agencyExcessUsd = agency.totalCashAvailableUsd - agencyCuadre.usd;
             const agencySumatoria = 
               agency.totalCashAvailable + 
@@ -1478,15 +1439,9 @@ export function WeeklyCuadreView() {
                               </p>
                             </div>
                             <div className="text-center p-2 bg-muted/30 rounded">
-                              <p className="text-xs text-muted-foreground">Pago Móvil</p>
+                              <p className="text-xs text-muted-foreground">Total en Banco</p>
                               <p className="text-sm font-semibold text-success">
-                                {formatCurrency(agency.pagoMovilRecibidos, 'VES')}
-                              </p>
-                            </div>
-                            <div className="text-center p-2 bg-muted/30 rounded">
-                              <p className="text-xs text-muted-foreground">POS</p>
-                              <p className="text-sm font-semibold text-success">
-                                {formatCurrency(agency.totalPointOfSale, 'VES')}
+                                {formatCurrency(agency.totalBanco, 'VES')}
                               </p>
                             </div>
                             <div className="text-center p-2 bg-muted/30 rounded">
