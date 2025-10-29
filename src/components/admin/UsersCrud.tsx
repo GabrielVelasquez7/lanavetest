@@ -157,7 +157,14 @@ export const UsersCrud = () => {
           }
         });
 
-        if (error) throw error;
+        // Check for errors in both the response error and data.error
+        if (error) {
+          throw new Error(error.message || 'Error al crear usuario');
+        }
+        
+        if (data?.error) {
+          throw new Error(data.error);
+        }
         
         toast({
           title: "Éxito",
@@ -167,10 +174,11 @@ export const UsersCrud = () => {
       
       fetchProfiles();
       resetForm();
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Error saving user:', error);
       toast({
         title: "Error",
-        description: "No se pudo guardar el usuario",
+        description: error.message || "No se pudo guardar el usuario",
         variant: "destructive",
       });
     }

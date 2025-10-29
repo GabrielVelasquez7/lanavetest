@@ -87,8 +87,8 @@ serve(async (req) => {
       
       // More specific error messages
       let errorMessage = authError.message
-      if (authError.message?.includes('User already registered')) {
-        errorMessage = 'Este email ya está registrado'
+      if (authError.message?.includes('already been registered') || authError.code === 'email_exists') {
+        errorMessage = 'Este email ya está registrado en el sistema'
       } else if (authError.message?.includes('Password')) {
         errorMessage = 'La contraseña debe tener al menos 6 caracteres'
       } else if (authError.message?.includes('Email')) {
