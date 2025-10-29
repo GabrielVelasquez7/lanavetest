@@ -176,7 +176,18 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
       console.log('📊 Detalles de encargada encontrados:', detailsData?.length || 0);
 
       // 2. DATOS COMPLEMENTARIOS (por agencia + fecha)
-      const [expensesResult, mobileResult, posResult, pendingPrizesResult, summaryResult] = await Promise.all([
+      // First get all user_ids from this agency
+      const { data: agencyUsers, error: usersError } = await supabase
+        .from('profiles')
+        .select('user_id')
+        .eq('agency_id', selectedAgency)
+        .eq('is_active', true);
+
+      if (usersError) throw usersError;
+
+      const userIds = agencyUsers?.map(u => u.user_id) || [];
+
+      const [expensesResult, mobileResult, posResult, summaryResult] = await Promise.all([
         supabase
           .from('expenses')
           .select('amount_bs, amount_usd, category, description, created_at')
@@ -192,12 +203,6 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
           .select('amount_bs')
           .eq('agency_id', selectedAgency)
           .eq('transaction_date', dateStr),
-        supabase
-          .from('daily_cuadres_summary')
-          .select('pending_prizes')
-          .eq('agency_id', selectedAgency)
-          .eq('session_date', dateStr)
-          .is('session_id', null),
         supabase
           .from('daily_cuadres_summary')
           .select('cash_available_bs, cash_available_usd, exchange_rate, closure_notes, daily_closure_confirmed, notes')
@@ -252,9 +257,29 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
       const totalPointOfSale = (posResult.data || [])
         .reduce((sum, p) => sum + Number(p.amount_bs || 0), 0);
 
-      // 7. PROCESAR PREMIOS POR PAGAR
-      const pendingPrizes = (pendingPrizesResult.data || [])
-        .reduce((sum, p) => sum + Number(p.pending_prizes || 0), 0);
+      // 7. CALCULAR PREMIOS POR PAGAR directamente desde pending_prizes
+      let premiosPorPagar = 0;
+      if (userIds.length > 0) {
+        // Get all sessions for these users on this date
+        const { data: sessions } = await supabase
+          .from('daily_sessions')
+          .select('id')
+          .in('user_id', userIds)
+          .eq('session_date', dateStr);
+
+        const sessionIds = sessions?.map(s => s.id) || [];
+
+        if (sessionIds.length > 0) {
+          const { data: pendingPrizes } = await supabase
+            .from('pending_prizes')
+            .select('amount_bs, is_paid')
+            .in('session_id', sessionIds);
+
+          premiosPorPagar = (pendingPrizes || [])
+            .filter(p => !p.is_paid)
+            .reduce((sum, p) => sum + Number(p.amount_bs || 0), 0);
+        }
+      }
 
       // 8. CAMPOS EDITABLES DEL RESUMEN
       const summaryData = summaryResult.data;
@@ -287,7 +312,7 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
         ventas: totalSales,
         premios: totalPrizes,
         gastos: totalGastos,
-        pendingPrizes
+        premiosPorPagar
       });
 
       // 9. ACTUALIZAR ESTADO
@@ -301,7 +326,7 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
         pagoMovilRecibidos,
         pagoMovilPagados,
         totalPointOfSale,
-        pendingPrizes,
+        pendingPrizes: premiosPorPagar,
         cashAvailable,
         cashAvailableUsd,
         exchangeRate,
@@ -905,10 +930,6 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
                     </CollapsibleContent>
                   </Collapsible>
                   <div className="flex justify-between">
-                    <span>Premios por pagar:</span>
-                    <span className="font-medium">{formatCurrency(cuadre.pendingPrizes, 'VES')}</span>
-                  </div>
-                  <div className="flex justify-between">
                     <span>Excedente USD → Bs (x{cuadre.exchangeRate.toFixed(2)}):</span>
                     <span className="font-medium">
                       {applyExcessUsdSwitch 
@@ -951,6 +972,14 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
                   <div className="flex justify-between">
                     <span>Cuadre (V-P):</span>
                     <span className="font-medium">{formatCurrency(cuadreVentasPremios.bs, 'VES')}</span>
+                  </div>
+                  <div className="flex justify-between text-sm text-muted-foreground">
+                    <span>Diferencia inicial:</span>
+                    <span className="font-medium">{formatCurrency(diferenciaCierre, 'VES')}</span>
+                  </div>
+                  <div className="flex justify-between text-sm text-muted-foreground">
+                    <span>Menos: Premios por pagar:</span>
+                    <span className="font-medium">-{formatCurrency(cuadre.pendingPrizes, 'VES')}</span>
                   </div>
                   <Separator className="my-3" />
                   <div className="flex justify-between font-bold text-xl mb-4">

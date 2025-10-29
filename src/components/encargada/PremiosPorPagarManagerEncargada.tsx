@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Gift, CheckCircle } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Gift } from 'lucide-react';
 import { PremiosPorPagar } from '../taquillera/PremiosPorPagar';
+import { PremiosPorPagarHistorial } from '../taquillera/PremiosPorPagarHistorial';
 
 interface PremiosPorPagarManagerEncargadaProps {
   onSuccess?: () => void;
@@ -12,36 +13,39 @@ interface PremiosPorPagarManagerEncargadaProps {
 }
 
 export const PremiosPorPagarManagerEncargada = ({ onSuccess, dateRange }: PremiosPorPagarManagerEncargadaProps) => {
-  const [activeTab, setActiveTab] = useState('pending');
+  const [refreshHistorial, setRefreshHistorial] = useState(0);
+
+  const handleSuccess = () => {
+    onSuccess?.();
+    setRefreshHistorial(prev => prev + 1);
+  };
 
   return (
-    <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-      <TabsList className="grid w-full grid-cols-2">
-        <TabsTrigger value="pending" className="flex items-center gap-2">
-          <Gift className="h-4 w-4" />
-          Por Pagar
-        </TabsTrigger>
-        <TabsTrigger value="paid" className="flex items-center gap-2">
-          <CheckCircle className="h-4 w-4" />
-          Pagados
-        </TabsTrigger>
-      </TabsList>
-
-      <TabsContent value="pending" className="space-y-6">
-        <PremiosPorPagar 
-          mode="pending" 
-          onSuccess={onSuccess} 
-          dateRange={dateRange}
-        />
-      </TabsContent>
-
-      <TabsContent value="paid" className="space-y-6">
-        <PremiosPorPagar 
-          mode="paid" 
-          onSuccess={onSuccess} 
-          dateRange={dateRange}
-        />
-      </TabsContent>
-    </Tabs>
+    <div className="space-y-6">
+      <PremiosPorPagar 
+        mode="pending" 
+        onSuccess={handleSuccess} 
+        dateRange={dateRange}
+      />
+      
+      {/* Historial de premios siempre visible */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Gift className="h-5 w-5" />
+            Premios Registrados
+          </CardTitle>
+          <CardDescription>
+            Revisa y edita los premios del día
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <PremiosPorPagarHistorial 
+            refreshKey={refreshHistorial} 
+            dateRange={dateRange} 
+          />
+        </CardContent>
+      </Card>
+    </div>
   );
 };
