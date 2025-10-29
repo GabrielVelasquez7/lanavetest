@@ -56,7 +56,8 @@ interface CuadreData {
   
   // Additional fields for cuadre
   applyExcessUsd: boolean;
-  additionalAmount: number;
+  additionalAmountBs: number;
+  additionalAmountUsd: number;
   additionalNotes: string;
 }
 
@@ -78,7 +79,8 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
     closureNotes: '',
     exchangeRate: 36.00,
     applyExcessUsd: true,
-    additionalAmount: 0,
+    additionalAmountBs: 0,
+    additionalAmountUsd: 0,
     additionalNotes: '',
   });
   
@@ -87,7 +89,8 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
   const [cashAvailableInput, setCashAvailableInput] = useState<string>('0');
   const [cashAvailableUsdInput, setCashAvailableUsdInput] = useState<string>('0');
   const [closureNotesInput, setClosureNotesInput] = useState<string>('');
-  const [additionalAmountInput, setAdditionalAmountInput] = useState<string>('0');
+  const [additionalAmountBsInput, setAdditionalAmountBsInput] = useState<string>('0');
+  const [additionalAmountUsdInput, setAdditionalAmountUsdInput] = useState<string>('0');
   const [additionalNotesInput, setAdditionalNotesInput] = useState<string>('');
   const [applyExcessUsdSwitch, setApplyExcessUsdSwitch] = useState<boolean>(true);
   
@@ -126,14 +129,16 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
       closureNotes: '',
       exchangeRate: 36.00,
       applyExcessUsd: true,
-      additionalAmount: 0,
+      additionalAmountBs: 0,
+      additionalAmountUsd: 0,
       additionalNotes: '',
     });
     setExchangeRateInput('36.00');
     setCashAvailableInput('0');
     setCashAvailableUsdInput('0');
     setClosureNotesInput('');
-    setAdditionalAmountInput('0');
+    setAdditionalAmountBsInput('0');
+    setAdditionalAmountUsdInput('0');
     setAdditionalNotesInput('');
     setApplyExcessUsdSwitch(true);
     setFieldsEditedByUser({
@@ -260,14 +265,16 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
       const closureConfirmed = summaryData?.daily_closure_confirmed || false;
       
       // Parse notes field for additional data
-      let additionalAmount = 0;
+      let additionalAmountBs = 0;
+      let additionalAmountUsd = 0;
       let additionalNotes = '';
       let applyExcessUsd = true;
       
       if (summaryData?.notes) {
         try {
           const notesData = JSON.parse(summaryData.notes);
-          additionalAmount = Number(notesData.additionalAmount || 0);
+          additionalAmountBs = Number(notesData.additionalAmountBs || 0);
+          additionalAmountUsd = Number(notesData.additionalAmountUsd || 0);
           additionalNotes = notesData.additionalNotes || '';
           applyExcessUsd = notesData.applyExcessUsd !== undefined ? notesData.applyExcessUsd : true;
         } catch {
@@ -301,7 +308,8 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
         closureConfirmed,
         closureNotes,
         applyExcessUsd,
-        additionalAmount,
+        additionalAmountBs,
+        additionalAmountUsd,
         additionalNotes
       });
 
@@ -316,7 +324,8 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
         setCashAvailableUsdInput(cashAvailableUsd.toString());
       }
       setClosureNotesInput(closureNotes);
-      setAdditionalAmountInput(additionalAmount.toString());
+      setAdditionalAmountBsInput(additionalAmountBs.toString());
+      setAdditionalAmountUsdInput(additionalAmountUsd.toString());
       setAdditionalNotesInput(additionalNotes);
       setApplyExcessUsdSwitch(applyExcessUsd);
 
@@ -349,7 +358,8 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
       const inputExchangeRate = parseFloat(exchangeRateInput) || 36.00;
       const inputCashAvailableBs = parseFloat(cashAvailableInput) || 0;
       const inputCashAvailableUsd = parseFloat(cashAvailableUsdInput) || 0;
-      const inputAdditionalAmount = parseFloat(additionalAmountInput) || 0;
+      const inputAdditionalAmountBs = parseFloat(additionalAmountBsInput) || 0;
+      const inputAdditionalAmountUsd = parseFloat(additionalAmountUsdInput) || 0;
 
       // Calculate balance
       const balance_bs = 
@@ -366,7 +376,8 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
 
       // Store additional data in notes field as JSON
       const notesData = {
-        additionalAmount: inputAdditionalAmount,
+        additionalAmountBs: inputAdditionalAmountBs,
+        additionalAmountUsd: inputAdditionalAmountUsd,
         additionalNotes: additionalNotesInput,
         applyExcessUsd: applyExcessUsdSwitch
       };
@@ -495,21 +506,22 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
   // Calculate USD excess (difference) for BS formula
   const excessUsd = cuadre.cashAvailableUsd - cuadreVentasPremios.usd;
   
-  // Additional amount from notes
-  const additionalAmount = parseFloat(additionalAmountInput) || 0;
+  // Additional amounts from notes
+  const additionalAmountBs = parseFloat(additionalAmountBsInput) || 0;
+  const additionalAmountUsd = parseFloat(additionalAmountUsdInput) || 0;
   
-  // Bolivares Closure Formula (with optional excess USD)
+  // Bolivares Closure Formula - EXACTLY like taquillera profile
   const sumatoriaBolivares = 
     cuadre.cashAvailable + 
     totalBanco + 
     cuadre.totalDeudas.bs + 
     cuadre.totalGastos.bs + 
-    cuadre.pendingPrizes +
     (applyExcessUsdSwitch ? (excessUsd * cuadre.exchangeRate) : 0) +
-    additionalAmount;
+    additionalAmountBs +
+    (additionalAmountUsd * cuadre.exchangeRate);
 
   const diferenciaCierre = sumatoriaBolivares - cuadreVentasPremios.bs;
-  const diferenciaFinal = diferenciaCierre;
+  const diferenciaFinal = diferenciaCierre - cuadre.pendingPrizes; // Subtract pending prizes AFTER closure difference
   const isCuadreBalanced = Math.abs(diferenciaFinal) <= 100; // Allow 100 Bs tolerance
 
   return (
@@ -540,17 +552,18 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
       </Card>
 
       {/* Editable Fields */}
-      <Card className="border-2 border-amber-200 bg-amber-50/50">
-        <CardHeader>
-          <CardTitle className="text-amber-700 flex items-center gap-2">
+      <Card className="border-2 border-primary/30 bg-gradient-to-br from-primary/5 to-accent/10">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-primary flex items-center gap-2">
             <Save className="h-5 w-5" />
             Configuración del Cuadre
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-6">
+          {/* Main Fields */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="exchange-rate">Tasa BCV (Bs/$)</Label>
+              <Label htmlFor="exchange-rate" className="font-semibold">Tasa BCV (Bs/$)</Label>
               <Input
                 id="exchange-rate"
                 type="number"
@@ -562,12 +575,12 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
                   const rate = parseFloat(e.target.value) || 36.00;
                   setCuadre(prev => ({ ...prev, exchangeRate: rate }));
                 }}
-                className="text-center font-mono"
+                className="text-center font-mono text-lg"
               />
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="cash-bs">Efectivo Disponible (Bs)</Label>
+              <Label htmlFor="cash-bs" className="font-semibold">Efectivo Disponible (Bs)</Label>
               <Input
                 id="cash-bs"
                 type="number"
@@ -579,12 +592,12 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
                   const amount = parseFloat(e.target.value) || 0;
                   setCuadre(prev => ({ ...prev, cashAvailable: amount }));
                 }}
-                className="text-center font-mono"
+                className="text-center font-mono text-lg"
               />
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="cash-usd">Efectivo Disponible (USD)</Label>
+              <Label htmlFor="cash-usd" className="font-semibold">Efectivo Disponible (USD)</Label>
               <Input
                 id="cash-usd"
                 type="number"
@@ -596,13 +609,13 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
                   const amount = parseFloat(e.target.value) || 0;
                   setCuadre(prev => ({ ...prev, cashAvailableUsd: amount }));
                 }}
-                className="text-center font-mono"
+                className="text-center font-mono text-lg"
               />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="closure-notes">Notas del Cierre</Label>
+            <Label htmlFor="closure-notes" className="font-semibold">Notas del Cierre</Label>
             <Textarea
               id="closure-notes"
               value={closureNotesInput}
@@ -614,12 +627,17 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
 
           <Separator className="my-4" />
 
-          <div className="space-y-4">
-            <h4 className="font-semibold text-sm">Ajustes Adicionales del Cuadre</h4>
+          {/* Additional Adjustments Section */}
+          <div className="space-y-4 p-4 rounded-lg bg-card border border-border">
+            <h4 className="font-semibold flex items-center gap-2">
+              <Calculator className="h-4 w-4" />
+              Ajustes Adicionales del Cuadre
+            </h4>
             
-            <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+            {/* Apply Excess USD Switch */}
+            <div className="flex items-center justify-between p-3 rounded-lg bg-accent/20 border border-accent/40">
               <div className="space-y-1">
-                <Label htmlFor="apply-excess-usd" className="text-sm font-medium">
+                <Label htmlFor="apply-excess-usd" className="font-medium cursor-pointer">
                   Aplicar excedente USD a bolívares
                 </Label>
                 <p className="text-xs text-muted-foreground">
@@ -636,25 +654,45 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="additional-amount">Monto Adicional (Bs)</Label>
-              <Input
-                id="additional-amount"
-                type="number"
-                step="0.01"
-                value={additionalAmountInput}
-                onChange={(e) => {
-                  setAdditionalAmountInput(e.target.value);
-                  const amount = parseFloat(e.target.value) || 0;
-                  setCuadre(prev => ({ ...prev, additionalAmount: amount }));
-                }}
-                placeholder="Ej: dinero que se debía, etc."
-                className="text-center font-mono"
-              />
+            {/* Additional Amounts */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="additional-amount-bs" className="font-medium">Monto Adicional (Bs)</Label>
+                <Input
+                  id="additional-amount-bs"
+                  type="number"
+                  step="0.01"
+                  value={additionalAmountBsInput}
+                  onChange={(e) => {
+                    setAdditionalAmountBsInput(e.target.value);
+                    const amount = parseFloat(e.target.value) || 0;
+                    setCuadre(prev => ({ ...prev, additionalAmountBs: amount }));
+                  }}
+                  placeholder="Ej: dinero que se debía"
+                  className="font-mono"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="additional-amount-usd" className="font-medium">Monto Adicional (USD)</Label>
+                <Input
+                  id="additional-amount-usd"
+                  type="number"
+                  step="0.01"
+                  value={additionalAmountUsdInput}
+                  onChange={(e) => {
+                    setAdditionalAmountUsdInput(e.target.value);
+                    const amount = parseFloat(e.target.value) || 0;
+                    setCuadre(prev => ({ ...prev, additionalAmountUsd: amount }));
+                  }}
+                  placeholder="Ej: dinero que se debía"
+                  className="font-mono"
+                />
+              </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="additional-notes">Descripción del Monto Adicional</Label>
+              <Label htmlFor="additional-notes" className="font-medium">Descripción del Monto Adicional</Label>
               <Textarea
                 id="additional-notes"
                 value={additionalNotesInput}
@@ -668,7 +706,7 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
             </div>
           </div>
           
-          <Button onClick={saveDailyClosure} disabled={saving} className="w-full">
+          <Button onClick={saveDailyClosure} disabled={saving} className="w-full mt-4" size="lg">
             <Save className="h-4 w-4 mr-2" />
             {saving ? 'Guardando...' : 'Guardar Cuadre del Día'}
           </Button>
@@ -882,10 +920,20 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
                       }
                     </span>
                   </div>
-                  {additionalAmount > 0 && (
-                    <div className="flex justify-between">
-                      <span>Monto adicional:</span>
-                      <span className="font-medium">{formatCurrency(additionalAmount, 'VES')}</span>
+                  {(additionalAmountBs > 0 || additionalAmountUsd > 0) && (
+                    <div className="space-y-1">
+                      {additionalAmountBs > 0 && (
+                        <div className="flex justify-between">
+                          <span>Monto adicional (Bs):</span>
+                          <span className="font-medium">{formatCurrency(additionalAmountBs, 'VES')}</span>
+                        </div>
+                      )}
+                      {additionalAmountUsd > 0 && (
+                        <div className="flex justify-between">
+                          <span>Monto adicional (USD → Bs):</span>
+                          <span className="font-medium">{formatCurrency(additionalAmountUsd * cuadre.exchangeRate, 'VES')}</span>
+                        </div>
+                      )}
                     </div>
                   )}
                   <Separator />
