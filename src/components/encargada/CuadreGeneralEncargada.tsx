@@ -178,17 +178,6 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
       console.log('📊 Detalles de encargada encontrados:', detailsData?.length || 0);
 
       // 2. DATOS COMPLEMENTARIOS (por agencia + fecha)
-      // First get all user_ids from this agency
-      const { data: agencyUsers, error: usersError } = await supabase
-        .from('profiles')
-        .select('user_id')
-        .eq('agency_id', selectedAgency)
-        .eq('is_active', true);
-
-      if (usersError) throw usersError;
-
-      const userIds = agencyUsers?.map(u => u.user_id) || [];
-
       const [expensesResult, mobileResult, posResult, summaryResult] = await Promise.all([
         supabase
           .from('expenses')
@@ -259,18 +248,7 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
       const totalPointOfSale = (posResult.data || [])
         .reduce((sum, p) => sum + Number(p.amount_bs || 0), 0);
 
-      // 7. CALCULAR PREMIOS POR PAGAR sumando daily_cuadres_summary por agencia y fecha
-      let premiosPorPagar = 0;
-      const { data: sessionSummaries } = await supabase
-        .from('daily_cuadres_summary')
-        .select('pending_prizes, session_id')
-        .eq('agency_id', selectedAgency)
-        .eq('session_date', dateStr)
-        .not('session_id', 'is', null);
-
-      premiosPorPagar = (sessionSummaries || []).reduce((sum, s: any) => sum + Number(s.pending_prizes || 0), 0);
-
-      // 8. CAMPOS EDITABLES DEL RESUMEN
+      // 7. CAMPOS EDITABLES DEL RESUMEN
       const summaryData = summaryResult.data;
       const exchangeRate = summaryData?.exchange_rate || 36.00;
       const cashAvailable = summaryData?.cash_available_bs || 0;
@@ -278,10 +256,9 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
       const closureNotes = summaryData?.closure_notes || '';
       const closureConfirmed = summaryData?.daily_closure_confirmed || false;
       const pendingPrizesFromSummary = Number(summaryData?.pending_prizes || 0);
-      if (pendingPrizesFromSummary > 0) {
-        premiosPorPagar = pendingPrizesFromSummary;
-      }
-      setPendingPrizesInput(premiosPorPagar.toString());
+      setPendingPrizesInput(pendingPrizesFromSummary.toString());
+      
+      // Parse notes field for additional data
       let additionalAmountBs = 0;
       let additionalAmountUsd = 0;
       let additionalNotes = '';
@@ -304,10 +281,10 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
         ventas: totalSales,
         premios: totalPrizes,
         gastos: totalGastos,
-        premiosPorPagar
+        pendingPrizesFromSummary
       });
 
-      // 9. ACTUALIZAR ESTADO
+      // 8. ACTUALIZAR ESTADO
       setCuadre({
         totalSales,
         totalPrizes,
@@ -318,7 +295,7 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
         pagoMovilRecibidos,
         pagoMovilPagados,
         totalPointOfSale,
-        pendingPrizes: premiosPorPagar,
+        pendingPrizes: pendingPrizesFromSummary,
         cashAvailable,
         cashAvailableUsd,
         exchangeRate,
