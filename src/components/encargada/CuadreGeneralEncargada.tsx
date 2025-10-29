@@ -503,22 +503,21 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
   // Calculate bank total (Mobile received + POS - Mobile paid)
   const totalBanco = cuadre.pagoMovilRecibidos + cuadre.totalPointOfSale - cuadre.pagoMovilPagados;
 
-  // Calculate USD excess (difference) for BS formula
-  const excessUsd = cuadre.cashAvailableUsd - cuadreVentasPremios.usd;
-  
   // Additional amounts from notes
   const additionalAmountBs = parseFloat(additionalAmountBsInput) || 0;
   const additionalAmountUsd = parseFloat(additionalAmountUsdInput) || 0;
   
-  // Bolivares Closure Formula - EXACTLY like taquillera profile
+  // Calculate USD excess (difference) for BS formula - include additional USD
+  const excessUsd = (cuadre.cashAvailableUsd + additionalAmountUsd) - cuadreVentasPremios.usd;
+  
+  // Bolivares Closure Formula - additional BS sums to BS, additional USD affects USD excess
   const sumatoriaBolivares = 
     cuadre.cashAvailable + 
     totalBanco + 
     cuadre.totalDeudas.bs + 
     cuadre.totalGastos.bs + 
     (applyExcessUsdSwitch ? (excessUsd * cuadre.exchangeRate) : 0) +
-    additionalAmountBs +
-    (additionalAmountUsd * cuadre.exchangeRate);
+    additionalAmountBs;
 
   const diferenciaCierre = sumatoriaBolivares - cuadreVentasPremios.bs;
   const diferenciaFinal = diferenciaCierre - cuadre.pendingPrizes; // Subtract pending prizes AFTER closure difference
