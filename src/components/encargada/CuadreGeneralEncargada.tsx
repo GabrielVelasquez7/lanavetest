@@ -257,29 +257,16 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
       const totalPointOfSale = (posResult.data || [])
         .reduce((sum, p) => sum + Number(p.amount_bs || 0), 0);
 
-      // 7. CALCULAR PREMIOS POR PAGAR directamente desde pending_prizes
+      // 7. CALCULAR PREMIOS POR PAGAR sumando daily_cuadres_summary por agencia y fecha
       let premiosPorPagar = 0;
-      if (userIds.length > 0) {
-        // Get all sessions for these users on this date
-        const { data: sessions } = await supabase
-          .from('daily_sessions')
-          .select('id')
-          .in('user_id', userIds)
-          .eq('session_date', dateStr);
+      const { data: sessionSummaries } = await supabase
+        .from('daily_cuadres_summary')
+        .select('pending_prizes, session_id')
+        .eq('agency_id', selectedAgency)
+        .eq('session_date', dateStr)
+        .not('session_id', 'is', null);
 
-        const sessionIds = sessions?.map(s => s.id) || [];
-
-        if (sessionIds.length > 0) {
-          const { data: pendingPrizes } = await supabase
-            .from('pending_prizes')
-            .select('amount_bs, is_paid')
-            .in('session_id', sessionIds);
-
-          premiosPorPagar = (pendingPrizes || [])
-            .filter(p => !p.is_paid)
-            .reduce((sum, p) => sum + Number(p.amount_bs || 0), 0);
-        }
-      }
+      premiosPorPagar = (sessionSummaries || []).reduce((sum, s: any) => sum + Number(s.pending_prizes || 0), 0);
 
       // 8. CAMPOS EDITABLES DEL RESUMEN
       const summaryData = summaryResult.data;
