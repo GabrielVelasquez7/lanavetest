@@ -10,7 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { formatCurrency } from '@/lib/utils';
-import { formatDateForDB } from '@/lib/dateUtils';
+import { formatDateForDB, getStartOfDayVenezuela, fromVenezuelaTime } from '@/lib/dateUtils';
 import { Plus, Minus, Save } from 'lucide-react';
 
 interface Premio {
@@ -198,11 +198,14 @@ export const PremiosPorPagar = ({ onSuccess, mode, dateRange, overrideUserId }: 
       }
 
       // Prepare premio data
+      const prizeTimestamp = fromVenezuelaTime(getStartOfDayVenezuela(dateRange.from));
       const premioData = validPremios.map(premio => ({
         session_id: session.id,
         amount_bs: parseFloat(premio.amount),
         description: premio.description || '',
         is_paid: mode === 'paid',
+        created_at: prizeTimestamp.toISOString(),
+        updated_at: prizeTimestamp.toISOString(),
       }));
 
       // Insert premios
