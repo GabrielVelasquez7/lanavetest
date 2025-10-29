@@ -985,33 +985,51 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
           <CardTitle className="text-purple-700">Resumen en Dólares (USD)</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-2">
-            <div className="flex justify-between">
-              <span>Efectivo disponible:</span>
-              <span className="font-medium">{formatCurrency(cuadre.cashAvailableUsd, 'USD')}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Gastos en USD:</span>
-              <span className="font-medium text-red-600">{formatCurrency(cuadre.totalGastos.usd, 'USD')}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Deudas en USD:</span>
-              <span className="font-medium text-orange-600">{formatCurrency(cuadre.totalDeudas.usd, 'USD')}</span>
-            </div>
-            <Separator className="my-3" />
-            <div className="flex justify-between font-semibold">
-              <span>Exceso USD:</span>
-              <span className={`${excessUsd >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {formatCurrency(excessUsd, 'USD')}
-              </span>
-            </div>
-            {applyExcessUsdSwitch && (
-              <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-950/20 rounded border border-blue-200 dark:border-blue-800">
-                <p className="text-xs text-blue-700 dark:text-blue-400">
-                  El exceso USD se convierte a Bs y se suma al cuadre
-                </p>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+              <div className="space-y-4">
+                <h4 className="font-semibold text-sm h-5 flex items-center">Detalles:</h4>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span>Efectivo disponible:</span>
+                    <span className="font-medium">{formatCurrency(cuadre.cashAvailableUsd, 'USD')}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Gastos en USD:</span>
+                    <span className="font-medium text-red-600">{formatCurrency(cuadre.totalGastos.usd, 'USD')}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Deudas en USD:</span>
+                    <span className="font-medium text-orange-600">{formatCurrency(cuadre.totalDeudas.usd, 'USD')}</span>
+                  </div>
+                  {additionalAmountUsd > 0 && (
+                    <div className="flex justify-between">
+                      <span>Monto adicional:</span>
+                      <span className="font-medium">{formatCurrency(additionalAmountUsd, 'USD')}</span>
+                    </div>
+                  )}
+                </div>
               </div>
-            )}
+              
+              <div className="space-y-4">
+                <h4 className="font-semibold text-sm h-5 flex items-center">Resultado:</h4>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between font-bold text-xl mb-4">
+                    <span>Exceso USD:</span>
+                    <span className={`${excessUsd >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {formatCurrency(excessUsd, 'USD')}
+                    </span>
+                  </div>
+                  {applyExcessUsdSwitch && (
+                    <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-950/20 rounded border border-blue-200 dark:border-blue-800">
+                      <p className="text-xs text-blue-700 dark:text-blue-400">
+                        El exceso USD se convierte a Bs y se suma al cuadre
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
