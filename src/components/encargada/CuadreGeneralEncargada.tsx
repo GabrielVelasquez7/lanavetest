@@ -13,7 +13,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { formatCurrency } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
-import { Calculator, CheckCircle2, XCircle, Save, TrendingUp, TrendingDown, ChevronDown, ChevronRight } from 'lucide-react';
+import { Calculator, CheckCircle2, XCircle, Save, TrendingUp, TrendingDown, ChevronDown, ChevronRight, DollarSign, AlertCircle, Info } from 'lucide-react';
 import { formatDateForDB } from '@/lib/dateUtils';
 
 interface CuadreGeneralEncargadaProps {
@@ -744,18 +744,30 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
           </CardContent>
         </Card>
 
-        {/* Net Sales */}
+        {/* Net Sales BS */}
         <Card className="border-2 border-blue-200">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-blue-700">Cuadre (Ventas - Premios)</CardTitle>
+            <CardTitle className="text-sm text-blue-700">Cuadre Ventas/Premios (Bs)</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-1">
-            <p className="text-xl font-bold text-blue-600">
+          <CardContent>
+            <p className={`text-xl font-bold ${cuadreVentasPremios.bs >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
               {formatCurrency(cuadreVentasPremios.bs, 'VES')}
             </p>
-            <p className="text-sm text-blue-600">
+          </CardContent>
+        </Card>
+
+        {/* Net Sales USD */}
+        <Card className="border-2 border-purple-200">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-purple-700">Cuadre Ventas/Premios (USD)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className={`text-xl font-bold ${cuadreVentasPremios.usd >= 0 ? 'text-purple-600' : 'text-red-600'}`}>
               {formatCurrency(cuadreVentasPremios.usd, 'USD')}
             </p>
+            {cuadreVentasPremios.usd < 0 && (
+              <p className="text-xs text-red-500 mt-1">Déficit a cubrir</p>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -982,58 +994,86 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
       </Card>
 
       {/* USD Closure Formula Card */}
-      <Card className="border-2 border-accent/20 border-l-4 border-l-accent">
+      <Card className="border-2 border-purple-200 border-l-4 border-l-purple-500">
         <CardHeader>
-          <CardTitle className="text-accent">Resumen en Dólares (USD)</CardTitle>
+          <CardTitle className="text-purple-700 flex items-center gap-2">
+            <DollarSign className="h-5 w-5" />
+            Resumen en Dólares (USD)
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+              {/* Left Column - Calculation Breakdown */}
               <div className="space-y-4">
-                <h4 className="font-semibold text-sm h-5 flex items-center">Sumatoria USD:</h4>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span>Efectivo en dólares:</span>
+                <h4 className="font-semibold text-sm h-5 flex items-center text-purple-700">Cálculo del Exceso USD:</h4>
+                <div className="space-y-2 text-sm bg-purple-50 dark:bg-purple-950/20 p-4 rounded-lg">
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">1. Efectivo disponible:</span>
                     <span className="font-medium">{formatCurrency(cuadre.cashAvailableUsd, 'USD')}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span>Gastos en USD:</span>
-                    <span className="font-medium">{formatCurrency(cuadre.totalGastos.usd, 'USD')}</span>
+                  {additionalAmountUsd > 0 && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground">2. Monto adicional:</span>
+                      <span className="font-medium text-purple-600">+ {formatCurrency(additionalAmountUsd, 'USD')}</span>
+                    </div>
+                  )}
+                  <Separator className="my-2" />
+                  <div className="flex justify-between items-center font-semibold">
+                    <span>Total disponible:</span>
+                    <span className="text-purple-700">{formatCurrency(cuadre.cashAvailableUsd + additionalAmountUsd, 'USD')}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span>Deudas en USD:</span>
-                    <span className="font-medium">{formatCurrency(cuadre.totalDeudas.usd, 'USD')}</span>
+                  <div className="flex justify-between items-center mt-4">
+                    <span className="text-muted-foreground">Cuadre V/P USD:</span>
+                    <span className={`font-medium ${cuadreVentasPremios.usd >= 0 ? 'text-purple-600' : 'text-red-600'}`}>
+                      {cuadreVentasPremios.usd >= 0 ? '- ' : ''}{formatCurrency(Math.abs(cuadreVentasPremios.usd), 'USD')}
+                    </span>
                   </div>
-                  <Separator />
-                  <div className="flex justify-between font-bold">
-                    <span>Total USD:</span>
-                    <span>{formatCurrency(cuadre.cashAvailableUsd + cuadre.totalGastos.usd + cuadre.totalDeudas.usd, 'USD')}</span>
+                  {cuadreVentasPremios.usd < 0 && (
+                    <div className="flex items-start gap-2 mt-2 p-2 bg-red-50 dark:bg-red-950/20 rounded border border-red-200 dark:border-red-800">
+                      <AlertCircle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+                      <p className="text-xs text-red-600">
+                        Déficit: Se necesitan {formatCurrency(Math.abs(cuadreVentasPremios.usd), 'USD')} más para cubrir premios
+                      </p>
+                    </div>
+                  )}
+                  <Separator className="my-2" />
+                  <div className="flex justify-between items-center font-bold text-base">
+                    <span>Exceso/Falta USD:</span>
+                    <span className={`${excessUsd >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {formatCurrency(excessUsd, 'USD')}
+                    </span>
                   </div>
                 </div>
               </div>
               
+              {/* Right Column - Additional USD Summary */}
               <div className="space-y-4">
-                <h4 className="font-semibold text-sm h-5 flex items-center">Comparación USD:</h4>
+                <h4 className="font-semibold text-sm h-5 flex items-center text-purple-700">Otros Movimientos USD:</h4>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span>Total USD:</span>
-                    <span className="font-medium">{formatCurrency(cuadre.cashAvailableUsd + cuadre.totalGastos.usd + cuadre.totalDeudas.usd, 'USD')}</span>
+                    <span>Gastos en USD:</span>
+                    <span className="font-medium text-red-600">{formatCurrency(cuadre.totalGastos.usd, 'USD')}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Cuadre USD (V-P):</span>
-                    <span className="font-medium">{formatCurrency(cuadreVentasPremios.usd, 'USD')}</span>
+                    <span>Deudas en USD:</span>
+                    <span className="font-medium text-orange-600">{formatCurrency(cuadre.totalDeudas.usd, 'USD')}</span>
                   </div>
                   <Separator className="my-3" />
-                  <div className="flex justify-between font-bold text-xl">
-                    <span>Diferencia USD:</span>
-                    <span className={`${Math.abs(excessUsd) <= 10 ? 'text-success' : 'text-accent'}`}>
-                      {formatCurrency(excessUsd, 'USD')}
-                    </span>
+                  <div className="flex justify-between font-semibold">
+                    <span>Total USD disponible:</span>
+                    <span>{formatCurrency(cuadre.cashAvailableUsd + cuadre.totalGastos.usd + cuadre.totalDeudas.usd, 'USD')}</span>
                   </div>
-                  {Math.abs(excessUsd) > 10 && (
-                    <p className="text-xs text-muted-foreground mt-2">
-                      {excessUsd > 0 ? 'Excedente convertido a Bs en el cálculo' : 'Déficit manejado en el cálculo'}
-                    </p>
+                  
+                  {applyExcessUsdSwitch && (
+                    <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-950/20 rounded border border-blue-200 dark:border-blue-800">
+                      <p className="text-xs text-blue-700 dark:text-blue-400 flex items-start gap-2">
+                        <Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                        <span>
+                          El exceso USD ({formatCurrency(excessUsd, 'USD')}) se convierte a Bs ({formatCurrency(excessUsd * cuadre.exchangeRate, 'VES')}) y se suma al cuadre de bolívares
+                        </span>
+                      </p>
+                    </div>
                   )}
                 </div>
               </div>
