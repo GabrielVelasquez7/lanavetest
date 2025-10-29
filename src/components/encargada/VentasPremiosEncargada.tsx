@@ -17,7 +17,8 @@ import { GastosManagerEncargada } from './GastosManagerEncargada';
 import { PagoMovilManagerEncargada } from './PagoMovilManagerEncargada';
 import { PointOfSaleFormEncargada } from './PointOfSaleFormEncargada';
 import { CuadreGeneralEncargada } from './CuadreGeneralEncargada';
-import { Edit, Building2, CalendarIcon, DollarSign, Receipt, Smartphone, HandCoins, CreditCard, RefreshCw, Loader2 } from 'lucide-react';
+import { PremiosPorPagarManagerEncargada } from './PremiosPorPagarManagerEncargada';
+import { Edit, Building2, CalendarIcon, DollarSign, Receipt, Smartphone, HandCoins, CreditCard, RefreshCw, Loader2, Gift } from 'lucide-react';
 import { SystemSyncManager, SystemSyncResult } from './SystemSyncManager';
 import { formatCurrency, cn } from '@/lib/utils';
 import { formatDateForDB } from '@/lib/dateUtils';
@@ -609,7 +610,7 @@ export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
 
       {selectedAgency && (
         <Tabs value={mainTab} onValueChange={setMainTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="ventas-premios" className="flex items-center gap-2">
               <DollarSign className="h-4 w-4" />
               Ventas/Premios
@@ -621,6 +622,10 @@ export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
             <TabsTrigger value="pago-movil" className="flex items-center gap-2">
               <Smartphone className="h-4 w-4" />
               Pago Móvil
+            </TabsTrigger>
+            <TabsTrigger value="premios-por-pagar" className="flex items-center gap-2">
+              <Gift className="h-4 w-4" />
+              Premios P.P.
             </TabsTrigger>
             <TabsTrigger value="punto-venta" className="flex items-center gap-2">
               <CreditCard className="h-4 w-4" />
@@ -749,6 +754,12 @@ export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
             />
           </TabsContent>
 
+          <TabsContent value="premios-por-pagar" className="space-y-6">
+            <PremiosPorPagarManagerEncargada 
+              onSuccess={refreshData} 
+              dateRange={{ from: selectedDate, to: selectedDate }}
+            />
+          </TabsContent>
 
           <TabsContent value="punto-venta" className="space-y-6">
             <PointOfSaleFormEncargada 

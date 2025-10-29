@@ -12,7 +12,6 @@ import { WeeklyCuadreHistory } from "./WeeklyCuadreHistory";
 import { SystemsSummaryWeekly } from "./SystemsSummaryWeekly";
 import { EmployeesCrud } from "./EmployeesCrud";
 import { WeeklyPayrollManager } from "./WeeklyPayrollManager";
-import { PremiosPorPagarManagerEncargada } from "./PremiosPorPagarManagerEncargada";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { EncargadaSidebar } from "./EncargadaSidebar";
 
@@ -67,9 +66,6 @@ export function EncargadaDashboard() {
   }
 
   const renderContent = () => {
-    const today = new Date();
-    const dateRange = { from: today, to: today };
-    
     switch (activeTab) {
       case "cuadre-semanal":
         return <WeeklyCuadreView />;
@@ -87,8 +83,6 @@ export function EncargadaDashboard() {
         return <EmployeesCrud />;
       case "nomina":
         return <WeeklyPayrollManager />;
-      case "premios-por-pagar":
-        return <PremiosPorPagarManagerEncargada dateRange={dateRange} />;
       default:
         return <WeeklyCuadreView />;
     }

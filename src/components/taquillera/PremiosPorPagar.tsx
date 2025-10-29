@@ -26,6 +26,7 @@ interface PremiosPorPagarProps {
     from: Date;
     to: Date;
   };
+  overrideUserId?: string; // Para que la encargada pueda gestionar premios de otras taquilleras
 }
 
 // Helper function to update daily_cuadres_summary similar to PagoMovil components
@@ -119,11 +120,14 @@ const updateDailyCuadresSummary = async (sessionId: string) => {
     }, { onConflict: 'session_id' });
 };
 
-export const PremiosPorPagar = ({ onSuccess, mode, dateRange }: PremiosPorPagarProps) => {
+export const PremiosPorPagar = ({ onSuccess, mode, dateRange, overrideUserId }: PremiosPorPagarProps) => {
   const [premios, setPremios] = useState<Premio[]>([{ amount: '', description: '' }]);
   const [loading, setLoading] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
+  
+  // Usar el user_id override si está disponible (para encargadas), si no usar el usuario actual
+  const effectiveUserId = overrideUserId || user?.id;
 
   const addPremio = () => {
     setPremios([...premios, { amount: '', description: '' }]);
@@ -144,7 +148,7 @@ export const PremiosPorPagar = ({ onSuccess, mode, dateRange }: PremiosPorPagarP
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!user || !dateRange) {
+    if (!effectiveUserId || !dateRange) {
       toast({
         title: 'Error',
         description: 'Usuario o fecha no válidos',
@@ -172,7 +176,7 @@ export const PremiosPorPagar = ({ onSuccess, mode, dateRange }: PremiosPorPagarP
       let { data: session } = await supabase
         .from('daily_sessions')
         .select('id')
-        .eq('user_id', user.id)
+        .eq('user_id', effectiveUserId)
         .eq('session_date', currentDate)
         .single();
 
@@ -180,7 +184,7 @@ export const PremiosPorPagar = ({ onSuccess, mode, dateRange }: PremiosPorPagarP
         const { data: newSession, error: createError } = await supabase
           .from('daily_sessions')
           .insert({
-            user_id: user.id,
+            user_id: effectiveUserId,
             session_date: currentDate,
             cash_available_bs: 0,
             cash_available_usd: 0,

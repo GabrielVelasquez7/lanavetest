@@ -36,9 +36,10 @@ interface PremiosPorPagarHistorialProps {
     from: Date;
     to: Date;
   };
+  overrideUserId?: string; // Para que la encargada pueda ver historial de otras taquilleras
 }
 
-export const PremiosPorPagarHistorial = ({ refreshKey = 0, dateRange }: PremiosPorPagarHistorialProps) => {
+export const PremiosPorPagarHistorial = ({ refreshKey = 0, dateRange, overrideUserId }: PremiosPorPagarHistorialProps) => {
   const [premios, setPremios] = useState<PendingPrize[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -48,14 +49,17 @@ export const PremiosPorPagarHistorial = ({ refreshKey = 0, dateRange }: PremiosP
   const { user } = useAuth();
   const { toast } = useToast();
 
+  // Usar el user_id override si está disponible (para encargadas), si no usar el usuario actual
+  const effectiveUserId = overrideUserId || user?.id;
+
   useEffect(() => {
-    if (user && dateRange) {
+    if (effectiveUserId && dateRange) {
       fetchPremios();
     }
-  }, [user, dateRange, refreshKey]);
+  }, [effectiveUserId, dateRange, refreshKey]);
 
   const fetchPremios = async () => {
-    if (!user || !dateRange) return;
+    if (!effectiveUserId || !dateRange) return;
 
     try {
       setLoading(true);
@@ -67,7 +71,7 @@ export const PremiosPorPagarHistorial = ({ refreshKey = 0, dateRange }: PremiosP
       const { data: sessions, error: sessionsError } = await supabase
         .from('daily_sessions')
         .select('id')
-        .eq('user_id', user.id)
+        .eq('user_id', effectiveUserId)
         .gte('session_date', fromDate)
         .lte('session_date', toDate);
 
