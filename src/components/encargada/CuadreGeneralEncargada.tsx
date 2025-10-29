@@ -88,6 +88,7 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
   const [exchangeRateInput, setExchangeRateInput] = useState<string>('36.00');
   const [cashAvailableInput, setCashAvailableInput] = useState<string>('0');
   const [cashAvailableUsdInput, setCashAvailableUsdInput] = useState<string>('0');
+  const [pendingPrizesInput, setPendingPrizesInput] = useState<string>('0');
   const [closureNotesInput, setClosureNotesInput] = useState<string>('');
   const [additionalAmountBsInput, setAdditionalAmountBsInput] = useState<string>('0');
   const [additionalAmountUsdInput, setAdditionalAmountUsdInput] = useState<string>('0');
@@ -141,6 +142,7 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
     setAdditionalAmountUsdInput('0');
     setAdditionalNotesInput('');
     setApplyExcessUsdSwitch(true);
+    setPendingPrizesInput('0');
     setFieldsEditedByUser({
       exchangeRate: false,
       cashAvailable: false,
@@ -205,7 +207,7 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
           .eq('transaction_date', dateStr),
         supabase
           .from('daily_cuadres_summary')
-          .select('cash_available_bs, cash_available_usd, exchange_rate, closure_notes, daily_closure_confirmed, notes')
+          .select('cash_available_bs, cash_available_usd, exchange_rate, closure_notes, daily_closure_confirmed, notes, pending_prizes')
           .eq('agency_id', selectedAgency)
           .eq('session_date', dateStr)
           .is('session_id', null)
@@ -275,8 +277,11 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
       const cashAvailableUsd = summaryData?.cash_available_usd || 0;
       const closureNotes = summaryData?.closure_notes || '';
       const closureConfirmed = summaryData?.daily_closure_confirmed || false;
-      
-      // Parse notes field for additional data
+      const pendingPrizesFromSummary = Number(summaryData?.pending_prizes || 0);
+      if (pendingPrizesFromSummary > 0) {
+        premiosPorPagar = pendingPrizesFromSummary;
+      }
+      setPendingPrizesInput(premiosPorPagar.toString());
       let additionalAmountBs = 0;
       let additionalAmountUsd = 0;
       let additionalNotes = '';
@@ -394,6 +399,21 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
         applyExcessUsd: applyExcessUsdSwitch
       };
 
+      // Calculate cierre values similar to UI
+      const cuadreVentasPremiosBs = cuadre.totalSales.bs - cuadre.totalPrizes.bs;
+      const cuadreVentasPremiosUsd = cuadre.totalSales.usd - cuadre.totalPrizes.usd;
+      const inputPendingPrizes = parseFloat(pendingPrizesInput) || 0;
+      const excessUsd = Math.abs(cuadreVentasPremiosUsd - inputCashAvailableUsd) - inputAdditionalAmountUsd;
+      const sumatoriaBolivares = 
+        inputCashAvailableBs + 
+        totalBancoBs + 
+        cuadre.totalDeudas.bs + 
+        cuadre.totalGastos.bs + 
+        (applyExcessUsdSwitch ? (excessUsd * inputExchangeRate) : 0) +
+        inputAdditionalAmountBs;
+      const diferenciaCierre = sumatoriaBolivares - cuadreVentasPremiosBs;
+      const diferenciaFinal = diferenciaCierre - inputPendingPrizes;
+
       const summaryData = {
         user_id: user.id,
         agency_id: selectedAgency,
@@ -410,8 +430,10 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
         total_mobile_payments_bs: cuadre.pagoMovilRecibidos - cuadre.pagoMovilPagados,
         total_pos_bs: cuadre.totalPointOfSale,
         total_banco_bs: totalBancoBs,
-        pending_prizes: cuadre.pendingPrizes,
-        balance_bs,
+        pending_prizes: inputPendingPrizes,
+        balance_before_pending_prizes_bs: diferenciaCierre,
+        diferencia_final: diferenciaFinal,
+        balance_bs: diferenciaFinal, // mantener compatibilidad
         exchange_rate: inputExchangeRate,
         cash_available_bs: inputCashAvailableBs,
         cash_available_usd: inputCashAvailableUsd,
@@ -626,7 +648,22 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="closure-notes" className="font-semibold">Notas del Cierre</Label>
+            <Label htmlFor="pending-prizes" className="font-semibold">Premios por Pagar (Bs)</Label>
+            <Input
+              id="pending-prizes"
+              type="number"
+              step="0.01"
+              value={pendingPrizesInput}
+              onChange={(e) => {
+                setPendingPrizesInput(e.target.value);
+                const amount = parseFloat(e.target.value) || 0;
+                setCuadre(prev => ({ ...prev, pendingPrizes: amount }));
+              }}
+              className="text-center font-mono text-lg"
+            />
+          </div>
+
+          <div className="space-y-2">
             <Textarea
               id="closure-notes"
               value={closureNotesInput}
