@@ -147,9 +147,10 @@ export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
         
         setLotteryOptions(expandedSystems);
 
-        // Seleccionar primera agencia por defecto
-        if (agenciesResult.data && agenciesResult.data.length > 0) {
-          setSelectedAgency(agenciesResult.data[0].id);
+        // Seleccionar agencia por defecto solo si no hay una guardada
+        if (agenciesResult.data && agenciesResult.data.length > 0 && !selectedAgency) {
+          const saved = localStorage.getItem('encargada:selectedAgency');
+          setSelectedAgency(saved || agenciesResult.data[0].id);
         }
 
       } catch (error: any) {
