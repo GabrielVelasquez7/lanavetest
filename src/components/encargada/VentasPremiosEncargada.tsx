@@ -63,8 +63,18 @@ export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
   const [activeTab, setActiveTab] = useState('bolivares');
   const [lotteryOptions, setLotteryOptions] = useState<LotterySystem[]>([]);
   const [agencies, setAgencies] = useState<Agency[]>([]);
-  const [selectedAgency, setSelectedAgency] = useState<string>('');
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  
+  // Persistir agencia y fecha seleccionada en localStorage
+  const [selectedAgency, setSelectedAgency] = useState<string>(() => {
+    const saved = localStorage.getItem('encargada:selectedAgency');
+    return saved || '';
+  });
+  
+  const [selectedDate, setSelectedDate] = useState<Date>(() => {
+    const saved = localStorage.getItem('encargada:selectedDate');
+    return saved ? new Date(saved) : new Date();
+  });
+  
   const [loading, setLoading] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [currentCuadreId, setCurrentCuadreId] = useState<string | null>(null);
@@ -74,6 +84,18 @@ export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
   const [isUpdatingFields, setIsUpdatingFields] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
+
+  // Guardar agencia seleccionada en localStorage cuando cambie
+  useEffect(() => {
+    if (selectedAgency) {
+      localStorage.setItem('encargada:selectedAgency', selectedAgency);
+    }
+  }, [selectedAgency]);
+
+  // Guardar fecha seleccionada en localStorage cuando cambie
+  useEffect(() => {
+    localStorage.setItem('encargada:selectedDate', selectedDate.toISOString());
+  }, [selectedDate]);
 
   const form = useForm<VentasPremiosForm>({
     resolver: zodResolver(ventasPremiosSchema),

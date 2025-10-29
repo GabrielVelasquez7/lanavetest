@@ -103,7 +103,13 @@ export function WeeklyCuadreView() {
   const [allAgencies, setAllAgencies] = useState<{ id: string; name: string }[]>([]);
   const [isDailyOpen, setIsDailyOpen] = useState(false);
   const [activeAgencyTab, setActiveAgencyTab] = useState('resumen');
-  const [selectedAgency, setSelectedAgency] = useState<string | null>(null);
+  
+  // Persistir agencia seleccionada en localStorage
+  const [selectedAgency, setSelectedAgency] = useState<string | null>(() => {
+    const saved = localStorage.getItem('encargada:weekly:selectedAgency');
+    return saved || null;
+  });
+  
   const [searchTerm, setSearchTerm] = useState('');
   
   // State for collapsible dropdowns
@@ -113,6 +119,15 @@ export function WeeklyCuadreView() {
   // State for exchange rate editor
   const [exchangeRateInput, setExchangeRateInput] = useState<string>('36.00');
   const [isEditingRate, setIsEditingRate] = useState(false);
+
+  // Guardar agencia seleccionada en localStorage cuando cambie
+  useEffect(() => {
+    if (selectedAgency) {
+      localStorage.setItem('encargada:weekly:selectedAgency', selectedAgency);
+    } else {
+      localStorage.removeItem('encargada:weekly:selectedAgency');
+    }
+  }, [selectedAgency]);
 
   // Filter agencies based on search and selection
   const filteredAgencies = allAgencies.filter(agency =>

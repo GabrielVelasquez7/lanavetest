@@ -29,8 +29,19 @@ export const SystemsSummaryWeekly = () => {
   const [loading, setLoading] = useState(true);
   const [systemsSummary, setSystemsSummary] = useState<SystemSummary[]>([]);
   const [agencies, setAgencies] = useState<Agency[]>([]);
-  const [selectedAgency, setSelectedAgency] = useState<string>('all');
+  
+  // Persistir agencia seleccionada en localStorage
+  const [selectedAgency, setSelectedAgency] = useState<string>(() => {
+    const saved = localStorage.getItem('encargada:systems:selectedAgency');
+    return saved || 'all';
+  });
+  
   const [weekDates, setWeekDates] = useState<{ start: string; end: string }>({ start: '', end: '' });
+
+  // Guardar agencia seleccionada en localStorage cuando cambie
+  useEffect(() => {
+    localStorage.setItem('encargada:systems:selectedAgency', selectedAgency);
+  }, [selectedAgency]);
 
   useEffect(() => {
     if (user) {

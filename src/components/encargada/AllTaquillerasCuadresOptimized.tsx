@@ -77,8 +77,17 @@ interface AgencyGroup {
 }
 
 export function AllTaquillerasCuadresOptimized() {
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [selectedAgency, setSelectedAgency] = useState<string>("all");
+  // Persistir fecha y agencia seleccionada en localStorage
+  const [selectedDate, setSelectedDate] = useState<Date>(() => {
+    const saved = localStorage.getItem('encargada:supervision:selectedDate');
+    return saved ? new Date(saved) : new Date();
+  });
+  
+  const [selectedAgency, setSelectedAgency] = useState<string>(() => {
+    const saved = localStorage.getItem('encargada:supervision:selectedAgency');
+    return saved || 'all';
+  });
+  
   const [agencies, setAgencies] = useState<any[]>([]);
   const [agencyGroups, setAgencyGroups] = useState<AgencyGroup[]>([]);
   const [filteredGroups, setFilteredGroups] = useState<AgencyGroup[]>([]);
@@ -89,6 +98,16 @@ export function AllTaquillerasCuadresOptimized() {
   const [reviewingCuadre, setReviewingCuadre] = useState<TaquilleraCuadre | null>(null);
   const [reviewObservations, setReviewObservations] = useState("");
   const { toast } = useToast();
+
+  // Guardar fecha seleccionada en localStorage cuando cambie
+  useEffect(() => {
+    localStorage.setItem('encargada:supervision:selectedDate', selectedDate.toISOString());
+  }, [selectedDate]);
+
+  // Guardar agencia seleccionada en localStorage cuando cambie
+  useEffect(() => {
+    localStorage.setItem('encargada:supervision:selectedAgency', selectedAgency);
+  }, [selectedAgency]);
 
   useEffect(() => {
     fetchAgencies();
