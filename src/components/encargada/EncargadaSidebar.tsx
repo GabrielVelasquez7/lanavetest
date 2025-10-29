@@ -6,7 +6,8 @@ import {
   ArrowLeftRight, 
   BarChart3,
   UserSquare2,
-  Receipt
+  Receipt,
+  Gift
 } from "lucide-react";
 import {
   Sidebar,
@@ -39,6 +40,7 @@ const menuItems = [
     items: [
       { id: "supervision", label: "Supervisión Taquilleras", icon: Users },
       { id: "resumen-sistemas", label: "Resumen por Sistemas", icon: BarChart3 },
+      { id: "premios-por-pagar", label: "Premios Por Pagar", icon: Gift },
     ],
   },
   {
