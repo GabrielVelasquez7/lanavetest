@@ -507,8 +507,8 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
   const additionalAmountBs = parseFloat(additionalAmountBsInput) || 0;
   const additionalAmountUsd = parseFloat(additionalAmountUsdInput) || 0;
   
-  // Calculate USD excess (difference) for BS formula - include additional USD
-  const excessUsd = (cuadre.cashAvailableUsd + additionalAmountUsd) - cuadreVentasPremios.usd;
+  // Calculate USD excess using Excel formula: ABS(cuadreVP - efectivo) - adicional
+  const excessUsd = Math.abs(cuadreVentasPremios.usd - cuadre.cashAvailableUsd) - additionalAmountUsd;
   
   // Bolivares Closure Formula - additional BS sums to BS, additional USD affects USD excess
   const sumatoriaBolivares = 
