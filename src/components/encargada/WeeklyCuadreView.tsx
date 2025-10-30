@@ -546,10 +546,17 @@ export function WeeklyCuadreView() {
       encargadaData?.forEach(cuadre => {
         if (cuadre.agency_id && agencyData[cuadre.agency_id]) {
           const agency = agencyData[cuadre.agency_id];
+          console.log(`📊 Agregando cuadre para ${agency.agency_name}:`, {
+            diferencia_final: cuadre.diferencia_final,
+            excess_usd: cuadre.excess_usd,
+            pending_prizes: cuadre.pending_prizes,
+            cash_bs: cuadre.cash_available_bs
+          });
           agency.totalCashAvailable += Number(cuadre.cash_available_bs || 0);
           agency.totalCashAvailableUsd += Number(cuadre.cash_available_usd || 0);
           agency.totalBanco += Number(cuadre.total_banco_bs || 0);
           agency.premiosPorPagar += Number(cuadre.pending_prizes || 0);
+          // CRITICAL: Always use the saved diferencia_final from DB
           agency.diferenciaFinal += Number(cuadre.diferencia_final || 0);
           agency.excessUsd += Number(cuadre.excess_usd || 0);
           agency.total_sessions += 1;
@@ -1241,6 +1248,9 @@ export function WeeklyCuadreView() {
             };
             // Use the saved diferencia_final from database instead of recalculating
             const agencyFinal = agency.diferenciaFinal;
+            
+            // Check if agency has any data
+            const hasData = agency.total_sessions > 0 || agency.totalSales.bs > 0 || agency.totalSales.usd > 0;
             const agencyBalanced = Math.abs(agencyFinal) <= 100;
 
             return (
@@ -1255,16 +1265,18 @@ export function WeeklyCuadreView() {
                         </CardTitle>
                         <div className="flex items-center gap-2">
                           <div className="text-right">
-                            <div className={`text-sm font-medium ${agencyBalanced ? 'text-success' : 'text-destructive'}`}>
-                              {formatCurrency(agencyFinal, 'VES')}
+                            <div className={`text-sm font-medium ${!hasData ? 'text-muted-foreground' : agencyBalanced ? 'text-success' : 'text-destructive'}`}>
+                              {hasData ? formatCurrency(agencyFinal, 'VES') : 'Sin datos'}
                             </div>
                             <div className="text-xs text-muted-foreground">
                               Balance Final
                             </div>
                           </div>
-                          <Badge variant={agencyBalanced ? 'default' : 'destructive'} className="text-xs">
-                            {agencyBalanced ? 'Cuadrado' : 'Diferencia'}
-                          </Badge>
+                          {hasData && (
+                            <Badge variant={agencyBalanced ? 'default' : 'destructive'} className="text-xs">
+                              {agencyBalanced ? 'Cuadrado' : 'Diferencia'}
+                            </Badge>
+                          )}
                           <ChevronDown className="h-4 w-4 transition-transform [&[data-state=open]]:rotate-180" />
                         </div>
                       </div>
@@ -1328,8 +1340,8 @@ export function WeeklyCuadreView() {
                             </div>
                             <div className="text-center p-2 bg-primary/10 rounded border border-primary/20">
                               <p className="text-xs text-muted-foreground">Balance Final</p>
-                              <p className={`text-sm font-bold ${agencyBalanced ? 'text-success' : 'text-destructive'}`}>
-                                {formatCurrency(agencyFinal, 'VES')}
+                              <p className={`text-sm font-bold ${!hasData ? 'text-muted-foreground' : agencyBalanced ? 'text-success' : 'text-destructive'}`}>
+                                {hasData ? formatCurrency(agencyFinal, 'VES') : 'Sin datos'}
                               </p>
                             </div>
                           </div>

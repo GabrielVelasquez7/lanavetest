@@ -196,7 +196,7 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
           .eq('transaction_date', dateStr),
         supabase
           .from('daily_cuadres_summary')
-          .select('cash_available_bs, cash_available_usd, exchange_rate, closure_notes, daily_closure_confirmed, notes, pending_prizes')
+          .select('cash_available_bs, cash_available_usd, exchange_rate, closure_notes, daily_closure_confirmed, notes, pending_prizes, excess_usd, diferencia_final')
           .eq('agency_id', selectedAgency)
           .eq('session_date', dateStr)
           .is('session_id', null)
@@ -257,6 +257,15 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
       const closureConfirmed = summaryData?.daily_closure_confirmed || false;
       const pendingPrizesFromSummary = Number(summaryData?.pending_prizes || 0);
       setPendingPrizesInput(pendingPrizesFromSummary.toString());
+      
+      console.log('📖 Leyendo valores guardados de BD:', {
+        agency: selectedAgency,
+        date: dateStr,
+        excess_usd: summaryData?.excess_usd,
+        diferencia_final: summaryData?.diferencia_final,
+        pending_prizes: summaryData?.pending_prizes,
+        cash_bs: summaryData?.cash_available_bs
+      });
       
       // Parse notes field for additional data
       let additionalAmountBs = 0;
@@ -411,6 +420,7 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
         balance_before_pending_prizes_bs: diferenciaCierre,
         diferencia_final: diferenciaFinal,
         balance_bs: diferenciaFinal, // mantener compatibilidad
+        excess_usd: excessUsd, // Guardar excedente USD
         exchange_rate: inputExchangeRate,
         cash_available_bs: inputCashAvailableBs,
         cash_available_usd: inputCashAvailableUsd,
@@ -419,6 +429,16 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
         daily_closure_confirmed: true,
         is_closed: true
       };
+
+      console.log('💾 Guardando cuadre con valores calculados:', {
+        agency: selectedAgency,
+        date: dateStr,
+        diferencia_final: diferenciaFinal,
+        excess_usd: excessUsd,
+        pending_prizes: inputPendingPrizes,
+        sumatoriaBolivares,
+        cuadreVentasPremiosBs
+      });
 
       // Deterministic merge to avoid ON CONFLICT affecting row twice
       const { data: existingSummary, error: findSummaryError } = await supabase
@@ -447,6 +467,8 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
       }
 
       if (error) throw error;
+
+      console.log('✅ Cuadre guardado exitosamente. Ahora refrescando datos...');
 
       toast({
         title: 'Éxito',
@@ -743,108 +765,68 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
         </CardContent>
       </Card>
 
-      {/* Main Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Total Sales */}
-        <Card className="border-2 border-green-200">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-green-700">Total Ventas</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-1">
-            <p className="text-xl font-bold text-green-600">
-              {formatCurrency(cuadre.totalSales.bs, 'VES')}
-            </p>
-            <p className="text-sm text-green-600">
-              {formatCurrency(cuadre.totalSales.usd, 'USD')}
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* Total Prizes */}
-        <Card className="border-2 border-red-200">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-red-700">Total Premios Pagados</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-1">
-            <p className="text-xl font-bold text-red-600">
-              {formatCurrency(cuadre.totalPrizes.bs, 'VES')}
-            </p>
-            <p className="text-sm text-red-600">
-              {formatCurrency(cuadre.totalPrizes.usd, 'USD')}
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* Net Sales BS */}
-        <Card className="border-2 border-blue-200">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-blue-700">Cuadre Ventas/Premios (Bs)</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className={`text-xl font-bold ${cuadreVentasPremios.bs >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
-              {formatCurrency(cuadreVentasPremios.bs, 'VES')}
-            </p>
-          </CardContent>
-        </Card>
-
-      </div>
-
-      {/* Detailed Breakdown */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-success flex items-center gap-2">
-              <TrendingUp className="h-4 w-4" />
-              Pago Móvil Recibidos
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xl font-bold text-success">
-              {formatCurrency(cuadre.pagoMovilRecibidos, 'VES')}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-destructive flex items-center gap-2">
-              <TrendingDown className="h-4 w-4" />
-              Pago Móvil Pagados
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xl font-bold text-destructive">
-              {formatCurrency(cuadre.pagoMovilPagados, 'VES')}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-primary">
-              Punto de Venta
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xl font-bold text-primary">
-              {formatCurrency(cuadre.totalPointOfSale, 'VES')}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="border-2 border-orange-200">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-orange-700">
-              Premios Por Pagar
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xl font-bold text-orange-600">
-              {formatCurrency(cuadre.pendingPrizes, 'VES')}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Resumen Consolidado */}
+      <Card className="border-2 border-primary/20">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Calculator className="h-5 w-5" />
+            Resumen General
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid md:grid-cols-2 gap-6">
+            {/* Bolívares */}
+            <div className="space-y-3">
+              <h3 className="font-semibold border-b pb-2">Bolívares (Bs)</h3>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded">
+                  <p className="text-xs text-muted-foreground">Ventas</p>
+                  <p className="text-lg font-bold text-green-600">{formatCurrency(cuadre.totalSales.bs, 'VES')}</p>
+                </div>
+                <div className="bg-red-50 dark:bg-red-900/20 p-3 rounded">
+                  <p className="text-xs text-muted-foreground">Premios</p>
+                  <p className="text-lg font-bold text-red-600">{formatCurrency(cuadre.totalPrizes.bs, 'VES')}</p>
+                </div>
+                <div className="bg-orange-50 dark:bg-orange-900/20 p-3 rounded">
+                  <p className="text-xs text-muted-foreground">P. Móvil Recibido</p>
+                  <p className="text-sm font-semibold">{formatCurrency(cuadre.pagoMovilRecibidos, 'VES')}</p>
+                </div>
+                <div className="bg-orange-50 dark:bg-orange-900/20 p-3 rounded">
+                  <p className="text-xs text-muted-foreground">P. Móvil Pagado</p>
+                  <p className="text-sm font-semibold text-destructive">{formatCurrency(cuadre.pagoMovilPagados, 'VES')}</p>
+                </div>
+                <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded">
+                  <p className="text-xs text-muted-foreground">Punto de Venta</p>
+                  <p className="text-sm font-semibold">{formatCurrency(cuadre.totalPointOfSale, 'VES')}</p>
+                </div>
+                <div className="bg-amber-50 dark:bg-amber-900/20 p-3 rounded">
+                  <p className="text-xs text-muted-foreground">Premios por Pagar</p>
+                  <p className="text-sm font-semibold text-amber-600">{formatCurrency(cuadre.pendingPrizes, 'VES')}</p>
+                </div>
+              </div>
+            </div>
+            
+            {/* Dólares */}
+            <div className="space-y-3">
+              <h3 className="font-semibold border-b pb-2">Dólares (USD)</h3>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded">
+                  <p className="text-xs text-muted-foreground">Ventas</p>
+                  <p className="text-lg font-bold text-green-600">{formatCurrency(cuadre.totalSales.usd, 'USD')}</p>
+                </div>
+                <div className="bg-red-50 dark:bg-red-900/20 p-3 rounded">
+                  <p className="text-xs text-muted-foreground">Premios</p>
+                  <p className="text-lg font-bold text-red-600">{formatCurrency(cuadre.totalPrizes.usd, 'USD')}</p>
+                </div>
+                <div className="bg-purple-50 dark:bg-purple-900/20 p-3 rounded col-span-2">
+                  <p className="text-xs text-muted-foreground">Cuadre (V-P)</p>
+                  <p className="text-lg font-bold text-purple-600">{formatCurrency(cuadreVentasPremios.usd, 'USD')}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Closure Formula Card - Bolivares */}
       <Card className="border-2 border-primary/20 border-l-4 border-l-primary">
