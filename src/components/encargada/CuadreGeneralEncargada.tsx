@@ -518,6 +518,10 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
   const additionalAmountBs = parseFloat(additionalAmountBsInput) || 0;
   const additionalAmountUsd = parseFloat(additionalAmountUsdInput) || 0;
   
+  // Calculate USD sumatoria (same logic as Bolivares)
+  const sumatoriaUsd = cuadre.cashAvailableUsd + cuadre.totalDeudas.usd + cuadre.totalGastos.usd + additionalAmountUsd;
+  const diferenciaUsd = sumatoriaUsd - cuadreVentasPremios.usd;
+  
   // Calculate USD excess using Excel formula: ABS(cuadreVP - efectivo) - adicional
   const excessUsd = Math.abs(cuadreVentasPremios.usd - cuadre.cashAvailableUsd) - additionalAmountUsd;
   
@@ -1018,19 +1022,19 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
               <div className="space-y-4">
-                <h4 className="font-semibold text-sm h-5 flex items-center">Detalles:</h4>
+                <h4 className="font-semibold text-sm h-5 flex items-center">Sumatoria:</h4>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span>Efectivo disponible:</span>
                     <span className="font-medium">{formatCurrency(cuadre.cashAvailableUsd, 'USD')}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Gastos en USD:</span>
-                    <span className="font-medium text-red-600">{formatCurrency(cuadre.totalGastos.usd, 'USD')}</span>
+                    <span>Deudas:</span>
+                    <span className="font-medium">{formatCurrency(cuadre.totalDeudas.usd, 'USD')}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Deudas en USD:</span>
-                    <span className="font-medium text-orange-600">{formatCurrency(cuadre.totalDeudas.usd, 'USD')}</span>
+                    <span>Gastos:</span>
+                    <span className="font-medium">{formatCurrency(cuadre.totalGastos.usd, 'USD')}</span>
                   </div>
                   {additionalAmountUsd > 0 && (
                     <div className="flex justify-between">
@@ -1038,22 +1042,36 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
                       <span className="font-medium">{formatCurrency(additionalAmountUsd, 'USD')}</span>
                     </div>
                   )}
+                  <Separator />
+                  <div className="flex justify-between font-bold">
+                    <span>Total Sumatoria:</span>
+                    <span>{formatCurrency(sumatoriaUsd, 'USD')}</span>
+                  </div>
                 </div>
               </div>
               
               <div className="space-y-4">
-                <h4 className="font-semibold text-sm h-5 flex items-center">Resultado:</h4>
+                <h4 className="font-semibold text-sm h-5 flex items-center">Comparación:</h4>
                 <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span>Sumatoria:</span>
+                    <span className="font-medium">{formatCurrency(sumatoriaUsd, 'USD')}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Cuadre (V-P):</span>
+                    <span className="font-medium">{formatCurrency(cuadreVentasPremios.usd, 'USD')}</span>
+                  </div>
+                  <Separator className="my-3" />
                   <div className="flex justify-between font-bold text-xl mb-4">
-                    <span>Exceso USD:</span>
-                    <span className={`${excessUsd >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      {formatCurrency(excessUsd, 'USD')}
+                    <span>Diferencia:</span>
+                    <span className={`${Math.abs(diferenciaUsd) <= 5 ? 'text-success' : 'text-destructive'}`}>
+                      {formatCurrency(diferenciaUsd, 'USD')}
                     </span>
                   </div>
                   {applyExcessUsdSwitch && (
                     <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-950/20 rounded border border-blue-200 dark:border-blue-800">
                       <p className="text-xs text-blue-700 dark:text-blue-400">
-                        El exceso USD se convierte a Bs y se suma al cuadre
+                        El exceso USD se convierte a Bs y se suma al cuadre de Bolívares
                       </p>
                     </div>
                   )}
