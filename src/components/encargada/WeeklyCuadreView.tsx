@@ -1,14 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, ChevronLeft, ChevronRight, Calculator, CheckCircle2, XCircle, Save, TrendingUp, TrendingDown, ChevronDown, ChevronRight as ChevronRightIcon, Building2, Search, Receipt, HandCoins, CreditCard, Smartphone, DollarSign, RefreshCw } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, Calculator, CheckCircle2, TrendingUp, TrendingDown, ChevronDown, ChevronRight as ChevronRightIcon, Building2, Receipt, DollarSign, Save } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/components/ui/use-toast';
@@ -110,15 +108,9 @@ export function WeeklyCuadreView() {
     return saved || null;
   });
   
-  const [searchTerm, setSearchTerm] = useState('');
-  
   // State for collapsible dropdowns
   const [gastosOpen, setGastosOpen] = useState(false);
   const [deudasOpen, setDeudasOpen] = useState(false);
-  
-  // State for exchange rate editor
-  const [exchangeRateInput, setExchangeRateInput] = useState<string>('36.00');
-  const [isEditingRate, setIsEditingRate] = useState(false);
 
   // Guardar agencia seleccionada en localStorage cuando cambie
   useEffect(() => {
@@ -128,11 +120,6 @@ export function WeeklyCuadreView() {
       localStorage.removeItem('encargada:weekly:selectedAgency');
     }
   }, [selectedAgency]);
-
-  // Filter agencies based on search and selection
-  const filteredAgencies = allAgencies.filter(agency =>
-    agency.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
 
   // Get filtered summary based on selected agency
   const getFilteredSummary = (): WeeklyData => {
@@ -211,13 +198,6 @@ export function WeeklyCuadreView() {
       fetchWeeklyData();
     }
   }, [currentWeek, user, allAgencies.length]);
-  
-  // Update exchange rate input when weekly data changes (only on initial load)
-  useEffect(() => {
-    if (weeklyData && exchangeRateInput === '36.00') {
-      setExchangeRateInput(weeklyData.averageExchangeRate.toFixed(2));
-    }
-  }, [weeklyData]);
 
   const fetchAgencies = async () => {
     try {
@@ -784,7 +764,7 @@ export function WeeklyCuadreView() {
     return (
       <div className="flex items-center justify-center p-8">
         <div className="text-center">
-          <XCircle className="h-8 w-8 mx-auto mb-4 text-muted-foreground" />
+          <Calculator className="h-8 w-8 mx-auto mb-4 text-muted-foreground" />
           <p>No hay datos para mostrar</p>
         </div>
       </div>
@@ -857,220 +837,83 @@ export function WeeklyCuadreView() {
 
       {/* Agency Filter */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Filtrar por Agencia</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1">
-              <Label htmlFor="agency-search">Buscar Agencia</Label>
-              <div className="relative">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="agency-search"
-                  placeholder="Escriba el nombre de la agencia..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-8"
-                />
-              </div>
-            </div>
-            <div className="flex-1">
-              <Label htmlFor="agency-select">Seleccionar Agencia</Label>
-              <Select value={selectedAgency || 'all'} onValueChange={(value) => setSelectedAgency(value === 'all' ? null : value)}>
-                <SelectTrigger id="agency-select">
-                  <SelectValue placeholder="Todas las agencias" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas las agencias</SelectItem>
-                  {filteredAgencies.map((agency) => (
-                    <SelectItem key={agency.id} value={agency.id}>
-                      {agency.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          {selectedAgency && (
-            <div className="mt-4 p-3 bg-muted/50 rounded-lg">
-              <p className="text-sm text-muted-foreground">
-                Mostrando datos para: <strong>{allAgencies.find(a => a.id === selectedAgency)?.name}</strong>
-              </p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Exchange Rate Editor */}
-      <Card className="border-2 border-amber-200 bg-amber-50/50 dark:bg-amber-950/20">
-        <CardHeader>
-          <CardTitle className="text-amber-700 dark:text-amber-500 flex items-center gap-2 text-base">
-            💱 Editor de Tasa de Cambio
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-3">
-            <div className="space-y-1 flex-shrink-0">
-              <Label htmlFor="weekly-exchange-rate" className="text-sm">Tasa BCV (Bs/$)</Label>
-              <Input
-                id="weekly-exchange-rate"
-                type="number"
-                step="0.01"
-                value={exchangeRateInput}
-                onChange={(e) => {
-                  setExchangeRateInput(e.target.value);
-                }}
-                className="text-center font-mono w-32"
-              />
-            </div>
-            
-            <Button 
-              onClick={async () => {
-                const newRate = parseFloat(exchangeRateInput) || 36.00;
-                if (weeklyData && currentWeek) {
-                  try {
-                    const startStr = format(currentWeek.start, 'yyyy-MM-dd');
-                    const endStr = format(currentWeek.end, 'yyyy-MM-dd');
-                    
-                    // Update all records for this week with the new exchange rate
-                    const { error } = await supabase
-                      .from('daily_cuadres_summary')
-                      .update({ exchange_rate: newRate })
-                      .gte('session_date', startStr)
-                      .lte('session_date', endStr);
-
-                    if (error) throw error;
-
-                    setWeeklyData({
-                      ...weeklyData,
-                      averageExchangeRate: newRate
-                    });
-                    setExchangeRateInput(newRate.toFixed(2));
-                    toast({
-                      title: "Tasa actualizada",
-                      description: `Nueva tasa guardada: ${newRate.toFixed(2)} Bs/$`,
-                    });
-                  } catch (error: any) {
-                    console.error('Error updating exchange rate:', error);
-                    toast({
-                      title: "Error",
-                      description: "No se pudo actualizar la tasa de cambio",
-                      variant: "destructive",
-                    });
-                  }
-                }
-              }}
-              className="mt-6"
-              size="sm"
-            >
-              <Save className="h-4 w-4 mr-2" />
-              Guardar Tasa
-            </Button>
-            
-            <div className="text-xs text-muted-foreground mt-6">
-              Promedio actual: <span className="font-semibold">{summary.averageExchangeRate.toFixed(2)}</span>
-            </div>
+        <CardContent className="pt-6">
+          <div className="space-y-2">
+            <Select value={selectedAgency || 'all'} onValueChange={(value) => setSelectedAgency(value === 'all' ? null : value)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Todas las agencias" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas las agencias</SelectItem>
+                {allAgencies.map((agency) => (
+                  <SelectItem key={agency.id} value={agency.id}>
+                    {agency.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>
 
-      {/* Main Summary Cards - Total for all agencies */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Sales Card */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Ventas Totales</CardTitle>
-            <TrendingUp className="h-4 w-4 text-green-600" />
+      {/* Main Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card className="border-2 border-green-200">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-green-700 flex items-center gap-2">
+              <TrendingUp className="h-4 w-4" />
+              Total Ventas
+            </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-1">
-              <div className="text-2xl font-bold text-green-600">
-                {formatCurrency(summary.totalSales.bs, 'VES')}
-              </div>
-              <div className="text-sm text-muted-foreground">
-                {formatCurrency(summary.totalSales.usd, 'USD')}
-              </div>
-            </div>
+          <CardContent className="space-y-1">
+            <p className="text-2xl font-bold text-green-600">{formatCurrency(summary.totalSales.bs, 'VES')}</p>
+            <p className="text-sm text-green-600">{formatCurrency(summary.totalSales.usd, 'USD')}</p>
           </CardContent>
         </Card>
 
-        {/* Prizes Card */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Premios Totales</CardTitle>
-            <TrendingDown className="h-4 w-4 text-red-600" />
+        <Card className="border-2 border-red-200">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-red-700 flex items-center gap-2">
+              <TrendingDown className="h-4 w-4" />
+              Total Premios
+            </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-1">
-              <div className="text-2xl font-bold text-red-600">
-                {formatCurrency(summary.totalPrizes.bs, 'VES')}
-              </div>
-              <div className="text-sm text-muted-foreground">
-                {formatCurrency(summary.totalPrizes.usd, 'USD')}
-              </div>
-            </div>
+          <CardContent className="space-y-1">
+            <p className="text-2xl font-bold text-red-600">{formatCurrency(summary.totalPrizes.bs, 'VES')}</p>
+            <p className="text-sm text-red-600">{formatCurrency(summary.totalPrizes.usd, 'USD')}</p>
           </CardContent>
         </Card>
 
-        {/* Cuadre Card */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Cuadre (Ventas - Premios)</CardTitle>
-            <Receipt className="h-4 w-4 text-blue-600" />
+        <Card className="border-2 border-blue-200">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-blue-700 flex items-center gap-2">
+              <Receipt className="h-4 w-4" />
+              Cuadre (V-P)
+            </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-1">
-              <div className="text-2xl font-bold text-blue-600">
-                {formatCurrency(cuadreVentasPremios.bs, 'VES')}
-              </div>
-              <div className="text-sm text-muted-foreground">
-                {formatCurrency(cuadreVentasPremios.usd, 'USD')}
-              </div>
-            </div>
+          <CardContent className="space-y-1">
+            <p className="text-2xl font-bold text-blue-600">{formatCurrency(cuadreVentasPremios.bs, 'VES')}</p>
+            <p className="text-sm text-blue-600">{formatCurrency(cuadreVentasPremios.usd, 'USD')}</p>
           </CardContent>
         </Card>
 
-        {/* Final Balance Card */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Balance Final</CardTitle>
-            {isCuadreBalanced ? (
-              <CheckCircle2 className="h-4 w-4 text-green-600" />
-            ) : (
-              <XCircle className="h-4 w-4 text-red-600" />
-            )}
+        <Card className="border-2 border-purple-200">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-purple-700 flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4" />
+              Balance Final
+            </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-1">
-              <div className={`text-2xl font-bold ${isCuadreBalanced ? 'text-green-600' : 'text-red-600'}`}>
-                {formatCurrency(diferenciaFinal, 'VES')}
-              </div>
-              <div className="flex items-center gap-2">
-                <Badge variant={isCuadreBalanced ? 'default' : 'destructive'} className="text-xs">
-                  {isCuadreBalanced ? 'Cuadrado' : 'Con diferencia'}
-                </Badge>
-              </div>
-            </div>
+          <CardContent className="space-y-1">
+            <p className={`text-2xl font-bold ${isCuadreBalanced ? 'text-green-600' : 'text-red-600'}`}>
+              {formatCurrency(diferenciaFinal, 'VES')}
+            </p>
+            <Badge variant={isCuadreBalanced ? 'default' : 'destructive'} className="text-xs">
+              {isCuadreBalanced ? 'Cuadrado' : 'Con diferencia'}
+            </Badge>
           </CardContent>
         </Card>
       </div>
-
-       {/* Total en Banco Section */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Total en Banco</CardTitle>
-          <DollarSign className="h-4 w-4 text-blue-600" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-blue-600">
-            {formatCurrency(summary.totalBanco, 'VES')}
-          </div>
-          <p className="text-xs text-muted-foreground mt-1">
-            Incluye Pago Móvil y Punto de Venta
-          </p>
-        </CardContent>
-      </Card>
 
       {/* Closure Formula Card - identical to CuadreGeneral */}
       <Card>
@@ -1188,11 +1031,7 @@ export function WeeklyCuadreView() {
               <div className={`p-4 rounded-lg ${isCuadreBalanced ? 'bg-green-50 dark:bg-green-900/20' : 'bg-red-50 dark:bg-red-900/20'}`}>
                 <div className="text-center space-y-2">
                   <div className="flex items-center justify-center gap-2">
-                    {isCuadreBalanced ? (
-                      <CheckCircle2 className="h-5 w-5 text-green-600" />
-                    ) : (
-                      <XCircle className="h-5 w-5 text-red-600" />
-                    )}
+                    <CheckCircle2 className={`h-5 w-5 ${isCuadreBalanced ? 'text-green-600' : 'text-red-600'}`} />
                     <span className="text-sm text-muted-foreground">Diferencia Final</span>
                   </div>
                   <div className={`text-2xl font-bold font-mono ${isCuadreBalanced ? 'text-green-600' : 'text-red-600'}`}>
@@ -1300,11 +1139,7 @@ export function WeeklyCuadreView() {
                     <div className="flex items-center gap-3">
                       <div className="capitalize font-medium">{day.day_name}</div>
                       <div className="text-sm text-muted-foreground">{format(new Date(day.day_date), 'dd/MM/yyyy')}</div>
-                      {day.is_completed ? (
-                        <CheckCircle2 className="h-4 w-4 text-green-600" />
-                      ) : (
-                        <XCircle className="h-4 w-4 text-muted-foreground" />
-                      )}
+                      <CheckCircle2 className={`h-4 w-4 ${day.is_completed ? 'text-green-600' : 'text-muted-foreground'}`} />
                     </div>
                     <div className="text-sm text-muted-foreground">
                       {day.sessions_count} sesiones
@@ -1338,7 +1173,7 @@ export function WeeklyCuadreView() {
         </Collapsible>
       </Card>
 
-      {/* Weekly closure section */}
+      {/* Weekly closure */}
       {!weeklyData.is_weekly_closed && (
         <Card>
           <CardHeader>
@@ -1348,16 +1183,11 @@ export function WeeklyCuadreView() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="closure-notes">Notas de cierre semanal</Label>
-              <Textarea
-                id="closure-notes"
-                placeholder="Observaciones del cierre semanal..."
-                value={closureNotes}
-                onChange={(e) => setClosureNotes(e.target.value)}
-                className="mt-1"
-              />
-            </div>
+            <Textarea
+              placeholder="Observaciones del cierre semanal..."
+              value={closureNotes}
+              onChange={(e) => setClosureNotes(e.target.value)}
+            />
             <Button onClick={closeWeek} className="w-full">
               <Save className="h-4 w-4 mr-2" />
               Cerrar Semana
