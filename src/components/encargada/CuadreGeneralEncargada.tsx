@@ -518,9 +518,10 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
   const additionalAmountBs = parseFloat(additionalAmountBsInput) || 0;
   const additionalAmountUsd = parseFloat(additionalAmountUsdInput) || 0;
   
-  // Calculate USD sumatoria (same logic as Bolivares)
-  const sumatoriaUsd = cuadre.cashAvailableUsd + cuadre.totalDeudas.usd + cuadre.totalGastos.usd + additionalAmountUsd;
-  const diferenciaUsd = sumatoriaUsd - cuadreVentasPremios.usd;
+  // Calculate USD sumatoria (without additional amount)
+  const sumatoriaUsd = cuadre.cashAvailableUsd + cuadre.totalDeudas.usd + cuadre.totalGastos.usd;
+  const diferenciaInicialUsd = sumatoriaUsd - cuadreVentasPremios.usd;
+  const diferenciaFinalUsd = diferenciaInicialUsd - additionalAmountUsd;
   
   // Calculate USD excess using Excel formula: ABS(cuadreVP - efectivo) - adicional
   const excessUsd = Math.abs(cuadreVentasPremios.usd - cuadre.cashAvailableUsd) - additionalAmountUsd;
@@ -1036,12 +1037,6 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
                     <span>Gastos:</span>
                     <span className="font-medium">{formatCurrency(cuadre.totalGastos.usd, 'USD')}</span>
                   </div>
-                  {additionalAmountUsd > 0 && (
-                    <div className="flex justify-between">
-                      <span>Monto adicional:</span>
-                      <span className="font-medium">{formatCurrency(additionalAmountUsd, 'USD')}</span>
-                    </div>
-                  )}
                   <Separator />
                   <div className="flex justify-between font-bold">
                     <span>Total Sumatoria:</span>
@@ -1061,11 +1056,21 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
                     <span>Cuadre (V-P):</span>
                     <span className="font-medium">{formatCurrency(cuadreVentasPremios.usd, 'USD')}</span>
                   </div>
+                  <div className="flex justify-between text-sm text-muted-foreground">
+                    <span>Diferencia inicial:</span>
+                    <span className="font-medium">{formatCurrency(diferenciaInicialUsd, 'USD')}</span>
+                  </div>
+                  {additionalAmountUsd > 0 && (
+                    <div className="flex justify-between text-sm text-muted-foreground">
+                      <span>Menos: Monto adicional:</span>
+                      <span className="font-medium">-{formatCurrency(additionalAmountUsd, 'USD')}</span>
+                    </div>
+                  )}
                   <Separator className="my-3" />
                   <div className="flex justify-between font-bold text-xl mb-4">
-                    <span>Diferencia:</span>
-                    <span className={`${Math.abs(diferenciaUsd) <= 5 ? 'text-success' : 'text-destructive'}`}>
-                      {formatCurrency(diferenciaUsd, 'USD')}
+                    <span>Diferencia Final:</span>
+                    <span className={`${Math.abs(diferenciaFinalUsd) <= 5 ? 'text-success' : 'text-destructive'}`}>
+                      {formatCurrency(diferenciaFinalUsd, 'USD')}
                     </span>
                   </div>
                   {applyExcessUsdSwitch && (
