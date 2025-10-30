@@ -1,87 +1,44 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, ChevronLeft, ChevronRight, Calculator, CheckCircle2, TrendingUp, TrendingDown, ChevronDown, ChevronRight as ChevronRightIcon, Building2, Receipt, DollarSign, Save, RefreshCcw } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, Building2, DollarSign, RefreshCcw, AlertCircle, TrendingUp, TrendingDown } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/components/ui/use-toast';
 import { formatCurrency } from '@/lib/utils';
-import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval } from 'date-fns';
+import { format, startOfWeek, endOfWeek, addWeeks, subWeeks } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-
-interface WeeklyData {
-  // Sales & Prizes
-  totalSales: { bs: number; usd: number };
-  totalPrizes: { bs: number; usd: number };
-  
-  // Expenses separated by category
-  totalGastos: { bs: number; usd: number };
-  totalDeudas: { bs: number; usd: number };
-  
-  // Detailed expenses for dropdowns
-  gastosDetails: Array<{ description: string; amount_bs: number; amount_usd: number; created_at: string; agency_name?: string }>;
-  deudasDetails: Array<{ description: string; amount_bs: number; amount_usd: number; created_at: string; agency_name?: string }>;
-  
-  // Total en banco (Pago Móvil Recibidos + POS - Pago Móvil Pagados)
-  totalBanco: number;
-  
-  // Cash available (aggregated)
-  totalCashAvailable: number;
-  totalCashAvailableUsd: number;
-  
-  // Pending prizes
-  premiosPorPagar: number;
-  
-  // Inter-agency loans
-  prestamos_otorgados: { bs: number; usd: number };
-  prestamos_recibidos: { bs: number; usd: number };
-  
-  // Average exchange rate for the week 
-  averageExchangeRate: number;
-  
-  // Week info
-  total_sessions: number;
-  is_weekly_closed: boolean;
-  weekly_closure_notes: string;
-}
-
-interface AgencyWeeklyData {
+interface AgencyWeeklySummary {
   agency_id: string;
   agency_name: string;
-  totalSales: { bs: number; usd: number };
-  totalPrizes: { bs: number; usd: number };
-  totalGastos: { bs: number; usd: number };
-  totalDeudas: { bs: number; usd: number };
-  totalBanco: number;
-  totalCashAvailable: number;
-  totalCashAvailableUsd: number;
-  premiosPorPagar: number;
-  averageExchangeRate: number;
-  total_sessions: number;
-  is_weekly_closed: boolean;
-  prestamos_otorgados: { bs: number; usd: number };
-  prestamos_recibidos: { bs: number; usd: number };
-  diferenciaFinal: number; // Balance final ya calculado y guardado
-  excessUsd: number; // Excedente USD guardado
-}
-
-interface DailyDetail {
-  day_date: string;
-  day_name: string;
+  
+  // Ventas y Premios
   total_sales_bs: number;
   total_sales_usd: number;
   total_prizes_bs: number;
   total_prizes_usd: number;
-  balance_bs: number;
-  balance_usd: number;
-  sessions_count: number;
-  is_completed: boolean;
+  
+  // Deudas y Gastos
+  total_deudas_bs: number;
+  total_deudas_usd: number;
+  total_gastos_bs: number;
+  total_gastos_usd: number;
+  
+  // Premios por pagar
+  premios_por_pagar: number;
+  
+  // Total en banco
+  total_banco_bs: number;
+  
+  // Tasa de cambio (domingo)
+  exchange_rate: number;
+  
+  // Balance final
+  diferencia_final: number;
+  excess_usd: number;
 }
 
 interface WeekBoundaries {
@@ -94,139 +51,31 @@ interface WeekBoundaries {
 export function WeeklyCuadreView() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [weeklyData, setWeeklyData] = useState<WeeklyData | null>(null);
-  const [agenciesData, setAgenciesData] = useState<AgencyWeeklyData[]>([]);
-  const [dailyDetails, setDailyDetails] = useState<DailyDetail[]>([]);
+  const [agenciesSummary, setAgenciesSummary] = useState<AgencyWeeklySummary[]>([]);
   const [loading, setLoading] = useState(true);
-  const [closureNotes, setClosureNotes] = useState('');
   const [currentWeek, setCurrentWeek] = useState<WeekBoundaries | null>(null);
-  const [allAgencies, setAllAgencies] = useState<{ id: string; name: string }[]>([]);
-  const [isDailyOpen, setIsDailyOpen] = useState(false);
-  const [activeAgencyTab, setActiveAgencyTab] = useState('resumen');
-  
-  // Persistir agencia seleccionada en localStorage
-  const [selectedAgency, setSelectedAgency] = useState<string | null>(() => {
-    const saved = localStorage.getItem('encargada:weekly:selectedAgency');
-    return saved || null;
-  });
-  
-  // State for collapsible dropdowns
-  const [gastosOpen, setGastosOpen] = useState(false);
-  const [deudasOpen, setDeudasOpen] = useState(false);
-
-  // Guardar agencia seleccionada en localStorage cuando cambie
-  useEffect(() => {
-    if (selectedAgency) {
-      localStorage.setItem('encargada:weekly:selectedAgency', selectedAgency);
-    } else {
-      localStorage.removeItem('encargada:weekly:selectedAgency');
-    }
-  }, [selectedAgency]);
-
-  // Re-fetch on window focus/visibility to avoid stale data
-  useEffect(() => {
-    const onFocus = () => fetchWeeklyData();
-    const onVis = () => { if (document.visibilityState === 'visible') fetchWeeklyData(); };
-    window.addEventListener('focus', onFocus);
-    document.addEventListener('visibilitychange', onVis);
-    return () => {
-      window.removeEventListener('focus', onFocus);
-      document.removeEventListener('visibilitychange', onVis);
-    };
-  }, [currentWeek, user, allAgencies.length, selectedAgency]);
-
-  // Get filtered summary based on selected agency
-  const getFilteredSummary = (): WeeklyData => {
-    if (!weeklyData) return {
-      totalSales: { bs: 0, usd: 0 },
-      totalPrizes: { bs: 0, usd: 0 },
-      totalGastos: { bs: 0, usd: 0 },
-      totalDeudas: { bs: 0, usd: 0 },
-      gastosDetails: [],
-      deudasDetails: [],
-      totalBanco: 0,
-      totalCashAvailable: 0,
-      totalCashAvailableUsd: 0,
-      premiosPorPagar: 0,
-      prestamos_otorgados: { bs: 0, usd: 0 },
-      prestamos_recibidos: { bs: 0, usd: 0 },
-      averageExchangeRate: 36.00,
-      total_sessions: 0,
-      is_weekly_closed: false,
-      weekly_closure_notes: '',
-    };
-
-    if (!selectedAgency) return weeklyData;
-
-    // Find agency data
-    const agencyData = agenciesData.find(a => a.agency_id === selectedAgency);
-    if (!agencyData) {
-      // Return zeroed summary if agency has no data
-      return {
-        totalSales: { bs: 0, usd: 0 },
-        totalPrizes: { bs: 0, usd: 0 },
-        totalGastos: { bs: 0, usd: 0 },
-        totalDeudas: { bs: 0, usd: 0 },
-        gastosDetails: [],
-        deudasDetails: [],
-        totalBanco: 0,
-        totalCashAvailable: 0,
-        totalCashAvailableUsd: 0,
-        premiosPorPagar: 0,
-        prestamos_otorgados: { bs: 0, usd: 0 },
-        prestamos_recibidos: { bs: 0, usd: 0 },
-        averageExchangeRate: 36.00,
-        total_sessions: 0,
-        is_weekly_closed: false,
-        weekly_closure_notes: '',
-      };
-    }
-
-    return {
-      ...weeklyData,
-      totalSales: agencyData.totalSales,
-      totalPrizes: agencyData.totalPrizes,
-      totalGastos: agencyData.totalGastos,
-      totalDeudas: agencyData.totalDeudas,
-      totalBanco: agencyData.totalBanco,
-      totalCashAvailable: agencyData.totalCashAvailable,
-      totalCashAvailableUsd: agencyData.totalCashAvailableUsd,
-      premiosPorPagar: agencyData.premiosPorPagar,
-      prestamos_otorgados: agencyData.prestamos_otorgados,
-      prestamos_recibidos: agencyData.prestamos_recibidos,
-      averageExchangeRate: agencyData.averageExchangeRate,
-      total_sessions: agencyData.total_sessions,
-      is_weekly_closed: agencyData.is_weekly_closed,
-    };
-  };
+  const [selectedAgency, setSelectedAgency] = useState<string>('all');
 
   useEffect(() => {
     if (user) {
       getCurrentWeekBoundaries();
-      fetchAgencies();
     }
   }, [user]);
 
   useEffect(() => {
-    if (currentWeek && user && allAgencies.length > 0) {
-      fetchWeeklyData();
+    if (currentWeek && user) {
+      fetchWeeklySummary();
     }
-  }, [currentWeek, user, allAgencies.length]);
+  }, [currentWeek, user]);
 
-  const fetchAgencies = async () => {
-    try {
-      const { data: agencies, error } = await supabase
-        .from('agencies')
-        .select('id, name')
-        .eq('is_active', true)
-        .order('name');
-
-      if (error) throw error;
-      setAllAgencies(agencies || []);
-    } catch (error: any) {
-      console.error('Error fetching agencies:', error);
-    }
-  };
+  // Re-fetch on window focus to avoid stale data
+  useEffect(() => {
+    const onFocus = () => {
+      if (currentWeek && user) fetchWeeklySummary();
+    };
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [currentWeek, user]);
 
   const getCurrentWeekBoundaries = async () => {
     try {
@@ -256,26 +105,15 @@ export function WeeklyCuadreView() {
       }
     } catch (error: any) {
       console.error('Error getting week boundaries:', error);
-      const now = new Date();
-      const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-      const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
-      
-      setCurrentWeek({
-        start: weekStart,
-        end: weekEnd,
-        number: parseInt(format(weekStart, 'w')),
-        year: parseInt(format(weekStart, 'yyyy')),
-      });
-      
       toast({
-        title: "Advertencia",
-        description: "Usando fechas locales. Puede haber diferencias con el timezone de Venezuela",
-        variant: "default",
+        title: "Error",
+        description: "No se pudieron obtener las fechas de la semana",
+        variant: "destructive",
       });
     }
   };
 
-  const fetchWeeklyData = async () => {
+  const fetchWeeklySummary = async () => {
     if (!currentWeek) return;
     
     setLoading(true);
@@ -283,430 +121,161 @@ export function WeeklyCuadreView() {
       const startStr = format(currentWeek.start, 'yyyy-MM-dd');
       const endStr = format(currentWeek.end, 'yyyy-MM-dd');
 
-      // Get sales and prizes from encargada_cuadre_details (the source of truth for ventas/premios)
-      const { data: encargadaCuadreDetails, error: cuadreDetailsError } = await supabase
+      // Get all agencies
+      const { data: agencies, error: agenciesError } = await supabase
+        .from('agencies')
+        .select('id, name')
+        .eq('is_active', true)
+        .order('name');
+
+      if (agenciesError) throw agenciesError;
+
+      // Get sales and prizes from encargada_cuadre_details
+      const { data: cuadreDetails, error: cuadreError } = await supabase
         .from('encargada_cuadre_details')
-        .select('agency_id, session_date, lottery_system_id, sales_bs, sales_usd, prizes_bs, prizes_usd')
+        .select('agency_id, sales_bs, sales_usd, prizes_bs, prizes_usd')
         .gte('session_date', startStr)
         .lte('session_date', endStr);
 
-      if (cuadreDetailsError) throw cuadreDetailsError;
+      if (cuadreError) throw cuadreError;
 
-      // Get encargada editable fields from daily_cuadres_summary (session_id IS NULL)
-      const { data: encargadaData, error: encargadaError } = await supabase
+      // Get encargada summary data (cash, banco, pending prizes, etc.)
+      const { data: summaryData, error: summaryError } = await supabase
         .from('daily_cuadres_summary')
         .select(`
-          cash_available_bs, cash_available_usd, exchange_rate, agency_id, session_date,
-          is_weekly_closed, weekly_closure_notes, pending_prizes, total_mobile_payments_bs, total_pos_bs, total_banco_bs,
-          diferencia_final, excess_usd, notes, created_at, updated_at
+          agency_id, 
+          session_date,
+          total_banco_bs,
+          pending_prizes,
+          exchange_rate,
+          diferencia_final,
+          excess_usd,
+          created_at,
+          updated_at
         `)
-        .is('session_id', null)  // Encargada data
+        .is('session_id', null)
         .gte('session_date', startStr)
         .lte('session_date', endStr);
 
-      if (encargadaError) throw encargadaError;
+      if (summaryError) throw summaryError;
 
-      // Get taquillera cuadres for combined expenses only
-      const { data: taquilleraData, error: taquilleraError } = await supabase
-        .from('daily_cuadres_summary')
+      // Get expenses (deudas and gastos) from both encargada and taquilleras
+      const { data: expenses, error: expensesError } = await supabase
+        .from('expenses')
         .select(`
-          session_id, total_expenses_bs, total_expenses_usd, total_debt_bs, total_debt_usd,
-          agency_id, session_date
+          amount_bs,
+          amount_usd,
+          category,
+          session_id,
+          agency_id,
+          transaction_date
         `)
-        .not('session_id', 'is', null)  // Taquillera data
+        .gte('transaction_date', startStr)
+        .lte('transaction_date', endStr);
+
+      if (expensesError) throw expensesError;
+
+      // Get taquillera sessions to map session_id -> agency_id
+      const { data: sessions, error: sessionsError } = await supabase
+        .from('daily_sessions')
+        .select('id, user_id')
         .gte('session_date', startStr)
         .lte('session_date', endStr);
 
-      if (taquilleraError) throw taquilleraError;
+      if (sessionsError) throw sessionsError;
 
-      // Build session -> agency mapping for taquillera sessions
-      const sessionToAgencyId = new Map<string, string>();
-      taquilleraData?.forEach(row => {
-        if (row.session_id && row.agency_id) {
-          sessionToAgencyId.set(row.session_id, row.agency_id);
+      // Get profiles to map user_id -> agency_id
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('user_id, agency_id');
+
+      if (profilesError) throw profilesError;
+
+      // Build session -> agency mapping
+      const sessionToAgency = new Map<string, string>();
+      sessions?.forEach(session => {
+        const profile = profiles?.find(p => p.user_id === session.user_id);
+        if (profile?.agency_id) {
+          sessionToAgency.set(session.id, profile.agency_id);
         }
       });
 
-      // Get detailed expenses from both encargada and taquilleras
-      const [encargadaExpenses, taquilleraExpenses] = await Promise.all([
-        supabase
-          .from('expenses')
-          .select('amount_bs, amount_usd, category, description, created_at, agency_id')
-          .is('session_id', null)  // Encargada expenses
-          .gte('transaction_date', startStr)
-          .lte('transaction_date', endStr),
-        supabase
-          .from('expenses')
-          .select('amount_bs, amount_usd, category, description, created_at, session_id')
-          .not('session_id', 'is', null)  // Taquillera expenses
-          .gte('transaction_date', startStr)
-          .lte('transaction_date', endStr)
-      ]);
+      // Build agency summaries
+      const agencySummaries: AgencyWeeklySummary[] = (agencies || []).map(agency => {
+        // Sales and prizes
+        const agencyCuadres = cuadreDetails?.filter(c => c.agency_id === agency.id) || [];
+        const total_sales_bs = agencyCuadres.reduce((sum, c) => sum + Number(c.sales_bs || 0), 0);
+        const total_sales_usd = agencyCuadres.reduce((sum, c) => sum + Number(c.sales_usd || 0), 0);
+        const total_prizes_bs = agencyCuadres.reduce((sum, c) => sum + Number(c.prizes_bs || 0), 0);
+        const total_prizes_usd = agencyCuadres.reduce((sum, c) => sum + Number(c.prizes_usd || 0), 0);
 
-      if (encargadaExpenses.error) throw encargadaExpenses.error;
-      if (taquilleraExpenses.error) throw taquilleraExpenses.error;
+        // Expenses for this agency (both from encargada and taquilleras)
+        const agencyExpenses = expenses?.filter(e => {
+          if (e.agency_id === agency.id) return true;
+          if (e.session_id && sessionToAgency.get(e.session_id) === agency.id) return true;
+          return false;
+        }) || [];
 
-      // Get additional encargada data (mobile payments and POS with session_id = null)
-      const [encargadaMobilePayments, encargadaPOS, interAgencyLoans] = await Promise.all([
-        supabase
-          .from('mobile_payments')
-          .select('amount_bs, description, agency_id')
-          .is('session_id', null)
-          .gte('transaction_date', startStr)
-          .lte('transaction_date', endStr),
-        supabase
-          .from('point_of_sale')
-          .select('amount_bs, agency_id')
-          .is('session_id', null)
-          .gte('transaction_date', startStr)
-          .lte('transaction_date', endStr),
-        supabase
-          .from('inter_agency_loans')
-          .select('amount_bs, amount_usd, from_agency_id, to_agency_id, status')
-          .gte('loan_date', startStr)
-          .lte('loan_date', endStr)
-      ]);
+        const deudas = agencyExpenses.filter(e => e.category === 'deuda');
+        const gastos = agencyExpenses.filter(e => e.category === 'gasto_operativo');
 
-      if (encargadaMobilePayments.error) throw encargadaMobilePayments.error;
-      if (encargadaPOS.error) throw encargadaPOS.error;
-      if (interAgencyLoans.error) throw interAgencyLoans.error;
+        const total_deudas_bs = deudas.reduce((sum, d) => sum + Number(d.amount_bs || 0), 0);
+        const total_deudas_usd = deudas.reduce((sum, d) => sum + Number(d.amount_usd || 0), 0);
+        const total_gastos_bs = gastos.reduce((sum, g) => sum + Number(g.amount_bs || 0), 0);
+        const total_gastos_usd = gastos.reduce((sum, g) => sum + Number(g.amount_usd || 0), 0);
 
-      // If no data, return empty state
-      if (!encargadaCuadreDetails?.length && !taquilleraData?.length) {
-        setWeeklyData({
-          totalSales: { bs: 0, usd: 0 },
-          totalPrizes: { bs: 0, usd: 0 },
-          totalGastos: { bs: 0, usd: 0 },
-          totalDeudas: { bs: 0, usd: 0 },
-          gastosDetails: [],
-          deudasDetails: [],
-          totalBanco: 0,
-          totalCashAvailable: 0,
-          totalCashAvailableUsd: 0,
-          premiosPorPagar: 0,
-          prestamos_otorgados: { bs: 0, usd: 0 },
-          prestamos_recibidos: { bs: 0, usd: 0 },
-          averageExchangeRate: 36.00,
-          total_sessions: 0,
-          is_weekly_closed: false,
-          weekly_closure_notes: '',
+        // Get latest summary data for this agency (deduplicated by date)
+        const agencySummaries = summaryData?.filter(s => s.agency_id === agency.id) || [];
+        
+        // Deduplicate by date, keeping the most recent record
+        const latestByDate = new Map<string, any>();
+        agencySummaries.forEach(s => {
+          const existing = latestByDate.get(s.session_date);
+          const existingTime = existing?.updated_at || existing?.created_at;
+          const newTime = s.updated_at || s.created_at;
+          
+          if (!existing || (newTime && existingTime && new Date(newTime) > new Date(existingTime))) {
+            latestByDate.set(s.session_date, s);
+          }
         });
-        setAgenciesData([]);
-        setLoading(false);
-        return;
-      }
 
-      // Calculate totals from encargada_cuadre_details (source of truth for sales/prizes)
-      const totalSales = encargadaCuadreDetails?.reduce(
-        (acc, item) => ({
-          bs: acc.bs + Number(item.sales_bs || 0),
-          usd: acc.usd + Number(item.sales_usd || 0),
-        }),
-        { bs: 0, usd: 0 }
-      ) || { bs: 0, usd: 0 };
+        const uniqueSummaries = Array.from(latestByDate.values());
 
-      const totalPrizes = encargadaCuadreDetails?.reduce(
-        (acc, item) => ({
-          bs: acc.bs + Number(item.prizes_bs || 0),
-          usd: acc.usd + Number(item.prizes_usd || 0),
-        }),
-        { bs: 0, usd: 0 }
-      ) || { bs: 0, usd: 0 };
+        const total_banco_bs = uniqueSummaries.reduce((sum, s) => sum + Number(s.total_banco_bs || 0), 0);
+        const premios_por_pagar = uniqueSummaries.reduce((sum, s) => sum + Number(s.pending_prizes || 0), 0);
+        const diferencia_final = uniqueSummaries.reduce((sum, s) => sum + Number(s.diferencia_final || 0), 0);
+        const excess_usd = uniqueSummaries.reduce((sum, s) => sum + Number(s.excess_usd || 0), 0);
 
-      // Combine expenses from both sources
-      const allGastos = [
-        ...(encargadaExpenses.data?.filter(e => e.category === 'gasto_operativo') || []),
-        ...(taquilleraExpenses.data?.filter(e => e.category === 'gasto_operativo') || [])
-      ];
+        // Get Sunday's exchange rate (last day of week)
+        const sundaySummary = uniqueSummaries.find(s => s.session_date === endStr);
+        const exchange_rate = sundaySummary?.exchange_rate || 36;
 
-      const allDeudas = [
-        ...(encargadaExpenses.data?.filter(e => e.category === 'deuda') || []),
-        ...(taquilleraExpenses.data?.filter(e => e.category === 'deuda') || [])
-      ];
-
-      // Add agency names to expense details
-      const gastosDetails = allGastos.map(gasto => {
-        let agencyName = 'Sin agencia';
-        if ('agency_id' in gasto && gasto.agency_id) {
-          const agency = allAgencies.find(a => a.id === gasto.agency_id);
-          agencyName = agency?.name || 'Sin agencia';
-        } else if ('session_id' in gasto && gasto.session_id) {
-          const mappedAgencyId = sessionToAgencyId.get(gasto.session_id);
-          if (mappedAgencyId) {
-            const agency = allAgencies.find(a => a.id === mappedAgencyId);
-            agencyName = agency?.name || 'Sin agencia';
-          }
-        }
-        return { ...gasto, agency_name: agencyName };
-      });
-
-      const deudasDetails = allDeudas.map(deuda => {
-        let agencyName = 'Sin agencia';
-        if ('agency_id' in deuda && deuda.agency_id) {
-          const agency = allAgencies.find(a => a.id === deuda.agency_id);
-          agencyName = agency?.name || 'Sin agencia';
-        } else if ('session_id' in deuda && deuda.session_id) {
-          const mappedAgencyId = sessionToAgencyId.get(deuda.session_id);
-          if (mappedAgencyId) {
-            const agency = allAgencies.find(a => a.id === mappedAgencyId);
-            agencyName = agency?.name || 'Sin agencia';
-          }
-        }
-        return { ...deuda, agency_name: agencyName };
-      });
-
-      const totalGastos = allGastos.reduce(
-        (acc, item) => ({
-          bs: acc.bs + Number(item.amount_bs || 0),
-          usd: acc.usd + Number(item.amount_usd || 0),
-        }),
-        { bs: 0, usd: 0 }
-      );
-
-      const totalDeudas = allDeudas.reduce(
-        (acc, item) => ({
-          bs: acc.bs + Number(item.amount_bs || 0),
-          usd: acc.usd + Number(item.amount_usd || 0),
-        }),
-        { bs: 0, usd: 0 }
-      );
-
-      // Calculate mobile payments from encargada data
-      const pagoMovilRecibidos = (encargadaMobilePayments.data?.reduce(
-        (sum, item) => {
-          const amount = Number(item.amount_bs || 0);
-          return amount > 0 ? sum + amount : sum;
-        },
-        0
-      ) || 0) + (encargadaData?.reduce((sum, item) => sum + Number(item.total_mobile_payments_bs || 0), 0) || 0);
-
-      const pagoMovilPagados = Math.abs(encargadaMobilePayments.data?.reduce(
-        (sum, item) => {
-          const amount = Number(item.amount_bs || 0);
-          return amount < 0 ? sum + amount : sum;
-        },
-        0
-      ) || 0);
-
-      // Calculate POS from encargada data
-      const totalPointOfSale = (encargadaPOS.data?.reduce(
-        (sum, item) => sum + Number(item.amount_bs || 0),
-        0
-      ) || 0) + (encargadaData?.reduce((sum, item) => sum + Number(item.total_pos_bs || 0), 0) || 0);
-
-      // Calculate Total en Banco (Pago Móvil Recibidos + POS - Pago Móvil Pagados)
-      const totalBanco = pagoMovilRecibidos + totalPointOfSale - pagoMovilPagados;
-
-      // Calculate pending prizes from encargada cuadres
-      const premiosPorPagar = encargadaData?.reduce((sum, item) => sum + Number(item.pending_prizes || 0), 0) || 0;
-
-      // Calculate cash available and exchange rate from encargada data
-      const totalCashAvailable = encargadaData?.reduce((sum, item) => sum + Number(item.cash_available_bs || 0), 0) || 0;
-      const totalCashAvailableUsd = encargadaData?.reduce((sum, item) => sum + Number(item.cash_available_usd || 0), 0) || 0;
-      const averageExchangeRate = encargadaData?.reduce((sum, item) => sum + Number(item.exchange_rate || 36), 0) / (encargadaData?.length || 1) || 36;
-
-      // Build agency-specific data from encargada cuadres
-      const agencyData: { [key: string]: AgencyWeeklyData } = {};
-
-      // Initialize agencies
-      allAgencies.forEach(agency => {
-        agencyData[agency.id] = {
+        return {
           agency_id: agency.id,
           agency_name: agency.name,
-          totalSales: { bs: 0, usd: 0 },
-          totalPrizes: { bs: 0, usd: 0 },
-          totalGastos: { bs: 0, usd: 0 },
-          totalDeudas: { bs: 0, usd: 0 },
-          totalBanco: 0,
-          totalCashAvailable: 0,
-          totalCashAvailableUsd: 0,
-          premiosPorPagar: 0,
-          averageExchangeRate: 36,
-          total_sessions: 0,
-          is_weekly_closed: false,
-          prestamos_otorgados: { bs: 0, usd: 0 },
-          prestamos_recibidos: { bs: 0, usd: 0 },
-          diferenciaFinal: 0,
-          excessUsd: 0,
+          total_sales_bs,
+          total_sales_usd,
+          total_prizes_bs,
+          total_prizes_usd,
+          total_deudas_bs,
+          total_deudas_usd,
+          total_gastos_bs,
+          total_gastos_usd,
+          premios_por_pagar,
+          total_banco_bs,
+          exchange_rate,
+          diferencia_final,
+          excess_usd,
         };
       });
 
-      // Aggregate sales and prizes from encargada_cuadre_details
-      encargadaCuadreDetails?.forEach(detail => {
-        if (detail.agency_id && agencyData[detail.agency_id]) {
-          const agency = agencyData[detail.agency_id];
-          agency.totalSales.bs += Number(detail.sales_bs || 0);
-          agency.totalSales.usd += Number(detail.sales_usd || 0);
-          agency.totalPrizes.bs += Number(detail.prizes_bs || 0);
-          agency.totalPrizes.usd += Number(detail.prizes_usd || 0);
-        }
-      });
-
-      // Aggregate editable fields from encargada daily_cuadres_summary (dedupe by agency+date, keep latest)
-      const latestEncargadaByDay: Record<string, any> = {};
-      encargadaData?.forEach((c: any) => {
-        if (!c.agency_id || !c.session_date) return;
-        const key = `${c.agency_id}|${c.session_date}`;
-        const current = latestEncargadaByDay[key];
-        const currentTime = current?.updated_at || current?.created_at;
-        const newTime = c.updated_at || c.created_at;
-        if (!current || (newTime && currentTime && new Date(newTime) > new Date(currentTime))) {
-          latestEncargadaByDay[key] = c;
-        }
-      });
-
-      const encargadaRows = Object.values(latestEncargadaByDay);
-
-      encargadaRows.forEach((cuadre: any) => {
-        if (cuadre.agency_id && agencyData[cuadre.agency_id]) {
-          const agency = agencyData[cuadre.agency_id];
-          console.log(`📊 Agregando cuadre para ${agency.agency_name}:`, {
-            diferencia_final: cuadre.diferencia_final,
-            excess_usd: cuadre.excess_usd,
-            pending_prizes: cuadre.pending_prizes,
-            cash_bs: cuadre.cash_available_bs
-          });
-          agency.totalCashAvailable += Number(cuadre.cash_available_bs || 0);
-          agency.totalCashAvailableUsd += Number(cuadre.cash_available_usd || 0);
-          agency.totalBanco += Number(cuadre.total_banco_bs || 0);
-          agency.premiosPorPagar += Number(cuadre.pending_prizes || 0);
-          // CRITICAL: Always use the saved diferencia_final from latest DB row
-          agency.diferenciaFinal += Number(cuadre.diferencia_final || 0);
-          agency.excessUsd += Number(cuadre.excess_usd || 0);
-          agency.total_sessions += 1;
-          agency.averageExchangeRate = Number(cuadre.exchange_rate || 36);
-          agency.is_weekly_closed = cuadre.is_weekly_closed || false;
-        }
-      });
-
-      // Add expenses by agency (both encargada and taquillera)
-      allGastos.forEach(gasto => {
-        let agencyId: string | null = null;
-        if ('agency_id' in gasto && gasto.agency_id) {
-          agencyId = gasto.agency_id as string;
-        } else if ('session_id' in gasto && gasto.session_id) {
-          agencyId = sessionToAgencyId.get(gasto.session_id) || null;
-        }
-        if (agencyId && agencyData[agencyId]) {
-          agencyData[agencyId].totalGastos.bs += Number(gasto.amount_bs || 0);
-          agencyData[agencyId].totalGastos.usd += Number(gasto.amount_usd || 0);
-        }
-      });
-
-      allDeudas.forEach(deuda => {
-        let agencyId: string | null = null;
-        if ('agency_id' in deuda && deuda.agency_id) {
-          agencyId = deuda.agency_id as string;
-        } else if ('session_id' in deuda && deuda.session_id) {
-          agencyId = sessionToAgencyId.get(deuda.session_id) || null;
-        }
-        if (agencyId && agencyData[agencyId]) {
-          agencyData[agencyId].totalDeudas.bs += Number(deuda.amount_bs || 0);
-          agencyData[agencyId].totalDeudas.usd += Number(deuda.amount_usd || 0);
-        }
-      });
-
-      // Process inter-agency loans (only pending ones)
-      interAgencyLoans.data?.forEach(loan => {
-        if (loan.status === 'pendiente') {
-          // For the creditor (from_agency_id): subtract money lent out
-          if (loan.from_agency_id && agencyData[loan.from_agency_id]) {
-            agencyData[loan.from_agency_id].prestamos_otorgados.bs += Number(loan.amount_bs || 0);
-            agencyData[loan.from_agency_id].prestamos_otorgados.usd += Number(loan.amount_usd || 0);
-          }
-          
-          // For the debtor (to_agency_id): add money received
-          if (loan.to_agency_id && agencyData[loan.to_agency_id]) {
-            agencyData[loan.to_agency_id].prestamos_recibidos.bs += Number(loan.amount_bs || 0);
-            agencyData[loan.to_agency_id].prestamos_recibidos.usd += Number(loan.amount_usd || 0);
-          }
-        }
-      });
-
-      // Create daily breakdown from encargada_cuadre_details
-      const dailyData: { [key: string]: DailyDetail } = {};
-      const weekDays = eachDayOfInterval({ start: currentWeek.start, end: currentWeek.end });
-
-      weekDays.forEach(day => {
-        const dayKey = format(day, 'yyyy-MM-dd');
-        const dayDetails = encargadaCuadreDetails?.filter(item => item.session_date === dayKey) || [];
-        
-        const dailySales = dayDetails.reduce(
-          (acc, item) => ({
-            bs: acc.bs + Number(item.sales_bs || 0),
-            usd: acc.usd + Number(item.sales_usd || 0),
-          }),
-          { bs: 0, usd: 0 }
-        );
-
-        const dailyPrizes = dayDetails.reduce(
-          (acc, item) => ({
-            bs: acc.bs + Number(item.prizes_bs || 0),
-            usd: acc.usd + Number(item.prizes_usd || 0),
-          }),
-          { bs: 0, usd: 0 }
-        );
-
-        dailyData[dayKey] = {
-          day_date: dayKey,
-          day_name: format(day, 'EEEE', { locale: es }),
-          total_sales_bs: dailySales.bs,
-          total_sales_usd: dailySales.usd,
-          total_prizes_bs: dailyPrizes.bs,
-          total_prizes_usd: dailyPrizes.usd,
-          balance_bs: dailySales.bs - dailyPrizes.bs,
-          balance_usd: dailySales.usd - dailyPrizes.usd,
-          sessions_count: dayDetails.length,
-          is_completed: dayDetails.length > 0,
-        };
-      });
-
-      // Build weekly summary
-      // Calculate total inter-agency loans
-      const totalPrestamosOtorgados = { bs: 0, usd: 0 };
-      const totalPrestamosRecibidos = { bs: 0, usd: 0 };
-      
-      interAgencyLoans.data?.forEach(loan => {
-        if (loan.status === 'pendiente') {
-          totalPrestamosOtorgados.bs += Number(loan.amount_bs || 0);
-          totalPrestamosOtorgados.usd += Number(loan.amount_usd || 0);
-          // Note: For total view, we count both sides. Per-agency view already filters by agency
-        }
-      });
-      
-      // Actually, for the total view, we should not double count
-      // The loans are internal transfers, so they cancel out in total
-      // But we show them for transparency
-      
-      const finalWeeklyData: WeeklyData = {
-        totalSales,
-        totalPrizes,
-        totalGastos,
-        totalDeudas,
-        gastosDetails,
-        deudasDetails,
-        totalBanco,
-        totalCashAvailable,
-        totalCashAvailableUsd,
-        premiosPorPagar,
-        prestamos_otorgados: totalPrestamosOtorgados,
-        prestamos_recibidos: totalPrestamosOtorgados, // Same value as they're internal
-        averageExchangeRate,
-        total_sessions: encargadaData?.length || 0,
-        is_weekly_closed: encargadaData?.some(item => item.is_weekly_closed) || false,
-        weekly_closure_notes: encargadaData?.find(item => item.weekly_closure_notes)?.weekly_closure_notes || '',
-      };
-
-      setWeeklyData(finalWeeklyData);
-      setAgenciesData(Object.values(agencyData));
-      setDailyDetails(Object.values(dailyData));
-      
+      setAgenciesSummary(agencySummaries);
     } catch (error: any) {
-      console.error('Error fetching weekly data:', error);
+      console.error('Error fetching weekly summary:', error);
       toast({
-        title: 'Error',
-        description: 'Error al cargar los datos semanales',
-        variant: 'destructive',
+        title: "Error",
+        description: "No se pudo cargar el resumen semanal",
+        variant: "destructive",
       });
     } finally {
       setLoading(false);
@@ -716,748 +285,258 @@ export function WeeklyCuadreView() {
   const navigateWeek = (direction: 'prev' | 'next') => {
     if (!currentWeek) return;
     
-    const newWeek = direction === 'prev' 
-      ? subWeeks(currentWeek.start, 1) 
+    const newStart = direction === 'prev' 
+      ? subWeeks(currentWeek.start, 1)
       : addWeeks(currentWeek.start, 1);
     
-    const weekStart = startOfWeek(newWeek, { weekStartsOn: 1 });
-    const weekEnd = endOfWeek(newWeek, { weekStartsOn: 1 });
+    const newEnd = endOfWeek(newStart, { weekStartsOn: 1 });
     
     setCurrentWeek({
-      start: weekStart,
-      end: weekEnd,
-      number: parseInt(format(weekStart, 'w')),
-      year: parseInt(format(weekStart, 'yyyy')),
+      start: newStart,
+      end: newEnd,
+      number: parseInt(format(newStart, 'w')),
+      year: parseInt(format(newStart, 'yyyy')),
     });
   };
 
-  const closeWeek = async () => {
-    if (!currentWeek || !weeklyData) return;
-    
-    try {
-      const startStr = format(currentWeek.start, 'yyyy-MM-dd');
-      const endStr = format(currentWeek.end, 'yyyy-MM-dd');
-      
-      // First, check if there are any records for this week
-      const { data: existingRecords, error: checkError } = await supabase
-        .from('daily_cuadres_summary')
-        .select('id')
-        .gte('session_date', startStr)
-        .lte('session_date', endStr)
-        .limit(1);
-
-      if (checkError) throw checkError;
-
-      if (!existingRecords || existingRecords.length === 0) {
-        toast({
-          title: 'Error',
-          description: 'No hay cuadres registrados para esta semana. Primero debe guardar los cuadres diarios.',
-          variant: 'destructive',
-        });
-        return;
-      }
-      
-      // Mark all daily summaries as weekly closed
-      const { error } = await supabase
-        .from('daily_cuadres_summary')
-        .update({ 
-          is_weekly_closed: true, 
-          weekly_closure_notes: closureNotes,
-          week_start_date: startStr,
-          week_end_date: endStr
-        })
-        .gte('session_date', startStr)
-        .lte('session_date', endStr);
-
-      if (error) throw error;
-
-      toast({
-        title: 'Éxito',
-        description: 'Semana cerrada correctamente',
-      });
-
-      // Refresh data
-      fetchWeeklyData();
-    } catch (error: any) {
-      console.error('Error closing week:', error);
-      toast({
-        title: 'Error',
-        description: error.message || 'Error al cerrar la semana',
-        variant: 'destructive',
-      });
-    }
-  };
-
+  const filteredAgencies = selectedAgency === 'all' 
+    ? agenciesSummary 
+    : agenciesSummary.filter(a => a.agency_id === selectedAgency);
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center p-8">
+      <div className="flex items-center justify-center p-12">
         <div className="text-center">
-          <Calculator className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
-          <p>Calculando cuadre semanal...</p>
+          <RefreshCcw className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
+          <p className="text-muted-foreground">Cargando datos semanales...</p>
         </div>
       </div>
     );
   }
-
-  if (!weeklyData) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <div className="text-center">
-          <Calculator className="h-8 w-8 mx-auto mb-4 text-muted-foreground" />
-          <p>No hay datos para mostrar</p>
-        </div>
-      </div>
-    );
-  }
-
-  const summary = getFilteredSummary();
-  if (!summary) return null;
-
-  // Calculate main cuadre (Sales - Prizes) for the total data
-  const cuadreVentasPremios = {
-    bs: summary.totalSales.bs - summary.totalPrizes.bs,
-    usd: summary.totalSales.usd - summary.totalPrizes.usd,
-  };
-
-  // Use totalBanco from summary (no need to recalculate)
-  const totalBanco = summary.totalBanco;
-
-  // Calculate USD excess (difference) for BS formula
-  const excessUsd = summary.totalCashAvailableUsd - cuadreVentasPremios.usd;
-  
-  // Bolivares Closure Formula (identical to CuadreGeneral)
-  const sumatoriaBolivares = 
-    summary.totalCashAvailable + 
-    totalBanco + 
-    summary.totalDeudas.bs + 
-    summary.totalGastos.bs + 
-    (excessUsd * summary.averageExchangeRate);
-
-  const diferenciaCierre = sumatoriaBolivares - cuadreVentasPremios.bs;
-  // Apply inter-agency loans: subtract loans given (money out) and add loans received (money in)
-  const diferenciaFinal = diferenciaCierre - summary.premiosPorPagar - summary.prestamos_otorgados.bs + summary.prestamos_recibidos.bs;
-  const isCuadreBalanced = Math.abs(diferenciaFinal) <= 100; // Allow 100 Bs tolerance
 
   return (
     <div className="space-y-6">
       {/* Header with week navigation */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <h1 className="text-2xl font-bold">Cuadre Semanal</h1>
-          {currentWeek && (
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigateWeek('prev')}
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <Badge variant="outline" className="text-sm font-mono">
-                Semana {currentWeek.number}/{currentWeek.year}
-              </Badge>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigateWeek('next')}
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={fetchWeeklyData}
-                className="ml-2"
-                title="Refrescar datos"
-              >
-                <RefreshCcw className="h-4 w-4 mr-1" />
-                Refrescar
-              </Button>
-            </div>
-          )}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex items-center gap-3">
+          <Calendar className="h-6 w-6 text-primary" />
+          <div>
+            <h2 className="text-2xl font-bold">Cuadre Semanal</h2>
+            {currentWeek && (
+              <p className="text-sm text-muted-foreground">
+                Semana {currentWeek.number} - {format(currentWeek.start, "d 'de' MMMM", { locale: es })} al {format(currentWeek.end, "d 'de' MMMM 'de' yyyy", { locale: es })}
+              </p>
+            )}
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => navigateWeek('prev')}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => navigateWeek('next')}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={fetchWeeklySummary}
+            title="Refrescar datos"
+          >
+            <RefreshCcw className="h-4 w-4" />
+          </Button>
         </div>
       </div>
 
-      {currentWeek && (
-        <div className="text-sm text-muted-foreground">
-          {format(currentWeek.start, 'dd/MM/yyyy', { locale: es })} - {format(currentWeek.end, 'dd/MM/yyyy', { locale: es })}
-        </div>
-      )}
-
-      {/* Agency Filter */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="space-y-2">
-            <Select value={selectedAgency || 'all'} onValueChange={(value) => setSelectedAgency(value === 'all' ? null : value)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Todas las agencias" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas las agencias</SelectItem>
-                {allAgencies.map((agency) => (
-                  <SelectItem key={agency.id} value={agency.id}>
-                    {agency.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Main Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="border-2 border-green-200">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-green-700 flex items-center gap-2">
-              <TrendingUp className="h-4 w-4" />
-              Total Ventas
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-1">
-            <p className="text-2xl font-bold text-green-600">{formatCurrency(summary.totalSales.bs, 'VES')}</p>
-            <p className="text-sm text-green-600">{formatCurrency(summary.totalSales.usd, 'USD')}</p>
-          </CardContent>
-        </Card>
-
-        <Card className="border-2 border-red-200">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-red-700 flex items-center gap-2">
-              <TrendingDown className="h-4 w-4" />
-              Total Premios
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-1">
-            <p className="text-2xl font-bold text-red-600">{formatCurrency(summary.totalPrizes.bs, 'VES')}</p>
-            <p className="text-sm text-red-600">{formatCurrency(summary.totalPrizes.usd, 'USD')}</p>
-          </CardContent>
-        </Card>
-
-        <Card className="border-2 border-blue-200">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-blue-700 flex items-center gap-2">
-              <Receipt className="h-4 w-4" />
-              Cuadre (V-P)
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-1">
-            <p className="text-2xl font-bold text-blue-600">{formatCurrency(cuadreVentasPremios.bs, 'VES')}</p>
-            <p className="text-sm text-blue-600">{formatCurrency(cuadreVentasPremios.usd, 'USD')}</p>
-          </CardContent>
-        </Card>
-
-        <Card className="border-2 border-purple-200">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-purple-700 flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4" />
-              Balance Final
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-1">
-            <p className={`text-2xl font-bold ${isCuadreBalanced ? 'text-green-600' : 'text-red-600'}`}>
-              {formatCurrency(diferenciaFinal, 'VES')}
-            </p>
-            <Badge variant={isCuadreBalanced ? 'default' : 'destructive'} className="text-xs">
-              {isCuadreBalanced ? 'Cuadrado' : 'Con diferencia'}
-            </Badge>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Closure Formula Card - identical to CuadreGeneral */}
+      {/* Agency filter */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calculator className="h-5 w-5" />
-            Fórmula de Cierre en Bolívares
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-3">
-              <div className="flex justify-between items-center p-2 bg-muted rounded">
-                <span>Efectivo Disponible:</span>
-                <span className="font-mono font-semibold">{formatCurrency(summary.totalCashAvailable, 'VES')}</span>
-              </div>
-              
-              <div className="flex justify-between items-center p-2 bg-muted rounded">
-                <span>Total Banco:</span>
-                <span className="font-mono font-semibold">{formatCurrency(totalBanco, 'VES')}</span>
-              </div>
-
-              {/* Collapsible Deudas */}
-              <Collapsible open={deudasOpen} onOpenChange={setDeudasOpen}>
-                <CollapsibleTrigger className="flex justify-between items-center p-2 bg-muted rounded w-full hover:bg-muted/80">
-                  <span>Deudas:</span>
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono font-semibold">{formatCurrency(summary.totalDeudas.bs, 'VES')}</span>
-                    {deudasOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRightIcon className="h-4 w-4" />}
-                  </div>
-                </CollapsibleTrigger>
-                <CollapsibleContent className="space-y-1 mt-1">
-                  {summary.deudasDetails.map((deuda, index) => (
-                    <div key={index} className="ml-4 p-2 bg-background border rounded text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">{deuda.description}</span>
-                        <span className="font-mono">{formatCurrency(Number(deuda.amount_bs), 'VES')}</span>
-                      </div>
-                      <div className="text-xs text-muted-foreground mt-1">
-                        {deuda.agency_name} • {format(new Date(deuda.created_at), 'dd/MM/yyyy HH:mm')}
-                      </div>
-                    </div>
-                  ))}
-                  {summary.deudasDetails.length === 0 && (
-                    <div className="ml-4 p-2 text-sm text-muted-foreground">No hay deudas registradas</div>
-                  )}
-                </CollapsibleContent>
-              </Collapsible>
-
-              {/* Collapsible Gastos */}
-              <Collapsible open={gastosOpen} onOpenChange={setGastosOpen}>
-                <CollapsibleTrigger className="flex justify-between items-center p-2 bg-muted rounded w-full hover:bg-muted/80">
-                  <span>Gastos:</span>
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono font-semibold">{formatCurrency(summary.totalGastos.bs, 'VES')}</span>
-                    {gastosOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRightIcon className="h-4 w-4" />}
-                  </div>
-                </CollapsibleTrigger>
-                <CollapsibleContent className="space-y-1 mt-1">
-                  {summary.gastosDetails.map((gasto, index) => (
-                    <div key={index} className="ml-4 p-2 bg-background border rounded text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">{gasto.description}</span>
-                        <span className="font-mono">{formatCurrency(Number(gasto.amount_bs), 'VES')}</span>
-                      </div>
-                      <div className="text-xs text-muted-foreground mt-1">
-                        {gasto.agency_name} • {format(new Date(gasto.created_at), 'dd/MM/yyyy HH:mm')}
-                      </div>
-                    </div>
-                  ))}
-                  {summary.gastosDetails.length === 0 && (
-                    <div className="ml-4 p-2 text-sm text-muted-foreground">No hay gastos registrados</div>
-                  )}
-                </CollapsibleContent>
-              </Collapsible>
-
-              <div className="flex justify-between items-center p-2 bg-muted rounded">
-                <span>Excedente USD (Bs {summary.averageExchangeRate.toFixed(2)}):</span>
-                <span className="font-mono font-semibold">{formatCurrency(excessUsd * summary.averageExchangeRate, 'VES')}</span>
-              </div>
-
-              <div className="flex justify-between items-center p-2 bg-amber-50 dark:bg-amber-900/20 rounded border border-amber-200">
-                <span className="text-amber-700 dark:text-amber-400">Préstamos Dados:</span>
-                <span className="font-mono font-semibold text-red-600">{formatCurrency(summary.prestamos_otorgados.bs, 'VES')}</span>
-              </div>
-
-              <div className="flex justify-between items-center p-2 bg-emerald-50 dark:bg-emerald-900/20 rounded border border-emerald-200">
-                <span className="text-emerald-700 dark:text-emerald-400">Préstamos Recibidos:</span>
-                <span className="font-mono font-semibold text-green-600">{formatCurrency(summary.prestamos_recibidos.bs, 'VES')}</span>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <div className="p-4 bg-primary/10 rounded-lg">
-                <div className="text-center space-y-2">
-                  <div className="text-sm text-muted-foreground">Sumatoria en Bolívares</div>
-                  <div className="text-2xl font-bold font-mono">{formatCurrency(sumatoriaBolivares, 'VES')}</div>
-                </div>
-              </div>
-
-              <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                <div className="text-center space-y-2">
-                  <div className="text-sm text-muted-foreground">Diferencia de Cierre</div>
-                  <div className="text-xl font-bold font-mono">{formatCurrency(diferenciaCierre, 'VES')}</div>
-                </div>
-              </div>
-
-              <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
-                <div className="text-center space-y-2">
-                  <div className="text-sm text-muted-foreground">Premios por Pagar</div>
-                  <div className="text-xl font-bold font-mono">{formatCurrency(summary.premiosPorPagar, 'VES')}</div>
-                </div>
-              </div>
-
-              <div className={`p-4 rounded-lg ${isCuadreBalanced ? 'bg-green-50 dark:bg-green-900/20' : 'bg-red-50 dark:bg-red-900/20'}`}>
-                <div className="text-center space-y-2">
-                  <div className="flex items-center justify-center gap-2">
-                    <CheckCircle2 className={`h-5 w-5 ${isCuadreBalanced ? 'text-green-600' : 'text-red-600'}`} />
-                    <span className="text-sm text-muted-foreground">Diferencia Final</span>
-                  </div>
-                  <div className={`text-2xl font-bold font-mono ${isCuadreBalanced ? 'text-green-600' : 'text-red-600'}`}>
-                    {formatCurrency(diferenciaFinal, 'VES')}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* USD Summary Card - Complete Formula */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <DollarSign className="h-5 w-5" />
-            Fórmula de Cierre en USD
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-3">
-              <div className="flex justify-between items-center p-2 bg-muted rounded">
-                <span>Ventas:</span>
-                <span className="font-mono font-semibold text-green-600">{formatCurrency(summary.totalSales.usd, 'USD')}</span>
-              </div>
-              
-              <div className="flex justify-between items-center p-2 bg-muted rounded">
-                <span>Premios:</span>
-                <span className="font-mono font-semibold text-red-600">{formatCurrency(summary.totalPrizes.usd, 'USD')}</span>
-              </div>
-
-              <div className="flex justify-between items-center p-2 bg-muted rounded">
-                <span>Gastos:</span>
-                <span className="font-mono font-semibold text-red-600">{formatCurrency(summary.totalGastos.usd, 'USD')}</span>
-              </div>
-
-              <div className="flex justify-between items-center p-2 bg-muted rounded">
-                <span>Deudas:</span>
-                <span className="font-mono font-semibold text-red-600">{formatCurrency(summary.totalDeudas.usd, 'USD')}</span>
-              </div>
-
-              <div className="flex justify-between items-center p-2 bg-muted rounded">
-                <span>Efectivo Disponible:</span>
-                <span className="font-mono font-semibold">{formatCurrency(summary.totalCashAvailableUsd, 'USD')}</span>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <div className="flex justify-between items-center p-2 bg-amber-50 dark:bg-amber-900/20 rounded border border-amber-200">
-                <span className="text-amber-700 dark:text-amber-400">Préstamos Dados:</span>
-                <span className="font-mono font-semibold text-red-600">{formatCurrency(summary.prestamos_otorgados.usd, 'USD')}</span>
-              </div>
-
-              <div className="flex justify-between items-center p-2 bg-emerald-50 dark:bg-emerald-900/20 rounded border border-emerald-200">
-                <span className="text-emerald-700 dark:text-emerald-400">Préstamos Recibidos:</span>
-                <span className="font-mono font-semibold text-green-600">{formatCurrency(summary.prestamos_recibidos.usd, 'USD')}</span>
-              </div>
-
-              <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                <div className="text-center space-y-2">
-                  <div className="text-sm text-muted-foreground">Cuadre (Ventas - Premios)</div>
-                  <div className="text-xl font-bold font-mono text-blue-600">{formatCurrency(cuadreVentasPremios.usd, 'USD')}</div>
-                </div>
-              </div>
-
-              <div className={`p-4 rounded-lg ${excessUsd >= 0 ? 'bg-green-50 dark:bg-green-900/20' : 'bg-red-50 dark:bg-red-900/20'}`}>
-                <div className="text-center space-y-2">
-                  <div className="text-sm text-muted-foreground">Excedente/Faltante USD</div>
-                  <div className={`text-xl font-bold font-mono ${excessUsd >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {formatCurrency(excessUsd, 'USD')}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          <div className="pt-4 border-t">
-            <div className="text-xs text-muted-foreground text-center">
-              Nota: Los préstamos inter-agencias afectan el balance individual de cada agencia
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Daily Breakdown */}
-      <Card>
-        <Collapsible open={isDailyOpen} onOpenChange={setIsDailyOpen}>
-          <CardHeader>
-            <CollapsibleTrigger className="flex items-center justify-between w-full">
-              <CardTitle className="flex items-center gap-2 text-left">
-                <Calendar className="h-5 w-5" />
-                Desglose Diario
-              </CardTitle>
-              {isDailyOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRightIcon className="h-4 w-4" />}
-            </CollapsibleTrigger>
-          </CardHeader>
-          <CollapsibleContent>
-            <CardContent>
-            <div className="space-y-2">
-              {dailyDetails.map((day) => (
-                <div key={day.day_date} className={`p-3 border rounded-lg ${day.is_completed ? 'bg-muted/50' : 'bg-muted/20'}`}>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="capitalize font-medium">{day.day_name}</div>
-                      <div className="text-sm text-muted-foreground">{format(new Date(day.day_date), 'dd/MM/yyyy')}</div>
-                      <CheckCircle2 className={`h-4 w-4 ${day.is_completed ? 'text-green-600' : 'text-muted-foreground'}`} />
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      {day.sessions_count} sesiones
-                    </div>
-                  </div>
-                  {day.is_completed && (
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2 text-sm">
-                      <div>
-                        <span className="text-muted-foreground">Ventas:</span>
-                        <div className="font-mono">{formatCurrency(day.total_sales_bs, 'VES')}</div>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Premios:</span>
-                        <div className="font-mono">{formatCurrency(day.total_prizes_bs, 'VES')}</div>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Balance:</span>
-                        <div className="font-mono">{formatCurrency(day.balance_bs, 'VES')}</div>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">USD:</span>
-                        <div className="font-mono">{formatCurrency(day.total_sales_usd - day.total_prizes_usd, 'USD')}</div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-            </CardContent>
-          </CollapsibleContent>
-        </Collapsible>
-      </Card>
-
-      {/* Weekly closure */}
-      {!weeklyData.is_weekly_closed && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Save className="h-5 w-5" />
-              Cerrar Semana
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Textarea
-              placeholder="Observaciones del cierre semanal..."
-              value={closureNotes}
-              onChange={(e) => setClosureNotes(e.target.value)}
-            />
-            <Button onClick={closeWeek} className="w-full">
-              <Save className="h-4 w-4 mr-2" />
-              Cerrar Semana
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Agency Breakdown Section - Additional Detail View */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="text-lg flex items-center gap-2">
             <Building2 className="h-5 w-5" />
-            Desglose Detallado por Agencias
+            Filtrar por Agencia
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
-          {agenciesData.map((agency, index) => {
-            const agencyCuadre = {
-              bs: agency.totalSales.bs - agency.totalPrizes.bs,
-              usd: agency.totalSales.usd - agency.totalPrizes.usd,
-            };
-            // Use the saved diferencia_final from database instead of recalculating
-            const agencyFinal = agency.diferenciaFinal;
-            
-            // Check if agency has any data
-            const hasData = agency.total_sessions > 0 || agency.totalSales.bs > 0 || agency.totalSales.usd > 0;
-            const agencyBalanced = Math.abs(agencyFinal) <= 100;
-
-            return (
-              <Collapsible key={agency.agency_id}>
-                <Card className="shadow-sm">
-                  <CollapsibleTrigger asChild>
-                    <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors py-3">
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-sm font-medium flex items-center gap-2">
-                          <Building2 className="h-4 w-4" />
-                          {agency.agency_name}
-                        </CardTitle>
-                        <div className="flex items-center gap-2">
-                          <div className="text-right">
-                            <div className={`text-sm font-medium ${!hasData ? 'text-muted-foreground' : agencyBalanced ? 'text-success' : 'text-destructive'}`}>
-                              {hasData ? formatCurrency(agencyFinal, 'VES') : 'Sin datos'}
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              Balance Final
-                            </div>
-                          </div>
-                          {hasData && (
-                            <Badge variant={agencyBalanced ? 'default' : 'destructive'} className="text-xs">
-                              {agencyBalanced ? 'Cuadrado' : 'Diferencia'}
-                            </Badge>
-                          )}
-                          <ChevronDown className="h-4 w-4 transition-transform [&[data-state=open]]:rotate-180" />
-                        </div>
-                      </div>
-                    </CardHeader>
-                  </CollapsibleTrigger>
-                  
-                  <CollapsibleContent>
-                    <CardContent className="pt-0 pb-4">
-                      <div className="grid md:grid-cols-2 gap-6">
-                        {/* Bolivares Section */}
-                        <div className="space-y-3">
-                          <h4 className="font-medium text-sm text-center border-b pb-2">Bolívares</h4>
-                          <div className="grid grid-cols-2 gap-3">
-                            <div className="text-center p-2 bg-muted/30 rounded">
-                              <p className="text-xs text-muted-foreground">Ventas</p>
-                              <p className="text-sm font-semibold text-success">
-                                {formatCurrency(agency.totalSales.bs, 'VES')}
-                              </p>
-                            </div>
-                            <div className="text-center p-2 bg-muted/30 rounded">
-                              <p className="text-xs text-muted-foreground">Premios</p>
-                              <p className="text-sm font-semibold text-destructive">
-                                {formatCurrency(agency.totalPrizes.bs, 'VES')}
-                              </p>
-                            </div>
-                            <div className="text-center p-2 bg-muted/30 rounded">
-                              <p className="text-xs text-muted-foreground">Gastos</p>
-                              <p className="text-sm font-semibold text-destructive">
-                                {formatCurrency(agency.totalGastos.bs, 'VES')}
-                              </p>
-                            </div>
-                            <div className="text-center p-2 bg-muted/30 rounded">
-                              <p className="text-xs text-muted-foreground">Deudas</p>
-                              <p className="text-sm font-semibold text-destructive">
-                                {formatCurrency(agency.totalDeudas.bs, 'VES')}
-                              </p>
-                            </div>
-                            <div className="text-center p-2 bg-muted/30 rounded">
-                              <p className="text-xs text-muted-foreground">Total en Banco</p>
-                              <p className="text-sm font-semibold text-success">
-                                {formatCurrency(agency.totalBanco, 'VES')}
-                              </p>
-                            </div>
-                            <div className="text-center p-2 bg-muted/30 rounded">
-                              <p className="text-xs text-muted-foreground">Efectivo</p>
-                              <p className="text-sm font-semibold">
-                                {formatCurrency(agency.totalCashAvailable, 'VES')}
-                              </p>
-                            </div>
-                            <div className="text-center p-2 bg-muted/30 rounded">
-                              <p className="text-xs text-muted-foreground">Préstamos Dados</p>
-                              <p className="text-sm font-semibold text-destructive">
-                                {formatCurrency(agency.prestamos_otorgados.bs, 'VES')}
-                              </p>
-                            </div>
-                            <div className="text-center p-2 bg-muted/30 rounded">
-                              <p className="text-xs text-muted-foreground">Préstamos Recibidos</p>
-                              <p className="text-sm font-semibold text-success">
-                                {formatCurrency(agency.prestamos_recibidos.bs, 'VES')}
-                              </p>
-                            </div>
-                            <div className="text-center p-2 bg-primary/10 rounded border border-primary/20">
-                              <p className="text-xs text-muted-foreground">Balance Final</p>
-                              <p className={`text-sm font-bold ${!hasData ? 'text-muted-foreground' : agencyBalanced ? 'text-success' : 'text-destructive'}`}>
-                                {hasData ? formatCurrency(agencyFinal, 'VES') : 'Sin datos'}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Dólares Section */}
-                        <div className="space-y-3">
-                          <h4 className="font-medium text-sm text-center border-b pb-2">Dólares</h4>
-                          <div className="grid grid-cols-2 gap-3">
-                            <div className="text-center p-2 bg-muted/30 rounded">
-                              <p className="text-xs text-muted-foreground">Ventas</p>
-                              <p className="text-sm font-semibold text-success">
-                                {formatCurrency(agency.totalSales.usd, 'USD')}
-                              </p>
-                            </div>
-                            <div className="text-center p-2 bg-muted/30 rounded">
-                              <p className="text-xs text-muted-foreground">Premios</p>
-                              <p className="text-sm font-semibold text-destructive">
-                                {formatCurrency(agency.totalPrizes.usd, 'USD')}
-                              </p>
-                            </div>
-                            <div className="text-center p-2 bg-muted/30 rounded">
-                              <p className="text-xs text-muted-foreground">Gastos</p>
-                              <p className="text-sm font-semibold text-destructive">
-                                {formatCurrency(agency.totalGastos.usd, 'USD')}
-                              </p>
-                            </div>
-                            <div className="text-center p-2 bg-muted/30 rounded">
-                              <p className="text-xs text-muted-foreground">Deudas</p>
-                              <p className="text-sm font-semibold text-destructive">
-                                {formatCurrency(agency.totalDeudas.usd, 'USD')}
-                              </p>
-                            </div>
-                            <div className="text-center p-2 bg-muted/30 rounded">
-                              <p className="text-xs text-muted-foreground">Pago Móvil</p>
-                              <p className="text-sm font-semibold text-muted-foreground">
-                                N/A
-                              </p>
-                            </div>
-                            <div className="text-center p-2 bg-muted/30 rounded">
-                              <p className="text-xs text-muted-foreground">POS</p>
-                              <p className="text-sm font-semibold text-muted-foreground">
-                                N/A
-                              </p>
-                            </div>
-                            <div className="text-center p-2 bg-muted/30 rounded">
-                              <p className="text-xs text-muted-foreground">Efectivo</p>
-                              <p className="text-sm font-semibold">
-                                {formatCurrency(agency.totalCashAvailableUsd, 'USD')}
-                              </p>
-                            </div>
-                            <div className="text-center p-2 bg-muted/30 rounded">
-                              <p className="text-xs text-muted-foreground">Préstamos Dados</p>
-                              <p className="text-sm font-semibold text-destructive">
-                                {formatCurrency(agency.prestamos_otorgados.usd, 'USD')}
-                              </p>
-                            </div>
-                            <div className="text-center p-2 bg-muted/30 rounded">
-                              <p className="text-xs text-muted-foreground">Préstamos Recibidos</p>
-                              <p className="text-sm font-semibold text-success">
-                                {formatCurrency(agency.prestamos_recibidos.usd, 'USD')}
-                              </p>
-                            </div>
-                            <div className="text-center p-2 bg-primary/10 rounded border border-primary/20">
-                              <p className="text-xs text-muted-foreground">Cuadre</p>
-                              <p className={`text-sm font-bold ${agencyCuadre.usd >= 0 ? 'text-success' : 'text-destructive'}`}>
-                                {formatCurrency(agencyCuadre.usd, 'USD')}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </CollapsibleContent>
-                </Card>
-              </Collapsible>
-            );
-          })}
-          
-          {agenciesData.length === 0 && (
-            <div className="text-center text-muted-foreground py-8">
-              No hay datos de agencias para mostrar
-            </div>
-          )}
+        <CardContent>
+          <Select value={selectedAgency} onValueChange={setSelectedAgency}>
+            <SelectTrigger className="w-full sm:w-64">
+              <SelectValue placeholder="Seleccionar agencia" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas las agencias</SelectItem>
+              {agenciesSummary.map(agency => (
+                <SelectItem key={agency.agency_id} value={agency.agency_id}>
+                  {agency.agency_name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </CardContent>
       </Card>
 
-      {weeklyData.is_weekly_closed && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-green-600" />
-              Semana Cerrada
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-sm text-muted-foreground">
-              {weeklyData.weekly_closure_notes || 'Sin observaciones'}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {/* Agency summaries */}
+      <div className="space-y-4">
+        {filteredAgencies.length === 0 ? (
+          <Card>
+            <CardContent className="py-12 text-center">
+              <AlertCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+              <p className="text-muted-foreground">No hay datos para esta semana</p>
+            </CardContent>
+          </Card>
+        ) : (
+          filteredAgencies.map(agency => {
+            const hasData = agency.total_sales_bs > 0 || agency.total_sales_usd > 0 || 
+                           agency.total_prizes_bs > 0 || agency.total_prizes_usd > 0;
+            
+            return (
+              <Card key={agency.agency_id} className="overflow-hidden">
+                <CardHeader className="bg-gradient-to-r from-primary/10 to-primary/5">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <CardTitle className="text-xl flex items-center gap-2">
+                        <Building2 className="h-5 w-5" />
+                        {agency.agency_name}
+                      </CardTitle>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Tasa de cambio (Domingo): {formatCurrency(agency.exchange_rate, 'VES')}
+                      </p>
+                    </div>
+                    {!hasData && (
+                      <Badge variant="secondary">Sin datos</Badge>
+                    )}
+                  </div>
+                </CardHeader>
+                
+                {hasData && (
+                  <CardContent className="pt-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {/* Ventas */}
+                      <div className="space-y-2">
+                        <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">Ventas Totales</h4>
+                        <div className="space-y-1">
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm">Bolívares:</span>
+                            <span className="font-mono font-semibold">{formatCurrency(agency.total_sales_bs, 'VES')}</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm">Dólares:</span>
+                            <span className="font-mono font-semibold">{formatCurrency(agency.total_sales_usd, 'USD')}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Premios */}
+                      <div className="space-y-2">
+                        <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">Premios Totales</h4>
+                        <div className="space-y-1">
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm">Bolívares:</span>
+                            <span className="font-mono font-semibold">{formatCurrency(agency.total_prizes_bs, 'VES')}</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm">Dólares:</span>
+                            <span className="font-mono font-semibold">{formatCurrency(agency.total_prizes_usd, 'USD')}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Deudas - DESTACADO */}
+                      <div className="space-y-2 p-4 bg-destructive/5 rounded-lg border-2 border-destructive/20">
+                        <h4 className="font-semibold text-sm text-destructive uppercase tracking-wider flex items-center gap-1">
+                          <TrendingDown className="h-4 w-4" />
+                          Deudas Totales
+                        </h4>
+                        <div className="space-y-1">
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm">Bolívares:</span>
+                            <span className="font-mono font-bold text-destructive">{formatCurrency(agency.total_deudas_bs, 'VES')}</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm">Dólares:</span>
+                            <span className="font-mono font-bold text-destructive">{formatCurrency(agency.total_deudas_usd, 'USD')}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Gastos - DESTACADO */}
+                      <div className="space-y-2 p-4 bg-orange-500/5 rounded-lg border-2 border-orange-500/20">
+                        <h4 className="font-semibold text-sm text-orange-600 dark:text-orange-400 uppercase tracking-wider flex items-center gap-1">
+                          <TrendingDown className="h-4 w-4" />
+                          Gastos Totales
+                        </h4>
+                        <div className="space-y-1">
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm">Bolívares:</span>
+                            <span className="font-mono font-bold text-orange-600 dark:text-orange-400">{formatCurrency(agency.total_gastos_bs, 'VES')}</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm">Dólares:</span>
+                            <span className="font-mono font-bold text-orange-600 dark:text-orange-400">{formatCurrency(agency.total_gastos_usd, 'USD')}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Total en Banco - DESTACADO */}
+                      <div className="space-y-2 p-4 bg-blue-500/5 rounded-lg border-2 border-blue-500/20">
+                        <h4 className="font-semibold text-sm text-blue-600 dark:text-blue-400 uppercase tracking-wider flex items-center gap-1">
+                          <DollarSign className="h-4 w-4" />
+                          Total en Banco
+                        </h4>
+                        <div className="space-y-1">
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm">Bolívares:</span>
+                            <span className="font-mono font-bold text-blue-600 dark:text-blue-400 text-lg">{formatCurrency(agency.total_banco_bs, 'VES')}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Premios por Pagar */}
+                      <div className="space-y-2">
+                        <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">Premios por Pagar</h4>
+                        <div className="space-y-1">
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm">Bolívares:</span>
+                            <span className="font-mono font-semibold">{formatCurrency(agency.premios_por_pagar, 'VES')}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Balance Final */}
+                      <div className="space-y-2 p-4 bg-gradient-to-br from-primary/10 to-primary/5 rounded-lg border-2 border-primary/20 md:col-span-2 lg:col-span-3">
+                        <h4 className="font-semibold text-sm text-primary uppercase tracking-wider flex items-center gap-1">
+                          <TrendingUp className="h-4 w-4" />
+                          Balance Final de la Semana
+                        </h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm">Diferencia Bolívares:</span>
+                            <span className={`font-mono font-bold text-lg ${agency.diferencia_final >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                              {formatCurrency(agency.diferencia_final, 'VES')}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm">Excedente Dólares:</span>
+                            <span className={`font-mono font-bold text-lg ${agency.excess_usd >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                              {formatCurrency(agency.excess_usd, 'USD')}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                )}
+              </Card>
+            );
+          })
+        )}
+      </div>
     </div>
   );
 }
