@@ -523,10 +523,10 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
   const diferenciaInicialUsd = sumatoriaUsd - cuadreVentasPremios.usd;
   const diferenciaFinalUsd = diferenciaInicialUsd - additionalAmountUsd;
   
-  // Calculate USD excess using Excel formula: ABS(cuadreVP - efectivo) - adicional
-  const excessUsd = Math.abs(cuadreVentasPremios.usd - cuadre.cashAvailableUsd) - additionalAmountUsd;
+  // USD excess is the final difference in USD
+  const excessUsd = diferenciaFinalUsd;
   
-  // Bolivares Closure Formula - additional BS sums to BS, additional USD affects USD excess
+  // Bolivares Closure Formula - additional BS sums to BS, additional USD excess converts to BS
   const sumatoriaBolivares = 
     cuadre.cashAvailable + 
     totalBanco + 
@@ -944,20 +944,10 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
                       }
                     </span>
                   </div>
-                  {(additionalAmountBs > 0 || additionalAmountUsd > 0) && (
-                    <div className="space-y-1">
-                      {additionalAmountBs > 0 && (
-                        <div className="flex justify-between">
-                          <span>Monto adicional (Bs):</span>
-                          <span className="font-medium">{formatCurrency(additionalAmountBs, 'VES')}</span>
-                        </div>
-                      )}
-                      {applyExcessUsdSwitch && additionalAmountUsd > 0 && (
-                        <div className="flex justify-between">
-                          <span>Monto adicional (Bs):</span>
-                          <span className="font-medium">{formatCurrency(additionalAmountUsd * cuadre.exchangeRate, 'VES')}</span>
-                        </div>
-                      )}
+                  {additionalAmountBs > 0 && (
+                    <div className="flex justify-between">
+                      <span>Monto adicional (Bs):</span>
+                      <span className="font-medium">{formatCurrency(additionalAmountBs, 'VES')}</span>
                     </div>
                   )}
                   <Separator />
