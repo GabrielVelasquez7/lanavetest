@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, ChevronLeft, ChevronRight, Calculator, CheckCircle2, TrendingUp, TrendingDown, ChevronDown, ChevronRight as ChevronRightIcon, Building2, Receipt, DollarSign, Save } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, Calculator, CheckCircle2, TrendingUp, TrendingDown, ChevronDown, ChevronRight as ChevronRightIcon, Building2, Receipt, DollarSign, Save, RefreshCcw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/components/ui/use-toast';
@@ -122,6 +122,18 @@ export function WeeklyCuadreView() {
       localStorage.removeItem('encargada:weekly:selectedAgency');
     }
   }, [selectedAgency]);
+
+  // Re-fetch on window focus/visibility to avoid stale data
+  useEffect(() => {
+    const onFocus = () => fetchWeeklyData();
+    const onVis = () => { if (document.visibilityState === 'visible') fetchWeeklyData(); };
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVis);
+    };
+  }, [currentWeek, user, allAgencies.length, selectedAgency]);
 
   // Get filtered summary based on selected agency
   const getFilteredSummary = (): WeeklyData => {
@@ -830,6 +842,16 @@ export function WeeklyCuadreView() {
                 onClick={() => navigateWeek('next')}
               >
                 <ChevronRight className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={fetchWeeklyData}
+                className="ml-2"
+                title="Refrescar datos"
+              >
+                <RefreshCcw className="h-4 w-4 mr-1" />
+                Refrescar
               </Button>
             </div>
           )}

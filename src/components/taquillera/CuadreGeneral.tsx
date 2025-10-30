@@ -420,6 +420,7 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
           total_debt_usd: cuadre.totalDeudas.usd,
           total_mobile_payments_bs: cuadre.pagoMovilRecibidos - cuadre.pagoMovilPagados,
           total_pos_bs: cuadre.totalPointOfSale,
+          total_banco_bs: totalBanco,
           cash_available_bs: cuadre.cashAvailable,
           cash_available_usd: cuadre.cashAvailableUsd,
           exchange_rate: cuadre.exchangeRate,

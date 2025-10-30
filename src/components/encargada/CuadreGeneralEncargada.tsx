@@ -738,7 +738,7 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
           
           <Button onClick={saveDailyClosure} disabled={saving} className="w-full mt-4" size="lg">
             <Save className="h-4 w-4 mr-2" />
-            {saving ? 'Guardando...' : 'Guardar Cuadre del Día'}
+            {saving ? 'Guardando...' : 'Guardar todo el cuadre'}
           </Button>
         </CardContent>
       </Card>
