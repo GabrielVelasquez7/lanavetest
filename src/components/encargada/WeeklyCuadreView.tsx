@@ -298,7 +298,7 @@ export function WeeklyCuadreView() {
         .select(`
           cash_available_bs, cash_available_usd, exchange_rate, agency_id, session_date,
           is_weekly_closed, weekly_closure_notes, pending_prizes, total_mobile_payments_bs, total_pos_bs, total_banco_bs,
-          diferencia_final, excess_usd, notes
+          diferencia_final, excess_usd, notes, created_at, updated_at
         `)
         .is('session_id', null)  // Encargada data
         .gte('session_date', startStr)
@@ -542,8 +542,22 @@ export function WeeklyCuadreView() {
         }
       });
 
-      // Aggregate editable fields from encargada daily_cuadres_summary
-      encargadaData?.forEach(cuadre => {
+      // Aggregate editable fields from encargada daily_cuadres_summary (dedupe by agency+date, keep latest)
+      const latestEncargadaByDay: Record<string, any> = {};
+      encargadaData?.forEach((c: any) => {
+        if (!c.agency_id || !c.session_date) return;
+        const key = `${c.agency_id}|${c.session_date}`;
+        const current = latestEncargadaByDay[key];
+        const currentTime = current?.updated_at || current?.created_at;
+        const newTime = c.updated_at || c.created_at;
+        if (!current || (newTime && currentTime && new Date(newTime) > new Date(currentTime))) {
+          latestEncargadaByDay[key] = c;
+        }
+      });
+
+      const encargadaRows = Object.values(latestEncargadaByDay);
+
+      encargadaRows.forEach((cuadre: any) => {
         if (cuadre.agency_id && agencyData[cuadre.agency_id]) {
           const agency = agencyData[cuadre.agency_id];
           console.log(`📊 Agregando cuadre para ${agency.agency_name}:`, {
@@ -556,7 +570,7 @@ export function WeeklyCuadreView() {
           agency.totalCashAvailableUsd += Number(cuadre.cash_available_usd || 0);
           agency.totalBanco += Number(cuadre.total_banco_bs || 0);
           agency.premiosPorPagar += Number(cuadre.pending_prizes || 0);
-          // CRITICAL: Always use the saved diferencia_final from DB
+          // CRITICAL: Always use the saved diferencia_final from latest DB row
           agency.diferenciaFinal += Number(cuadre.diferencia_final || 0);
           agency.excessUsd += Number(cuadre.excess_usd || 0);
           agency.total_sessions += 1;
