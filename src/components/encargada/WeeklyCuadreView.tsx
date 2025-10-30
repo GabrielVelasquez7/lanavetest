@@ -65,8 +65,10 @@ interface AgencyWeeklyData {
   averageExchangeRate: number;
   total_sessions: number;
   is_weekly_closed: boolean;
-  prestamos_otorgados: { bs: number; usd: number }; // Dinero prestado a otras agencias (se resta)
-  prestamos_recibidos: { bs: number; usd: number }; // Dinero recibido como préstamo (se suma)
+  prestamos_otorgados: { bs: number; usd: number };
+  prestamos_recibidos: { bs: number; usd: number };
+  diferenciaFinal: number; // Balance final ya calculado y guardado
+  excessUsd: number; // Excedente USD guardado
 }
 
 interface DailyDetail {
@@ -283,7 +285,8 @@ export function WeeklyCuadreView() {
         .from('daily_cuadres_summary')
         .select(`
           cash_available_bs, cash_available_usd, exchange_rate, agency_id, session_date,
-          is_weekly_closed, weekly_closure_notes, pending_prizes, total_mobile_payments_bs, total_pos_bs, total_banco_bs
+          is_weekly_closed, weekly_closure_notes, pending_prizes, total_mobile_payments_bs, total_pos_bs, total_banco_bs,
+          diferencia_final, excess_usd, notes
         `)
         .is('session_id', null)  // Encargada data
         .gte('session_date', startStr)
@@ -511,6 +514,8 @@ export function WeeklyCuadreView() {
           is_weekly_closed: false,
           prestamos_otorgados: { bs: 0, usd: 0 },
           prestamos_recibidos: { bs: 0, usd: 0 },
+          diferenciaFinal: 0,
+          excessUsd: 0,
         };
       });
 
@@ -533,6 +538,8 @@ export function WeeklyCuadreView() {
           agency.totalCashAvailableUsd += Number(cuadre.cash_available_usd || 0);
           agency.totalBanco += Number(cuadre.total_banco_bs || 0);
           agency.premiosPorPagar += Number(cuadre.pending_prizes || 0);
+          agency.diferenciaFinal += Number(cuadre.diferencia_final || 0);
+          agency.excessUsd += Number(cuadre.excess_usd || 0);
           agency.total_sessions += 1;
           agency.averageExchangeRate = Number(cuadre.exchange_rate || 36);
           agency.is_weekly_closed = cuadre.is_weekly_closed || false;
@@ -1210,18 +1217,8 @@ export function WeeklyCuadreView() {
               bs: agency.totalSales.bs - agency.totalPrizes.bs,
               usd: agency.totalSales.usd - agency.totalPrizes.usd,
             };
-            const agencyBanco = agency.totalBanco;
-            const agencyExcessUsd = agency.totalCashAvailableUsd - agencyCuadre.usd;
-            const agencySumatoria = 
-              agency.totalCashAvailable + 
-              agencyBanco + 
-              agency.totalDeudas.bs + 
-              agency.totalGastos.bs + 
-              (agencyExcessUsd * agency.averageExchangeRate);
-            const agencyDiferencia = agencySumatoria - agencyCuadre.bs;
-            // Apply inter-agency loans: subtract loans given (money out) and add loans received (money in)
-            const agencyFinalBeforeLoans = agencyDiferencia - agency.premiosPorPagar;
-            const agencyFinal = agencyFinalBeforeLoans - agency.prestamos_otorgados.bs + agency.prestamos_recibidos.bs;
+            // Use the saved diferencia_final from database instead of recalculating
+            const agencyFinal = agency.diferenciaFinal;
             const agencyBalanced = Math.abs(agencyFinal) <= 100;
 
             return (
