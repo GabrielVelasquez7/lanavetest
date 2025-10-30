@@ -128,7 +128,7 @@ export const PagoMovilPagados = ({ onSuccess, selectedAgency: propSelectedAgency
 
     // Validate all fields
     const validPagos = pagos.filter(p => {
-      if (!p.amount_bs || !p.reference_number) return false;
+      if (!p.amount_bs) return false;
       // Parse Venezuelan format correctly
       const cleanAmount = p.amount_bs.replace(/\./g, '').replace(',', '.');
       return parseFloat(cleanAmount) > 0;
