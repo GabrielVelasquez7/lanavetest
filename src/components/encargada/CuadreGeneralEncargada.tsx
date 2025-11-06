@@ -470,6 +470,13 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
 
       console.log('✅ Cuadre guardado exitosamente. Ahora refrescando datos...');
 
+      // Reset edit flags so inputs update with saved values
+      setFieldsEditedByUser({
+        exchangeRate: false,
+        cashAvailable: false,
+        cashAvailableUsd: false,
+      });
+
       toast({
         title: 'Éxito',
         description: 'Cierre diario guardado correctamente'
