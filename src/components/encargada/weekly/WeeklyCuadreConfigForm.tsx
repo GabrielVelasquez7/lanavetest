@@ -1,71 +1,49 @@
 import { useState, useEffect } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
+import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { Settings, Save, Calculator } from "lucide-react";
+import { Save, Calculator } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { format } from "date-fns";
-
-const configSchema = z.object({
-  exchange_rate: z.number().min(0.01, "La tasa debe ser mayor a 0"),
-  cash_bs: z.number().min(0, "El efectivo debe ser positivo"),
-  dollars_to_bs: z.number().min(0, "Los dólares deben ser positivos"),
-});
-
-type ConfigForm = z.infer<typeof configSchema>;
+import type { AgencyWeeklySummary } from "@/hooks/useWeeklyCuadre";
 
 interface WeeklyCuadreConfigFormProps {
-  agencyId: string;
-  agencyName: string;
+  summary: AgencyWeeklySummary;
   weekStart: Date;
   weekEnd: Date;
-  totalBancoBs: number;
   onSuccess?: () => void;
 }
 
 export function WeeklyCuadreConfigForm({
-  agencyId,
-  agencyName,
+  summary,
   weekStart,
   weekEnd,
-  totalBancoBs,
   onSuccess,
 }: WeeklyCuadreConfigFormProps) {
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
   const { user } = useAuth();
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    watch,
-    setValue,
-  } = useForm<ConfigForm>({
-    resolver: zodResolver(configSchema),
-    defaultValues: {
-      exchange_rate: 36,
-      cash_bs: 0,
-      dollars_to_bs: 0,
-    },
-  });
-
-  const watchedValues = watch();
-  
-  // Cálculos automáticos
-  const excessUsd = watchedValues.cash_bs / watchedValues.exchange_rate - watchedValues.dollars_to_bs;
-  const finalDifference = watchedValues.cash_bs - totalBancoBs;
+  // Input states for editable fields
+  const [exchangeRateInput, setExchangeRateInput] = useState<string>("36.00");
+  const [cashAvailableInput, setCashAvailableInput] = useState<string>("0");
+  const [cashAvailableUsdInput, setCashAvailableUsdInput] = useState<string>("0");
+  const [closureNotesInput, setClosureNotesInput] = useState<string>("");
+  const [additionalAmountBsInput, setAdditionalAmountBsInput] = useState<string>("0");
+  const [additionalAmountUsdInput, setAdditionalAmountUsdInput] = useState<string>("0");
+  const [additionalNotesInput, setAdditionalNotesInput] = useState<string>("");
+  const [applyExcessUsdSwitch, setApplyExcessUsdSwitch] = useState<boolean>(true);
 
   useEffect(() => {
     loadExistingConfig();
-  }, [agencyId, weekStart, weekEnd]);
+  }, [summary.agency_id, weekStart, weekEnd]);
 
   const loadExistingConfig = async () => {
     try {
@@ -76,7 +54,7 @@ export function WeeklyCuadreConfigForm({
       const { data, error } = await supabase
         .from("weekly_cuadre_config")
         .select("*")
-        .eq("agency_id", agencyId)
+        .eq("agency_id", summary.agency_id)
         .eq("week_start_date", weekStartStr)
         .eq("week_end_date", weekEndStr)
         .maybeSingle();
@@ -84,9 +62,14 @@ export function WeeklyCuadreConfigForm({
       if (error) throw error;
 
       if (data) {
-        setValue("exchange_rate", Number(data.exchange_rate));
-        setValue("cash_bs", Number(data.cash_bs));
-        setValue("dollars_to_bs", Number(data.dollars_to_bs));
+        setExchangeRateInput(Number(data.exchange_rate).toFixed(2));
+        setCashAvailableInput(Number(data.cash_available_bs).toFixed(2));
+        setCashAvailableUsdInput(Number(data.cash_available_usd).toFixed(2));
+        setClosureNotesInput(data.closure_notes || "");
+        setAdditionalAmountBsInput(Number(data.additional_amount_bs || 0).toFixed(2));
+        setAdditionalAmountUsdInput(Number(data.additional_amount_usd || 0).toFixed(2));
+        setAdditionalNotesInput(data.additional_notes || "");
+        setApplyExcessUsdSwitch(data.apply_excess_usd ?? true);
       }
     } catch (error) {
       console.error("Error loading config:", error);
@@ -95,7 +78,7 @@ export function WeeklyCuadreConfigForm({
     }
   };
 
-  const onSubmit = async (formData: ConfigForm) => {
+  const handleSave = async () => {
     if (!user?.id) {
       toast.error("Usuario no autenticado");
       return;
@@ -106,15 +89,43 @@ export function WeeklyCuadreConfigForm({
       const weekStartStr = format(weekStart, "yyyy-MM-dd");
       const weekEndStr = format(weekEnd, "yyyy-MM-dd");
 
+      const exchangeRate = parseFloat(exchangeRateInput) || 36;
+      const cashAvailableBs = parseFloat(cashAvailableInput) || 0;
+      const cashAvailableUsd = parseFloat(cashAvailableUsdInput) || 0;
+      const additionalAmountBs = parseFloat(additionalAmountBsInput) || 0;
+      const additionalAmountUsd = parseFloat(additionalAmountUsdInput) || 0;
+
+      // Calculate excess USD and final difference (same logic as daily cuadre)
+      const sumatoriaUsd = cashAvailableUsd + summary.total_deudas_usd + summary.total_gastos_usd;
+      const diferenciaInicialUsd = sumatoriaUsd - summary.total_cuadre_usd;
+      const diferenciaFinalUsd = diferenciaInicialUsd - additionalAmountUsd;
+      const excessUsd = diferenciaFinalUsd;
+
+      const sumatoriaBolivares =
+        cashAvailableBs +
+        summary.total_banco_bs +
+        summary.total_deudas_bs +
+        summary.total_gastos_bs +
+        (applyExcessUsdSwitch ? excessUsd * exchangeRate : 0) +
+        additionalAmountBs;
+
+      const diferenciaCierre = sumatoriaBolivares - summary.total_cuadre_bs;
+      const diferenciaFinal = diferenciaCierre - summary.premios_por_pagar_bs;
+
       const configData = {
-        agency_id: agencyId,
+        agency_id: summary.agency_id,
         week_start_date: weekStartStr,
         week_end_date: weekEndStr,
-        exchange_rate: formData.exchange_rate,
-        cash_bs: formData.cash_bs,
-        dollars_to_bs: formData.dollars_to_bs,
+        exchange_rate: exchangeRate,
+        cash_available_bs: cashAvailableBs,
+        cash_available_usd: cashAvailableUsd,
+        closure_notes: closureNotesInput,
+        additional_amount_bs: additionalAmountBs,
+        additional_amount_usd: additionalAmountUsd,
+        additional_notes: additionalNotesInput,
+        apply_excess_usd: applyExcessUsdSwitch,
         excess_usd: excessUsd,
-        final_difference: finalDifference,
+        final_difference: diferenciaFinal,
         created_by: user.id,
       };
 
@@ -146,112 +157,332 @@ export function WeeklyCuadreConfigForm({
     );
   }
 
+  // Parse numeric values for calculations
+  const exchangeRate = parseFloat(exchangeRateInput) || 36;
+  const cashAvailableBs = parseFloat(cashAvailableInput) || 0;
+  const cashAvailableUsd = parseFloat(cashAvailableUsdInput) || 0;
+  const additionalAmountBs = parseFloat(additionalAmountBsInput) || 0;
+  const additionalAmountUsd = parseFloat(additionalAmountUsdInput) || 0;
+
+  // Calculate excess USD (same formula as daily cuadre)
+  const sumatoriaUsd = cashAvailableUsd + summary.total_deudas_usd + summary.total_gastos_usd;
+  const diferenciaInicialUsd = sumatoriaUsd - summary.total_cuadre_usd;
+  const diferenciaFinalUsd = diferenciaInicialUsd - additionalAmountUsd;
+  const excessUsd = diferenciaFinalUsd;
+
+  // Calculate Bolivares sumatoria
+  const sumatoriaBolivares =
+    cashAvailableBs +
+    summary.total_banco_bs +
+    summary.total_deudas_bs +
+    summary.total_gastos_bs +
+    (applyExcessUsdSwitch ? excessUsd * exchangeRate : 0) +
+    additionalAmountBs;
+
+  const diferenciaCierre = sumatoriaBolivares - summary.total_cuadre_bs;
+  const diferenciaFinal = diferenciaCierre - summary.premios_por_pagar_bs;
+  const isCuadreBalanced = Math.abs(diferenciaFinal) <= 100;
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Settings className="h-5 w-5" />
-          Configuración de Cuadre Semanal
-        </CardTitle>
-        <CardDescription>
-          Configura la tasa, efectivo y dólares para {agencyName}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-          {/* Tasa de cambio */}
-          <div className="space-y-2">
-            <Label htmlFor="exchange_rate">Tasa de Cambio</Label>
-            <Input
-              id="exchange_rate"
-              type="number"
-              step="0.01"
-              {...register("exchange_rate", { valueAsNumber: true })}
-              placeholder="36.00"
-            />
-            {errors.exchange_rate && (
-              <p className="text-sm text-destructive">{errors.exchange_rate.message}</p>
-            )}
+    <div className="space-y-6">
+      {/* Exchange Rate Display */}
+      <Card className="bg-primary/5 border-primary/20">
+        <CardContent className="pt-4">
+          <div className="text-center space-y-2">
+            <div className="text-lg">💱</div>
+            <p className="text-sm text-muted-foreground">
+              Tasa del Domingo: <span className="font-bold">{summary.sunday_exchange_rate.toFixed(2)} Bs por USD</span>
+            </p>
           </div>
+        </CardContent>
+      </Card>
 
-          {/* Efectivo en Bs */}
-          <div className="space-y-2">
-            <Label htmlFor="cash_bs">Efectivo en Bolívares</Label>
-            <Input
-              id="cash_bs"
-              type="number"
-              step="0.01"
-              {...register("cash_bs", { valueAsNumber: true })}
-              placeholder="0.00"
-            />
-            {errors.cash_bs && (
-              <p className="text-sm text-destructive">{errors.cash_bs.message}</p>
-            )}
-          </div>
-
-          {/* Dólares para convertir a Bs */}
-          <div className="space-y-2">
-            <Label htmlFor="dollars_to_bs">Dólares a Bolívares</Label>
-            <Input
-              id="dollars_to_bs"
-              type="number"
-              step="0.01"
-              {...register("dollars_to_bs", { valueAsNumber: true })}
-              placeholder="0.00"
-            />
-            {errors.dollars_to_bs && (
-              <p className="text-sm text-destructive">{errors.dollars_to_bs.message}</p>
-            )}
-          </div>
-
-          {/* Cálculos automáticos */}
-          <div className="space-y-4 p-4 bg-muted/50 rounded-lg">
-            <div className="flex items-center gap-2 text-sm font-medium">
-              <Calculator className="h-4 w-4" />
-              Cálculos Automáticos
+      {/* Editable Fields */}
+      <Card className="border-2 border-primary/30 bg-gradient-to-br from-primary/5 to-accent/10">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-primary flex items-center gap-2">
+            <Save className="h-5 w-5" />
+            Configuración del Cuadre Semanal
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Main Fields */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="exchange-rate" className="font-semibold">
+                Tasa BCV (Bs/$)
+              </Label>
+              <Input
+                id="exchange-rate"
+                type="number"
+                step="0.01"
+                value={exchangeRateInput}
+                onChange={(e) => setExchangeRateInput(e.target.value)}
+                className="text-center font-mono text-lg"
+              />
             </div>
 
-            <div className="space-y-3">
-              {/* Hay en banco */}
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-muted-foreground">Hay en Banco:</span>
-                <span className="font-mono font-semibold">
-                  {formatCurrency(totalBancoBs, "VES")}
-                </span>
+            <div className="space-y-2">
+              <Label htmlFor="cash-bs" className="font-semibold">
+                Efectivo Disponible (Bs)
+              </Label>
+              <Input
+                id="cash-bs"
+                type="number"
+                step="0.01"
+                value={cashAvailableInput}
+                onChange={(e) => setCashAvailableInput(e.target.value)}
+                className="text-center font-mono text-lg"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="cash-usd" className="font-semibold">
+                Efectivo Disponible (USD)
+              </Label>
+              <Input
+                id="cash-usd"
+                type="number"
+                step="0.01"
+                value={cashAvailableUsdInput}
+                onChange={(e) => setCashAvailableUsdInput(e.target.value)}
+                className="text-center font-mono text-lg"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Textarea
+              id="closure-notes"
+              value={closureNotesInput}
+              onChange={(e) => setClosureNotesInput(e.target.value)}
+              placeholder="Observaciones de la semana..."
+              className="min-h-[80px]"
+            />
+          </div>
+
+          <Separator className="my-4" />
+
+          {/* Additional Adjustments Section */}
+          <div className="space-y-4 p-4 rounded-lg bg-card border border-border">
+            <h4 className="font-semibold flex items-center gap-2">
+              <Calculator className="h-4 w-4" />
+              Ajustes Adicionales del Cuadre
+            </h4>
+
+            {/* Apply Excess USD Switch */}
+            <div className="flex items-center justify-between p-3 rounded-lg bg-accent/20 border border-accent/40">
+              <div className="space-y-1">
+                <Label htmlFor="apply-excess-usd" className="font-medium cursor-pointer">
+                  Aplicar excedente USD a bolívares
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Incluir la diferencia de USD convertida en el cálculo de Bs
+                </p>
+              </div>
+              <Switch
+                id="apply-excess-usd"
+                checked={applyExcessUsdSwitch}
+                onCheckedChange={setApplyExcessUsdSwitch}
+              />
+            </div>
+
+            {/* Additional Amounts */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="additional-amount-bs" className="font-medium">
+                  Monto Adicional (Bs)
+                </Label>
+                <Input
+                  id="additional-amount-bs"
+                  type="number"
+                  step="0.01"
+                  value={additionalAmountBsInput}
+                  onChange={(e) => setAdditionalAmountBsInput(e.target.value)}
+                  placeholder="Ej: dinero que se debía"
+                  className="font-mono"
+                />
               </div>
 
-              {/* Exceso USD */}
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-muted-foreground">Exceso USD:</span>
+              <div className="space-y-2">
+                <Label htmlFor="additional-amount-usd" className="font-medium">
+                  Monto Adicional (USD)
+                </Label>
+                <Input
+                  id="additional-amount-usd"
+                  type="number"
+                  step="0.01"
+                  value={additionalAmountUsdInput}
+                  onChange={(e) => setAdditionalAmountUsdInput(e.target.value)}
+                  placeholder="Ej: dinero que se debía"
+                  className="font-mono"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="additional-notes" className="font-medium">
+                Descripción del Monto Adicional
+              </Label>
+              <Textarea
+                id="additional-notes"
+                value={additionalNotesInput}
+                onChange={(e) => setAdditionalNotesInput(e.target.value)}
+                placeholder="Ej: Dinero que se debía de semanas anteriores..."
+                className="min-h-[60px]"
+              />
+            </div>
+          </div>
+
+          <Button onClick={handleSave} disabled={loading} className="w-full mt-4" size="lg">
+            <Save className="h-4 w-4 mr-2" />
+            {loading ? "Guardando..." : "Guardar Configuración Semanal"}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Summary Cards - Similar to daily cuadre */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Resumen en Bolívares */}
+        <Card className="border-2">
+          <CardHeader className="pb-3 bg-gradient-to-br from-emerald-500/10 to-emerald-500/5">
+            <CardTitle className="text-lg font-bold text-emerald-700">Resumen en Bolívares</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <div className="space-y-3">
+              <div className="flex justify-between items-center hover:bg-accent/50 p-2 rounded transition-colors">
+                <span className="text-sm font-medium">Efectivo Disponible:</span>
+                <span className="font-mono font-semibold">{formatCurrency(cashAvailableBs, "VES")}</span>
+              </div>
+              <div className="flex justify-between items-center hover:bg-accent/50 p-2 rounded transition-colors">
+                <span className="text-sm font-medium">Total en Banco:</span>
+                <span className="font-mono font-semibold">{formatCurrency(summary.total_banco_bs, "VES")}</span>
+              </div>
+              <div className="flex justify-between items-center hover:bg-accent/50 p-2 rounded transition-colors">
+                <span className="text-sm font-medium">Deudas:</span>
+                <span className="font-mono font-semibold">{formatCurrency(summary.total_deudas_bs, "VES")}</span>
+              </div>
+              <div className="flex justify-between items-center hover:bg-accent/50 p-2 rounded transition-colors">
+                <span className="text-sm font-medium">Gastos:</span>
+                <span className="font-mono font-semibold">{formatCurrency(summary.total_gastos_bs, "VES")}</span>
+              </div>
+              {applyExcessUsdSwitch && (
+                <div className="flex justify-between items-center hover:bg-accent/50 p-2 rounded transition-colors">
+                  <span className="text-sm font-medium">Excedente USD convertido:</span>
+                  <span className="font-mono font-semibold">
+                    {formatCurrency(excessUsd * exchangeRate, "VES")}
+                  </span>
+                </div>
+              )}
+              {additionalAmountBs !== 0 && (
+                <div className="flex justify-between items-center hover:bg-accent/50 p-2 rounded transition-colors">
+                  <span className="text-sm font-medium">Monto Adicional:</span>
+                  <span className="font-mono font-semibold">{formatCurrency(additionalAmountBs, "VES")}</span>
+                </div>
+              )}
+              <Separator />
+              <div className="flex justify-between items-center hover:bg-accent/50 p-2 rounded transition-colors">
+                <span className="text-sm font-bold">Sumatoria Bs:</span>
+                <span className="font-mono font-bold text-base">{formatCurrency(sumatoriaBolivares, "VES")}</span>
+              </div>
+              <div className="flex justify-between items-center hover:bg-accent/50 p-2 rounded transition-colors">
+                <span className="text-sm font-bold">Cuadre (V-P) Bs:</span>
+                <span className="font-mono font-bold text-base">{formatCurrency(summary.total_cuadre_bs, "VES")}</span>
+              </div>
+              <Separator className="my-2" />
+              <div className="flex justify-between items-center p-3 rounded-lg bg-gradient-to-r from-blue-500/10 to-blue-500/5 border border-blue-500/20">
+                <span className="font-bold">Diferencia de Cierre:</span>
                 <span
-                  className={`font-mono font-semibold ${
-                    excessUsd >= 0 ? "text-green-600" : "text-red-600"
+                  className={`font-mono font-bold text-lg ${
+                    diferenciaCierre >= 0 ? "text-green-600" : "text-red-600"
                   }`}
                 >
+                  {formatCurrency(diferenciaCierre, "VES")}
+                </span>
+              </div>
+              <div className="flex justify-between items-center hover:bg-accent/50 p-2 rounded transition-colors">
+                <span className="text-sm font-medium">Premios por Pagar:</span>
+                <span className="font-mono font-semibold">-{formatCurrency(summary.premios_por_pagar_bs, "VES")}</span>
+              </div>
+              <Separator className="my-2" />
+              <div
+                className={`flex justify-between items-center p-4 rounded-lg font-bold text-xl ${
+                  isCuadreBalanced
+                    ? "bg-gradient-to-r from-green-500/20 to-green-500/10 border-2 border-green-500/30"
+                    : "bg-gradient-to-r from-red-500/20 to-red-500/10 border-2 border-red-500/30"
+                }`}
+              >
+                <span>Diferencia Final:</span>
+                <span className={`font-mono ${isCuadreBalanced ? "text-green-600" : "text-red-600"}`}>
+                  {formatCurrency(diferenciaFinal, "VES")}
+                </span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Resumen en Dólares */}
+        <Card className="border-2">
+          <CardHeader className="pb-3 bg-gradient-to-br from-blue-500/10 to-blue-500/5">
+            <CardTitle className="text-lg font-bold text-blue-700">Resumen en Dólares</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <div className="space-y-3">
+              <div className="flex justify-between items-center hover:bg-accent/50 p-2 rounded transition-colors">
+                <span className="text-sm font-medium">Efectivo Disponible:</span>
+                <span className="font-mono font-semibold">{formatCurrency(cashAvailableUsd, "USD")}</span>
+              </div>
+              <div className="flex justify-between items-center hover:bg-accent/50 p-2 rounded transition-colors">
+                <span className="text-sm font-medium">Deudas:</span>
+                <span className="font-mono font-semibold">{formatCurrency(summary.total_deudas_usd, "USD")}</span>
+              </div>
+              <div className="flex justify-between items-center hover:bg-accent/50 p-2 rounded transition-colors">
+                <span className="text-sm font-medium">Gastos:</span>
+                <span className="font-mono font-semibold">{formatCurrency(summary.total_gastos_usd, "USD")}</span>
+              </div>
+              <Separator />
+              <div className="flex justify-between items-center hover:bg-accent/50 p-2 rounded transition-colors">
+                <span className="text-sm font-bold">Sumatoria USD:</span>
+                <span className="font-mono font-bold text-base">{formatCurrency(sumatoriaUsd, "USD")}</span>
+              </div>
+              <div className="flex justify-between items-center hover:bg-accent/50 p-2 rounded transition-colors">
+                <span className="text-sm font-bold">Cuadre (V-P) USD:</span>
+                <span className="font-mono font-bold text-base">{formatCurrency(summary.total_cuadre_usd, "USD")}</span>
+              </div>
+              <Separator className="my-2" />
+              <div className="flex justify-between items-center p-3 rounded-lg bg-gradient-to-r from-blue-500/10 to-blue-500/5 border border-blue-500/20">
+                <span className="font-bold">Diferencia Inicial USD:</span>
+                <span
+                  className={`font-mono font-bold text-lg ${
+                    diferenciaInicialUsd >= 0 ? "text-green-600" : "text-red-600"
+                  }`}
+                >
+                  {formatCurrency(diferenciaInicialUsd, "USD")}
+                </span>
+              </div>
+              {additionalAmountUsd !== 0 && (
+                <div className="flex justify-between items-center hover:bg-accent/50 p-2 rounded transition-colors">
+                  <span className="text-sm font-medium">Monto Adicional:</span>
+                  <span className="font-mono font-semibold">-{formatCurrency(additionalAmountUsd, "USD")}</span>
+                </div>
+              )}
+              <Separator className="my-2" />
+              <div
+                className={`flex justify-between items-center p-4 rounded-lg font-bold text-xl ${
+                  Math.abs(excessUsd) <= 1
+                    ? "bg-gradient-to-r from-green-500/20 to-green-500/10 border-2 border-green-500/30"
+                    : "bg-gradient-to-r from-amber-500/20 to-amber-500/10 border-2 border-amber-500/30"
+                }`}
+              >
+                <span>Excedente USD:</span>
+                <span className={`font-mono ${Math.abs(excessUsd) <= 1 ? "text-green-600" : "text-amber-600"}`}>
                   {formatCurrency(excessUsd, "USD")}
                 </span>
               </div>
-
-              {/* Diferencia final */}
-              <div className="flex justify-between items-center pt-2 border-t">
-                <span className="font-medium">Diferencia Final:</span>
-                <span
-                  className={`font-mono font-bold text-lg ${
-                    finalDifference >= 0 ? "text-green-600" : "text-red-600"
-                  }`}
-                >
-                  {formatCurrency(finalDifference, "VES")}
-                </span>
-              </div>
             </div>
-          </div>
-
-          <Button type="submit" disabled={loading} className="w-full">
-            <Save className="h-4 w-4 mr-2" />
-            {loading ? "Guardando..." : "Guardar Configuración"}
-          </Button>
-        </form>
-      </CardContent>
-    </Card>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
   );
 }
