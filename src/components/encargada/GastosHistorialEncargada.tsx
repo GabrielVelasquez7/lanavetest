@@ -9,6 +9,16 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Edit2, Save, X, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface Expense {
   id: string;
@@ -30,6 +40,7 @@ export const GastosHistorialEncargada = ({ refreshKey, selectedAgency, selectedD
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<Expense>>({});
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const { toast } = useToast();
 
   const fetchExpenses = async () => {
@@ -117,22 +128,23 @@ export const GastosHistorialEncargada = ({ refreshKey, selectedAgency, selectedD
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('¿Estás segura de que quieres eliminar este gasto?')) return;
+  const handleDelete = async () => {
+    if (!deleteId) return;
 
     try {
       const { error } = await supabase
         .from('expenses')
         .delete()
-        .eq('id', id);
+        .eq('id', deleteId);
 
       if (error) throw error;
 
       toast({
-        title: 'Éxito',
-        description: 'Gasto eliminado correctamente',
+        title: 'Gasto eliminado',
+        description: 'El gasto ha sido eliminado correctamente',
       });
 
+      setDeleteId(null);
       fetchExpenses();
     } catch (error: any) {
       toast({
@@ -178,8 +190,29 @@ export const GastosHistorialEncargada = ({ refreshKey, selectedAgency, selectedD
     );
   }
 
+  const expenseToDelete = expenses.find(e => e.id === deleteId);
+
   return (
     <div className="space-y-4">
+      <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar este gasto?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Se eliminará permanentemente el gasto de{' '}
+              <span className="font-semibold">
+                {expenseToDelete?.amount_bs.toLocaleString('es-VE', { style: 'currency', currency: 'VES' })}
+              </span>
+              {' '}({getCategoryLabel(expenseToDelete?.category || '')}).
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete}>Eliminar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {expenses.map((expense) => (
         <Card key={expense.id}>
           <CardHeader className="pb-2">
@@ -230,7 +263,7 @@ export const GastosHistorialEncargada = ({ refreshKey, selectedAgency, selectedD
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => handleDelete(expense.id)}
+                      onClick={() => setDeleteId(expense.id)}
                     >
                       <Trash2 className="h-3 w-3" />
                     </Button>

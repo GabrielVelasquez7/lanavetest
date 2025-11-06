@@ -31,12 +31,6 @@ export function WeeklyCuadreView() {
     }
   }, [error, toast]);
 
-  useEffect(() => {
-    const onFocus = () => currentWeek && user && refresh();
-    window.addEventListener("focus", onFocus);
-    return () => window.removeEventListener("focus", onFocus);
-  }, [currentWeek, user, refresh]);
-
   const getCurrentWeekBoundaries = async () => {
     try {
       const { data, error } = await supabase.rpc("get_current_week_boundaries");

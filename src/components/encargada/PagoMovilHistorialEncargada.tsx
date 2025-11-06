@@ -10,6 +10,16 @@ import { useToast } from '@/hooks/use-toast';
 import { Edit2, Save, X, Trash2, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { format } from 'date-fns';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface MobilePayment {
   id: string;
@@ -30,6 +40,7 @@ export const PagoMovilHistorialEncargada = ({ refreshKey, selectedAgency, select
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<MobilePayment>>({});
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const { toast } = useToast();
 
   const fetchPayments = async () => {
@@ -132,22 +143,23 @@ export const PagoMovilHistorialEncargada = ({ refreshKey, selectedAgency, select
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('¿Estás segura de que quieres eliminar este pago móvil?')) return;
+  const handleDelete = async () => {
+    if (!deleteId) return;
 
     try {
       const { error } = await supabase
         .from('mobile_payments')
         .delete()
-        .eq('id', id);
+        .eq('id', deleteId);
 
       if (error) throw error;
 
       toast({
-        title: 'Éxito',
-        description: 'Pago móvil eliminado correctamente',
+        title: 'Pago móvil eliminado',
+        description: 'El pago móvil ha sido eliminado correctamente',
       });
 
+      setDeleteId(null);
       fetchPayments();
     } catch (error: any) {
       toast({
@@ -193,8 +205,29 @@ export const PagoMovilHistorialEncargada = ({ refreshKey, selectedAgency, select
     .filter(p => p.amount_bs < 0)
     .reduce((sum, p) => sum + Math.abs(p.amount_bs), 0);
 
+  const paymentToDelete = payments.find(p => p.id === deleteId);
+
   return (
     <div className="space-y-4">
+      <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar este pago móvil?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Se eliminará permanentemente el pago móvil de{' '}
+              <span className="font-semibold">
+                {Math.abs(paymentToDelete?.amount_bs || 0).toLocaleString('es-VE', { style: 'currency', currency: 'VES' })}
+              </span>
+              {' '}(Ref: {paymentToDelete?.reference_number}).
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete}>Eliminar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Summary */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <Card>
@@ -307,7 +340,7 @@ export const PagoMovilHistorialEncargada = ({ refreshKey, selectedAgency, select
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => handleDelete(payment.id)}
+                        onClick={() => setDeleteId(payment.id)}
                       >
                         <Trash2 className="h-3 w-3" />
                       </Button>
