@@ -2,17 +2,22 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Separator } from "@/components/ui/separator";
-import { DollarSign, TrendingDown, TrendingUp, Building2, ListTree, Receipt, AlertCircle } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DollarSign, TrendingDown, TrendingUp, Building2, ListTree, Receipt, AlertCircle, Settings } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import type { AgencyWeeklySummary } from "@/hooks/useWeeklyCuadre";
 import { PerSystemTable } from "./PerSystemTable";
 import { ExpensesTable } from "./ExpensesTable";
+import { WeeklyCuadreConfigForm } from "./WeeklyCuadreConfigForm";
 
 interface Props {
   summary: AgencyWeeklySummary;
+  weekStart: Date;
+  weekEnd: Date;
+  onConfigSuccess?: () => void;
 }
 
-export function AgencyWeeklyCard({ summary }: Props) {
+export function AgencyWeeklyCard({ summary, weekStart, weekEnd, onConfigSuccess }: Props) {
   const hasActivity =
     summary.total_sales_bs > 0 ||
     summary.total_sales_usd > 0 ||
@@ -47,7 +52,17 @@ export function AgencyWeeklyCard({ summary }: Props) {
       </CardHeader>
 
       {hasActivity && (
-        <CardContent className="pt-6 space-y-6">
+        <CardContent className="pt-6">
+          <Tabs defaultValue="resumen" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-6">
+              <TabsTrigger value="resumen">Resumen</TabsTrigger>
+              <TabsTrigger value="config">
+                <Settings className="h-4 w-4 mr-2" />
+                Configuración
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="resumen" className="space-y-6">
           {/* Indicadores principales - Grid limpio */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Total Cuadre */}
@@ -249,6 +264,19 @@ export function AgencyWeeklyCard({ summary }: Props) {
               </AccordionContent>
             </AccordionItem>
           </Accordion>
+            </TabsContent>
+
+            <TabsContent value="config">
+              <WeeklyCuadreConfigForm
+                agencyId={summary.agency_id}
+                agencyName={summary.agency_name}
+                weekStart={weekStart}
+                weekEnd={weekEnd}
+                totalBancoBs={summary.total_banco_bs}
+                onSuccess={onConfigSuccess}
+              />
+            </TabsContent>
+          </Tabs>
         </CardContent>
       )}
     </Card>

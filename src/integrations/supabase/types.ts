@@ -837,6 +837,59 @@ export type Database = {
         }
         Relationships: []
       }
+      weekly_cuadre_config: {
+        Row: {
+          agency_id: string
+          cash_bs: number
+          created_at: string
+          created_by: string
+          dollars_to_bs: number
+          excess_usd: number
+          exchange_rate: number
+          final_difference: number
+          id: string
+          updated_at: string
+          week_end_date: string
+          week_start_date: string
+        }
+        Insert: {
+          agency_id: string
+          cash_bs?: number
+          created_at?: string
+          created_by: string
+          dollars_to_bs?: number
+          excess_usd?: number
+          exchange_rate?: number
+          final_difference?: number
+          id?: string
+          updated_at?: string
+          week_end_date: string
+          week_start_date: string
+        }
+        Update: {
+          agency_id?: string
+          cash_bs?: number
+          created_at?: string
+          created_by?: string
+          dollars_to_bs?: number
+          excess_usd?: number
+          exchange_rate?: number
+          final_difference?: number
+          id?: string
+          updated_at?: string
+          week_end_date?: string
+          week_start_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "weekly_cuadre_config_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       weekly_payroll: {
         Row: {
           absences_deductions: number

@@ -146,7 +146,15 @@ export function WeeklyCuadreView() {
             </CardContent>
           </Card>
         ) : (
-          filtered.map((s) => <AgencyWeeklyCard key={s.agency_id} summary={s} />)
+          filtered.map((s) => (
+            <AgencyWeeklyCard
+              key={s.agency_id}
+              summary={s}
+              weekStart={currentWeek.start}
+              weekEnd={currentWeek.end}
+              onConfigSuccess={refresh}
+            />
+          ))
         )}
       </div>
     </div>
