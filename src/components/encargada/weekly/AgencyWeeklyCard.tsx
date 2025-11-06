@@ -268,11 +268,9 @@ export function AgencyWeeklyCard({ summary, weekStart, weekEnd, onConfigSuccess 
 
             <TabsContent value="config">
               <WeeklyCuadreConfigForm
-                agencyId={summary.agency_id}
-                agencyName={summary.agency_name}
+                summary={summary}
                 weekStart={weekStart}
                 weekEnd={weekEnd}
-                totalBancoBs={summary.total_banco_bs}
                 onSuccess={onConfigSuccess}
               />
             </TabsContent>

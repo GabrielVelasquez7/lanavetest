@@ -839,11 +839,16 @@ export type Database = {
       }
       weekly_cuadre_config: {
         Row: {
+          additional_amount_bs: number
+          additional_amount_usd: number
+          additional_notes: string | null
           agency_id: string
-          cash_bs: number
+          apply_excess_usd: boolean
+          cash_available_bs: number
+          cash_available_usd: number
+          closure_notes: string | null
           created_at: string
           created_by: string
-          dollars_to_bs: number
           excess_usd: number
           exchange_rate: number
           final_difference: number
@@ -853,11 +858,16 @@ export type Database = {
           week_start_date: string
         }
         Insert: {
+          additional_amount_bs?: number
+          additional_amount_usd?: number
+          additional_notes?: string | null
           agency_id: string
-          cash_bs?: number
+          apply_excess_usd?: boolean
+          cash_available_bs?: number
+          cash_available_usd?: number
+          closure_notes?: string | null
           created_at?: string
           created_by: string
-          dollars_to_bs?: number
           excess_usd?: number
           exchange_rate?: number
           final_difference?: number
@@ -867,11 +877,16 @@ export type Database = {
           week_start_date: string
         }
         Update: {
+          additional_amount_bs?: number
+          additional_amount_usd?: number
+          additional_notes?: string | null
           agency_id?: string
-          cash_bs?: number
+          apply_excess_usd?: boolean
+          cash_available_bs?: number
+          cash_available_usd?: number
+          closure_notes?: string | null
           created_at?: string
           created_by?: string
-          dollars_to_bs?: number
           excess_usd?: number
           exchange_rate?: number
           final_difference?: number
