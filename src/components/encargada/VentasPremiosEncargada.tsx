@@ -761,7 +761,6 @@ export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
             <CuadreGeneralEncargada 
               selectedAgency={selectedAgency}
               selectedDate={selectedDate}
-              refreshKey={Math.random()}
             />
           </TabsContent>
         </Tabs>
