@@ -16,6 +16,15 @@ export interface PerSystemTotals {
   prizes_usd: number;
 }
 
+export interface ExpenseDetail {
+  id: string;
+  date: string;
+  category: string;
+  amount_bs: number;
+  amount_usd: number;
+  description?: string;
+}
+
 export interface AgencyWeeklySummary {
   agency_id: string;
   agency_name: string;
@@ -32,6 +41,8 @@ export interface AgencyWeeklySummary {
   total_banco_bs: number;
   sunday_exchange_rate: number;
   per_system: PerSystemTotals[];
+  gastos_details: ExpenseDetail[];
+  deudas_details: ExpenseDetail[];
 }
 
 interface UseWeeklyCuadreResult {
@@ -57,7 +68,7 @@ export function useWeeklyCuadre(currentWeek: WeekBoundaries | null): UseWeeklyCu
     setError(null);
 
     try {
-      // 1) Agencias
+      // 1) Agencias y todos los sistemas
       const [{ data: agenciesData, error: agenciesError }, { data: details, error: detailsError }, { data: systems, error: systemsError }, { data: summaryData, error: summaryError }, { data: expenses, error: expensesError }, { data: sessions, error: sessionsError }, { data: profiles, error: profilesError }] = await Promise.all([
         supabase.from("agencies").select("id,name").eq("is_active", true).order("name"),
         supabase
@@ -65,7 +76,7 @@ export function useWeeklyCuadre(currentWeek: WeekBoundaries | null): UseWeeklyCu
           .select("agency_id, session_date, lottery_system_id, sales_bs, sales_usd, prizes_bs, prizes_usd")
           .gte("session_date", startStr)
           .lte("session_date", endStr),
-        supabase.from("lottery_systems").select("id,name"),
+        supabase.from("lottery_systems").select("id,name").eq("is_active", true).order("name"),
         supabase
           .from("daily_cuadres_summary")
           .select(
@@ -76,7 +87,7 @@ export function useWeeklyCuadre(currentWeek: WeekBoundaries | null): UseWeeklyCu
           .lte("session_date", endStr),
         supabase
           .from("expenses")
-          .select("amount_bs, amount_usd, category, session_id, agency_id, transaction_date")
+          .select("id, amount_bs, amount_usd, category, session_id, agency_id, transaction_date, description")
           .gte("transaction_date", startStr)
           .lte("transaction_date", endStr),
         supabase
@@ -111,8 +122,17 @@ export function useWeeklyCuadre(currentWeek: WeekBoundaries | null): UseWeeklyCu
       // Construir por agencia
       const byAgency: Record<string, AgencyWeeklySummary> = {};
 
-      // Base por agencia
+      // Base por agencia - Inicializar TODOS los sistemas con 0
       (agenciesData || []).forEach((a) => {
+        const allSystems: PerSystemTotals[] = (systems || []).map((s) => ({
+          system_id: s.id,
+          system_name: s.name,
+          sales_bs: 0,
+          sales_usd: 0,
+          prizes_bs: 0,
+          prizes_usd: 0,
+        }));
+
         byAgency[a.id] = {
           agency_id: a.id,
           agency_name: a.name,
@@ -127,45 +147,35 @@ export function useWeeklyCuadre(currentWeek: WeekBoundaries | null): UseWeeklyCu
           premios_por_pagar_bs: 0,
           total_banco_bs: 0,
           sunday_exchange_rate: 36,
-          per_system: [],
+          per_system: allSystems,
+          gastos_details: [],
+          deudas_details: [],
         };
       });
 
-      // Totales por sistema en la semana
-      const perAgencySystem = new Map<string, Map<string, PerSystemTotals>>();
+      // Agregar datos reales a los sistemas que tienen movimientos
       (details || []).forEach((d) => {
         const agencyId = d.agency_id;
-        if (!perAgencySystem.has(agencyId)) perAgencySystem.set(agencyId, new Map());
-        const perSys = perAgencySystem.get(agencyId)!;
-        const key = d.lottery_system_id;
-        const current: PerSystemTotals =
-          perSys.get(key) || {
-            system_id: key,
-            system_name: systemNameById.get(key) || "Sistema",
-            sales_bs: 0,
-            sales_usd: 0,
-            prizes_bs: 0,
-            prizes_usd: 0,
-          };
-        current.sales_bs += Number(d.sales_bs || 0);
-        current.sales_usd += Number(d.sales_usd || 0);
-        current.prizes_bs += Number(d.prizes_bs || 0);
-        current.prizes_usd += Number(d.prizes_usd || 0);
-        perSys.set(key, current);
+        const ag = byAgency[agencyId];
+        if (!ag) return;
+
+        const systemIdx = ag.per_system.findIndex((s) => s.system_id === d.lottery_system_id);
+        if (systemIdx !== -1) {
+          ag.per_system[systemIdx].sales_bs += Number(d.sales_bs || 0);
+          ag.per_system[systemIdx].sales_usd += Number(d.sales_usd || 0);
+          ag.per_system[systemIdx].prizes_bs += Number(d.prizes_bs || 0);
+          ag.per_system[systemIdx].prizes_usd += Number(d.prizes_usd || 0);
+        }
       });
 
-      // Aplicar per-system y totales de ventas/premios
-      Object.entries(byAgency).forEach(([agencyId, ag]) => {
-        const perSys = perAgencySystem.get(agencyId);
-        if (perSys) {
-          ag.per_system = Array.from(perSys.values()).sort((a, b) => a.system_name.localeCompare(b.system_name));
-          ag.per_system.forEach((s) => {
-            ag.total_sales_bs += s.sales_bs;
-            ag.total_sales_usd += s.sales_usd;
-            ag.total_prizes_bs += s.prizes_bs;
-            ag.total_prizes_usd += s.prizes_usd;
-          });
-        }
+      // Calcular totales de ventas/premios
+      Object.values(byAgency).forEach((ag) => {
+        ag.per_system.forEach((s) => {
+          ag.total_sales_bs += s.sales_bs;
+          ag.total_sales_usd += s.sales_usd;
+          ag.total_prizes_bs += s.prizes_bs;
+          ag.total_prizes_usd += s.prizes_usd;
+        });
       });
 
       // Resumen encargada (banco, premios por pagar, tasa del domingo)
@@ -192,16 +202,28 @@ export function useWeeklyCuadre(currentWeek: WeekBoundaries | null): UseWeeklyCu
         }
       });
 
-      // Gastos/Deudas
+      // Gastos/Deudas con detalles
       (expenses || []).forEach((e) => {
         const agencyId = e.agency_id || (e.session_id ? sessionToAgency.get(e.session_id) : undefined);
         if (!agencyId || !byAgency[agencyId]) return;
+
+        const expenseDetail: ExpenseDetail = {
+          id: e.id,
+          date: e.transaction_date as string,
+          category: e.category,
+          amount_bs: Number(e.amount_bs || 0),
+          amount_usd: Number(e.amount_usd || 0),
+          description: e.description || undefined,
+        };
+
         if (e.category === "deuda") {
-          byAgency[agencyId].total_deudas_bs += Number(e.amount_bs || 0);
-          byAgency[agencyId].total_deudas_usd += Number(e.amount_usd || 0);
+          byAgency[agencyId].total_deudas_bs += expenseDetail.amount_bs;
+          byAgency[agencyId].total_deudas_usd += expenseDetail.amount_usd;
+          byAgency[agencyId].deudas_details.push(expenseDetail);
         } else if (e.category === "gasto_operativo") {
-          byAgency[agencyId].total_gastos_bs += Number(e.amount_bs || 0);
-          byAgency[agencyId].total_gastos_usd += Number(e.amount_usd || 0);
+          byAgency[agencyId].total_gastos_bs += expenseDetail.amount_bs;
+          byAgency[agencyId].total_gastos_usd += expenseDetail.amount_usd;
+          byAgency[agencyId].gastos_details.push(expenseDetail);
         }
       });
 
