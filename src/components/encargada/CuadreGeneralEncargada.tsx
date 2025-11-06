@@ -772,62 +772,145 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
         </CardContent>
       </Card>
 
-      {/* Resumen Consolidado */}
+      {/* Resumen Consolidado - Indicadores Principales */}
       <Card className="border-2 border-primary/20">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Calculator className="h-5 w-5" />
-            Resumen General
+            Indicadores Principales
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid md:grid-cols-2 gap-6">
-            {/* Bolívares */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Cuadre Ventas-Premios Bs */}
+            <div className="relative p-5 rounded-xl bg-gradient-to-br from-blue-500/10 to-blue-500/5 border-2 border-blue-500/20">
+              <div className="flex items-start justify-between mb-2">
+                <div className="p-2 bg-blue-500/10 rounded-lg">
+                  <TrendingUp className="h-5 w-5 text-blue-600" />
+                </div>
+              </div>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                Cuadre (V-P) Bs
+              </p>
+              <p className="text-2xl font-bold text-blue-600 font-mono">
+                {formatCurrency(cuadreVentasPremios.bs, 'VES')}
+              </p>
+            </div>
+
+            {/* Cuadre Ventas-Premios USD */}
+            <div className="relative p-5 rounded-xl bg-gradient-to-br from-purple-500/10 to-purple-500/5 border-2 border-purple-500/20">
+              <div className="flex items-start justify-between mb-2">
+                <div className="p-2 bg-purple-500/10 rounded-lg">
+                  <TrendingUp className="h-5 w-5 text-purple-600" />
+                </div>
+              </div>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                Cuadre (V-P) USD
+              </p>
+              <p className="text-2xl font-bold text-purple-600 font-mono">
+                {formatCurrency(cuadreVentasPremios.usd, 'USD')}
+              </p>
+            </div>
+
+            {/* Total en Banco */}
+            <div className="relative p-5 rounded-xl bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 border-2 border-emerald-500/20">
+              <div className="flex items-start justify-between mb-2">
+                <div className="p-2 bg-emerald-500/10 rounded-lg">
+                  <TrendingUp className="h-5 w-5 text-emerald-600" />
+                </div>
+              </div>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                Total en Banco
+              </p>
+              <p className="text-2xl font-bold text-emerald-600 font-mono">
+                {formatCurrency(totalBanco, 'VES')}
+              </p>
+            </div>
+
+            {/* Premios por Pagar */}
+            <div className="relative p-5 rounded-xl bg-gradient-to-br from-amber-500/10 to-amber-500/5 border-2 border-amber-500/20">
+              <div className="flex items-start justify-between mb-2">
+                <div className="p-2 bg-amber-500/10 rounded-lg">
+                  <TrendingDown className="h-5 w-5 text-amber-600" />
+                </div>
+              </div>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                Premios por Pagar
+              </p>
+              <p className="text-2xl font-bold text-amber-600 font-mono">
+                {formatCurrency(cuadre.pendingPrizes, 'VES')}
+              </p>
+            </div>
+          </div>
+
+          <Separator className="my-6" />
+
+          {/* Desglose Ventas/Premios - Layout compacto */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="space-y-3">
-              <h3 className="font-semibold border-b pb-2">Bolívares (Bs)</h3>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded">
-                  <p className="text-xs text-muted-foreground">Ventas</p>
-                  <p className="text-lg font-bold text-green-600">{formatCurrency(cuadre.totalSales.bs, 'VES')}</p>
+              <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                <TrendingUp className="h-3.5 w-3.5" />
+                Ventas
+              </h4>
+              <div className="space-y-2 pl-1">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Bolívares</span>
+                  <span className="font-mono font-semibold text-sm">
+                    {formatCurrency(cuadre.totalSales.bs, 'VES')}
+                  </span>
                 </div>
-                <div className="bg-red-50 dark:bg-red-900/20 p-3 rounded">
-                  <p className="text-xs text-muted-foreground">Premios</p>
-                  <p className="text-lg font-bold text-red-600">{formatCurrency(cuadre.totalPrizes.bs, 'VES')}</p>
-                </div>
-                <div className="bg-orange-50 dark:bg-orange-900/20 p-3 rounded">
-                  <p className="text-xs text-muted-foreground">P. Móvil Recibido</p>
-                  <p className="text-sm font-semibold">{formatCurrency(cuadre.pagoMovilRecibidos, 'VES')}</p>
-                </div>
-                <div className="bg-orange-50 dark:bg-orange-900/20 p-3 rounded">
-                  <p className="text-xs text-muted-foreground">P. Móvil Pagado</p>
-                  <p className="text-sm font-semibold text-destructive">{formatCurrency(cuadre.pagoMovilPagados, 'VES')}</p>
-                </div>
-                <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded">
-                  <p className="text-xs text-muted-foreground">Punto de Venta</p>
-                  <p className="text-sm font-semibold">{formatCurrency(cuadre.totalPointOfSale, 'VES')}</p>
-                </div>
-                <div className="bg-amber-50 dark:bg-amber-900/20 p-3 rounded">
-                  <p className="text-xs text-muted-foreground">Premios por Pagar</p>
-                  <p className="text-sm font-semibold text-amber-600">{formatCurrency(cuadre.pendingPrizes, 'VES')}</p>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Dólares</span>
+                  <span className="font-mono font-semibold text-sm">
+                    {formatCurrency(cuadre.totalSales.usd, 'USD')}
+                  </span>
                 </div>
               </div>
             </div>
-            
-            {/* Dólares */}
+
             <div className="space-y-3">
-              <h3 className="font-semibold border-b pb-2">Dólares (USD)</h3>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded">
-                  <p className="text-xs text-muted-foreground">Ventas</p>
-                  <p className="text-lg font-bold text-green-600">{formatCurrency(cuadre.totalSales.usd, 'USD')}</p>
+              <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                <TrendingDown className="h-3.5 w-3.5" />
+                Premios
+              </h4>
+              <div className="space-y-2 pl-1">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Bolívares</span>
+                  <span className="font-mono font-semibold text-sm">
+                    {formatCurrency(cuadre.totalPrizes.bs, 'VES')}
+                  </span>
                 </div>
-                <div className="bg-red-50 dark:bg-red-900/20 p-3 rounded">
-                  <p className="text-xs text-muted-foreground">Premios</p>
-                  <p className="text-lg font-bold text-red-600">{formatCurrency(cuadre.totalPrizes.usd, 'USD')}</p>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Dólares</span>
+                  <span className="font-mono font-semibold text-sm">
+                    {formatCurrency(cuadre.totalPrizes.usd, 'USD')}
+                  </span>
                 </div>
-                <div className="bg-purple-50 dark:bg-purple-900/20 p-3 rounded col-span-2">
-                  <p className="text-xs text-muted-foreground">Cuadre (V-P)</p>
-                  <p className="text-lg font-bold text-purple-600">{formatCurrency(cuadreVentasPremios.usd, 'USD')}</p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                Desglose Banco
+              </h4>
+              <div className="space-y-2 pl-1">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">P. Móvil Recibido</span>
+                  <span className="font-mono font-semibold text-sm text-emerald-600">
+                    {formatCurrency(cuadre.pagoMovilRecibidos, 'VES')}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Punto de Venta</span>
+                  <span className="font-mono font-semibold text-sm text-blue-600">
+                    {formatCurrency(cuadre.totalPointOfSale, 'VES')}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">P. Móvil Pagado</span>
+                  <span className="font-mono font-semibold text-sm text-red-600">
+                    -{formatCurrency(cuadre.pagoMovilPagados, 'VES')}
+                  </span>
                 </div>
               </div>
             </div>
@@ -836,32 +919,35 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
       </Card>
 
       {/* Closure Formula Card - Bolivares */}
-      <Card className="border-2 border-primary/20 border-l-4 border-l-primary">
-        <CardHeader>
-          <CardTitle className="text-primary">Resumen en Bolívares</CardTitle>
+      <Card className="border-2 border-primary/20 overflow-hidden">
+        <CardHeader className="bg-gradient-to-br from-background via-muted/30 to-background pb-4">
+          <CardTitle className="text-primary flex items-center gap-2">
+            <Calculator className="h-5 w-5" />
+            Resumen en Bolívares
+          </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-6">
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
               <div className="space-y-4">
                 <h4 className="font-semibold text-sm h-5 flex items-center">Sumatoria:</h4>
                 <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
+                  <div className="flex justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors">
                     <span>Efectivo del día:</span>
-                    <span className="font-medium">{formatCurrency(cuadre.cashAvailable, 'VES')}</span>
+                    <span className="font-mono font-medium">{formatCurrency(cuadre.cashAvailable, 'VES')}</span>
                   </div>
-                  <div className="flex justify-between">
+                  <div className="flex justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors">
                     <span>Total en banco:</span>
-                    <span className="font-medium">{formatCurrency(totalBanco, 'VES')}</span>
+                    <span className="font-mono font-medium">{formatCurrency(totalBanco, 'VES')}</span>
                   </div>
                   <Collapsible open={deudasOpen} onOpenChange={setDeudasOpen}>
                     <CollapsibleTrigger asChild>
-                      <div className="flex justify-between items-center cursor-pointer hover:bg-muted/50 rounded px-2 py-1 transition-colors">
+                      <div className="flex justify-between items-center cursor-pointer hover:bg-muted/50 rounded-lg px-2 py-2 transition-colors">
                         <span className="flex items-center gap-1">
                           {deudasOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
                           Deudas:
                         </span>
-                        <span className="font-medium">{formatCurrency(cuadre.totalDeudas.bs, 'VES')}</span>
+                        <span className="font-mono font-medium">{formatCurrency(cuadre.totalDeudas.bs, 'VES')}</span>
                       </div>
                     </CollapsibleTrigger>
                     <CollapsibleContent>
@@ -876,9 +962,9 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
                                 </div>
                               </div>
                               <div className="text-right">
-                                <div>{formatCurrency(deuda.amount_bs, 'VES')}</div>
+                                <div className="font-mono">{formatCurrency(deuda.amount_bs, 'VES')}</div>
                                 {deuda.amount_usd > 0 && (
-                                  <div className="text-xs text-muted-foreground">{formatCurrency(deuda.amount_usd, 'USD')}</div>
+                                  <div className="text-xs text-muted-foreground font-mono">{formatCurrency(deuda.amount_usd, 'USD')}</div>
                                 )}
                               </div>
                             </div>
@@ -891,12 +977,12 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
                   </Collapsible>
                   <Collapsible open={gastosOpen} onOpenChange={setGastosOpen}>
                     <CollapsibleTrigger asChild>
-                      <div className="flex justify-between items-center cursor-pointer hover:bg-muted/50 rounded px-2 py-1 transition-colors">
+                      <div className="flex justify-between items-center cursor-pointer hover:bg-muted/50 rounded-lg px-2 py-2 transition-colors">
                         <span className="flex items-center gap-1">
                           {gastosOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
                           Gastos:
                         </span>
-                        <span className="font-medium">{formatCurrency(cuadre.totalGastos.bs, 'VES')}</span>
+                        <span className="font-mono font-medium">{formatCurrency(cuadre.totalGastos.bs, 'VES')}</span>
                       </div>
                     </CollapsibleTrigger>
                     <CollapsibleContent>
@@ -911,9 +997,9 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
                                 </div>
                               </div>
                               <div className="text-right">
-                                <div>{formatCurrency(gasto.amount_bs, 'VES')}</div>
+                                <div className="font-mono">{formatCurrency(gasto.amount_bs, 'VES')}</div>
                                 {gasto.amount_usd > 0 && (
-                                  <div className="text-xs text-muted-foreground">{formatCurrency(gasto.amount_usd, 'USD')}</div>
+                                  <div className="text-xs text-muted-foreground font-mono">{formatCurrency(gasto.amount_usd, 'USD')}</div>
                                 )}
                               </div>
                             </div>
@@ -924,9 +1010,9 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
                       </div>
                     </CollapsibleContent>
                   </Collapsible>
-                  <div className="flex justify-between">
+                  <div className="flex justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors">
                     <span>Excedente USD → Bs (x{cuadre.exchangeRate.toFixed(2)}):</span>
-                    <span className="font-medium">
+                    <span className="font-mono font-medium">
                       {applyExcessUsdSwitch 
                         ? formatCurrency(excessUsd * cuadre.exchangeRate, 'VES')
                         : formatCurrency(0, 'VES')
@@ -934,15 +1020,15 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
                     </span>
                   </div>
                   {additionalAmountBs > 0 && (
-                    <div className="flex justify-between">
+                    <div className="flex justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors">
                       <span>Monto adicional (Bs):</span>
-                      <span className="font-medium">{formatCurrency(additionalAmountBs, 'VES')}</span>
+                      <span className="font-mono font-medium">{formatCurrency(additionalAmountBs, 'VES')}</span>
                     </div>
                   )}
-                  <Separator />
-                  <div className="flex justify-between font-bold">
+                  <Separator className="my-2" />
+                  <div className="flex justify-between font-bold text-lg p-3 rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20">
                     <span>Total Sumatoria:</span>
-                    <span>{formatCurrency(sumatoriaBolivares, 'VES')}</span>
+                    <span className="font-mono">{formatCurrency(sumatoriaBolivares, 'VES')}</span>
                   </div>
                 </div>
               </div>
@@ -950,42 +1036,142 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
               <div className="space-y-4">
                 <h4 className="font-semibold text-sm h-5 flex items-center">Comparación:</h4>
                 <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
+                  <div className="flex justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors">
                     <span>Sumatoria:</span>
-                    <span className="font-medium">{formatCurrency(sumatoriaBolivares, 'VES')}</span>
+                    <span className="font-mono font-medium">{formatCurrency(sumatoriaBolivares, 'VES')}</span>
                   </div>
-                  <div className="flex justify-between">
+                  <div className="flex justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors">
                     <span>Cuadre (V-P):</span>
-                    <span className="font-medium">{formatCurrency(cuadreVentasPremios.bs, 'VES')}</span>
+                    <span className="font-mono font-medium">{formatCurrency(cuadreVentasPremios.bs, 'VES')}</span>
                   </div>
-                  <div className="flex justify-between text-sm text-muted-foreground">
+                  <div className="flex justify-between text-sm text-muted-foreground p-2 rounded-lg hover:bg-muted/50 transition-colors">
                     <span>Diferencia inicial:</span>
-                    <span className="font-medium">{formatCurrency(diferenciaCierre, 'VES')}</span>
+                    <span className="font-mono font-medium">{formatCurrency(diferenciaCierre, 'VES')}</span>
                   </div>
-                  <div className="flex justify-between text-sm text-muted-foreground">
+                  <div className="flex justify-between text-sm text-muted-foreground p-2 rounded-lg hover:bg-muted/50 transition-colors">
                     <span>Menos: Premios por pagar:</span>
-                    <span className="font-medium">-{formatCurrency(cuadre.pendingPrizes, 'VES')}</span>
+                    <span className="font-mono font-medium">-{formatCurrency(cuadre.pendingPrizes, 'VES')}</span>
                   </div>
                   <Separator className="my-3" />
-                  <div className="flex justify-between font-bold text-xl mb-4">
-                    <span>Diferencia Final:</span>
-                    <span className={`${isCuadreBalanced ? 'text-success' : 'text-destructive'}`}>
+                  
+                  {/* Resultado Final - Destacado */}
+                  <div className={`relative p-5 rounded-xl border-2 ${
+                    isCuadreBalanced 
+                      ? 'bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 border-emerald-500/30' 
+                      : 'bg-gradient-to-br from-red-500/10 to-red-500/5 border-red-500/30'
+                  }`}>
+                    <div className="flex items-start justify-between mb-2">
+                      <div className={`p-2 rounded-lg ${
+                        isCuadreBalanced ? 'bg-emerald-500/10' : 'bg-red-500/10'
+                      }`}>
+                        {isCuadreBalanced ? (
+                          <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                        ) : (
+                          <XCircle className="h-5 w-5 text-red-600" />
+                        )}
+                      </div>
+                    </div>
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                      Diferencia Final
+                    </p>
+                    <p className={`text-3xl font-bold font-mono ${
+                      isCuadreBalanced ? 'text-emerald-600' : 'text-red-600'
+                    }`}>
                       {formatCurrency(diferenciaFinal, 'VES')}
-                    </span>
+                    </p>
+                    <p className={`text-xs mt-2 font-medium ${
+                      isCuadreBalanced ? 'text-emerald-600' : 'text-red-600'
+                    }`}>
+                      {isCuadreBalanced ? '¡Cuadre Perfecto!' : 'Diferencia encontrada'}
+                    </p>
                   </div>
-                  <div className="flex items-center gap-2 justify-center mt-4">
-                    {isCuadreBalanced ? (
-                      <Badge variant="default" className="flex items-center gap-2 px-4 py-2 text-base">
-                        <CheckCircle2 className="h-4 w-4" />
-                        ¡Cuadre Perfecto!
-                      </Badge>
-                    ) : (
-                      <Badge variant="destructive" className="flex items-center gap-2 px-4 py-2 text-base">
-                        <XCircle className="h-4 w-4" />
-                        Diferencia encontrada
-                      </Badge>
-                    )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* USD Closure Formula Card */}
+      <Card className="border-2 border-purple-200 overflow-hidden">
+        <CardHeader className="bg-gradient-to-br from-purple-50/50 via-purple-100/30 to-purple-50/50 pb-4">
+          <CardTitle className="text-purple-700 flex items-center gap-2">
+            <Calculator className="h-5 w-5" />
+            Resumen en Dólares (USD)
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-6">
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+              <div className="space-y-4">
+                <h4 className="font-semibold text-sm h-5 flex items-center">Sumatoria:</h4>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors">
+                    <span>Efectivo disponible:</span>
+                    <span className="font-mono font-medium">{formatCurrency(cuadre.cashAvailableUsd, 'USD')}</span>
                   </div>
+                  <div className="flex justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors">
+                    <span>Deudas:</span>
+                    <span className="font-mono font-medium">{formatCurrency(cuadre.totalDeudas.usd, 'USD')}</span>
+                  </div>
+                  <div className="flex justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors">
+                    <span>Gastos:</span>
+                    <span className="font-mono font-medium">{formatCurrency(cuadre.totalGastos.usd, 'USD')}</span>
+                  </div>
+                  <Separator className="my-2" />
+                  <div className="flex justify-between font-bold text-lg p-3 rounded-xl bg-gradient-to-br from-purple-500/10 to-purple-500/5 border border-purple-500/20">
+                    <span>Total Sumatoria:</span>
+                    <span className="font-mono">{formatCurrency(sumatoriaUsd, 'USD')}</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="space-y-4">
+                <h4 className="font-semibold text-sm h-5 flex items-center">Comparación:</h4>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors">
+                    <span>Sumatoria:</span>
+                    <span className="font-mono font-medium">{formatCurrency(sumatoriaUsd, 'USD')}</span>
+                  </div>
+                  <div className="flex justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors">
+                    <span>Cuadre (V-P):</span>
+                    <span className="font-mono font-medium">{formatCurrency(cuadreVentasPremios.usd, 'USD')}</span>
+                  </div>
+                  <div className="flex justify-between text-sm text-muted-foreground p-2 rounded-lg hover:bg-muted/50 transition-colors">
+                    <span>Diferencia inicial:</span>
+                    <span className="font-mono font-medium">{formatCurrency(diferenciaInicialUsd, 'USD')}</span>
+                  </div>
+                  {additionalAmountUsd > 0 && (
+                    <div className="flex justify-between text-sm text-muted-foreground p-2 rounded-lg hover:bg-muted/50 transition-colors">
+                      <span>Menos: Monto adicional:</span>
+                      <span className="font-mono font-medium">-{formatCurrency(additionalAmountUsd, 'USD')}</span>
+                    </div>
+                  )}
+                  <Separator className="my-3" />
+                  
+                  {/* Resultado Final USD */}
+                  <div className={`relative p-5 rounded-xl border-2 ${
+                    Math.abs(diferenciaFinalUsd) <= 5 
+                      ? 'bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 border-emerald-500/30' 
+                      : 'bg-gradient-to-br from-red-500/10 to-red-500/5 border-red-500/30'
+                  }`}>
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                      Diferencia Final
+                    </p>
+                    <p className={`text-3xl font-bold font-mono ${
+                      Math.abs(diferenciaFinalUsd) <= 5 ? 'text-emerald-600' : 'text-red-600'
+                    }`}>
+                      {formatCurrency(diferenciaFinalUsd, 'USD')}
+                    </p>
+                  </div>
+                  
+                  {applyExcessUsdSwitch && (
+                    <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                      <p className="text-xs text-blue-700 dark:text-blue-400">
+                        El exceso USD se convierte a Bs y se suma al cuadre de Bolívares
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
