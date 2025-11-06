@@ -10,7 +10,6 @@ import { PerSystemTable } from "./PerSystemTable";
 import { ExpensesTable } from "./ExpensesTable";
 import { WeeklyCuadreConfigForm } from "./WeeklyCuadreConfigForm";
 import { GastosManagerEncargada } from "../GastosManagerEncargada";
-import { InterAgencyManager } from "../InterAgencyManager";
 
 interface Props {
   summary: AgencyWeeklySummary;
@@ -273,24 +272,11 @@ export function AgencyWeeklyCard({ summary, weekStart, weekEnd, onConfigSuccess 
             </TabsContent>
 
             <TabsContent value="registrar" className="space-y-6">
-              <Tabs defaultValue="gastos" className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="gastos">Gastos y Deudas</TabsTrigger>
-                  <TabsTrigger value="prestamos">Préstamos entre Agencias</TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="gastos" className="pt-4">
-                  <GastosManagerEncargada
-                    selectedAgency={summary.agency_id}
-                    selectedDate={new Date(weekStart)}
-                    onSuccess={onConfigSuccess}
-                  />
-                </TabsContent>
-
-                <TabsContent value="prestamos" className="pt-4">
-                  <InterAgencyManager onSuccess={onConfigSuccess} />
-                </TabsContent>
-              </Tabs>
+              <GastosManagerEncargada
+                selectedAgency={summary.agency_id}
+                selectedDate={new Date(weekStart)}
+                onSuccess={onConfigSuccess}
+              />
             </TabsContent>
 
             <TabsContent value="config">
