@@ -9,6 +9,8 @@ import type { AgencyWeeklySummary } from "@/hooks/useWeeklyCuadre";
 import { PerSystemTable } from "./PerSystemTable";
 import { ExpensesTable } from "./ExpensesTable";
 import { WeeklyCuadreConfigForm } from "./WeeklyCuadreConfigForm";
+import { GastosManagerEncargada } from "../GastosManagerEncargada";
+import { InterAgencyManager } from "../InterAgencyManager";
 
 interface Props {
   summary: AgencyWeeklySummary;
@@ -54,8 +56,12 @@ export function AgencyWeeklyCard({ summary, weekStart, weekEnd, onConfigSuccess 
       {hasActivity && (
         <CardContent className="pt-6">
           <Tabs defaultValue="resumen" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-6">
+            <TabsList className="grid w-full grid-cols-3 mb-6">
               <TabsTrigger value="resumen">Resumen</TabsTrigger>
+              <TabsTrigger value="registrar">
+                <Receipt className="h-4 w-4 mr-2" />
+                Registrar
+              </TabsTrigger>
               <TabsTrigger value="config">
                 <Settings className="h-4 w-4 mr-2" />
                 Configuración
@@ -264,6 +270,27 @@ export function AgencyWeeklyCard({ summary, weekStart, weekEnd, onConfigSuccess 
               </AccordionContent>
             </AccordionItem>
           </Accordion>
+            </TabsContent>
+
+            <TabsContent value="registrar" className="space-y-6">
+              <Tabs defaultValue="gastos" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="gastos">Gastos y Deudas</TabsTrigger>
+                  <TabsTrigger value="prestamos">Préstamos entre Agencias</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="gastos" className="pt-4">
+                  <GastosManagerEncargada
+                    selectedAgency={summary.agency_id}
+                    selectedDate={new Date(weekStart)}
+                    onSuccess={onConfigSuccess}
+                  />
+                </TabsContent>
+
+                <TabsContent value="prestamos" className="pt-4">
+                  <InterAgencyManager onSuccess={onConfigSuccess} />
+                </TabsContent>
+              </Tabs>
             </TabsContent>
 
             <TabsContent value="config">
