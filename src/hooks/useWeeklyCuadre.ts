@@ -89,7 +89,7 @@ export function useWeeklyCuadre(currentWeek: WeekBoundaries | null): UseWeeklyCu
           .lte("session_date", endStr),
         supabase
           .from("expenses")
-          .select("id, amount_bs, amount_usd, category, session_id, agency_id, transaction_date, description")
+          .select("id, amount_bs, amount_usd, category, session_id, agency_id, transaction_date, description, is_paid")
           .gte("transaction_date", startStr)
           .lte("transaction_date", endStr),
         supabase
@@ -224,9 +224,12 @@ export function useWeeklyCuadre(currentWeek: WeekBoundaries | null): UseWeeklyCu
         };
 
         if (e.category === "deuda") {
-          byAgency[agencyId].total_deudas_bs += expenseDetail.amount_bs;
-          byAgency[agencyId].total_deudas_usd += expenseDetail.amount_usd;
-          byAgency[agencyId].deudas_details.push(expenseDetail);
+          // Only count unpaid debts in weekly summary
+          if (!e.is_paid) {
+            byAgency[agencyId].total_deudas_bs += expenseDetail.amount_bs;
+            byAgency[agencyId].total_deudas_usd += expenseDetail.amount_usd;
+            byAgency[agencyId].deudas_details.push(expenseDetail);
+          }
         } else if (e.category === "gasto_operativo") {
           byAgency[agencyId].total_gastos_bs += expenseDetail.amount_bs;
           byAgency[agencyId].total_gastos_usd += expenseDetail.amount_usd;

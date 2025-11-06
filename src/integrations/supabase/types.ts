@@ -332,6 +332,7 @@ export type Database = {
           created_at: string
           description: string
           id: string
+          is_paid: boolean
           session_id: string | null
           transaction_date: string | null
           updated_at: string
@@ -344,6 +345,7 @@ export type Database = {
           created_at?: string
           description: string
           id?: string
+          is_paid?: boolean
           session_id?: string | null
           transaction_date?: string | null
           updated_at?: string
@@ -356,6 +358,7 @@ export type Database = {
           created_at?: string
           description?: string
           id?: string
+          is_paid?: boolean
           session_id?: string | null
           transaction_date?: string | null
           updated_at?: string
