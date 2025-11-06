@@ -1,12 +1,15 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { formatCurrency } from '@/lib/utils';
-import { Calculator, TrendingUp, TrendingDown } from 'lucide-react';
+import { Calculator, TrendingUp, TrendingDown, Calendar, ChevronLeft, ChevronRight, RefreshCcw } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { format, startOfWeek, endOfWeek, addWeeks, subWeeks } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 interface SystemSummary {
   id: string;
@@ -36,7 +39,7 @@ export const SystemsSummaryWeekly = () => {
     return saved || 'all';
   });
   
-  const [weekDates, setWeekDates] = useState<{ start: string; end: string }>({ start: '', end: '' });
+  const [currentWeek, setCurrentWeek] = useState<{ start: Date; end: Date } | null>(null);
 
   // Guardar agencia seleccionada en localStorage cuando cambie
   useEffect(() => {
@@ -46,15 +49,15 @@ export const SystemsSummaryWeekly = () => {
   useEffect(() => {
     if (user) {
       fetchAgencies();
-      fetchWeekBoundaries();
+      getCurrentWeekBoundaries();
     }
   }, [user]);
 
   useEffect(() => {
-    if (weekDates.start && weekDates.end) {
+    if (currentWeek) {
       fetchSystemsSummary();
     }
-  }, [selectedAgency, weekDates]);
+  }, [selectedAgency, currentWeek]);
 
   const fetchAgencies = async () => {
     try {
@@ -71,42 +74,59 @@ export const SystemsSummaryWeekly = () => {
     }
   };
 
-  const fetchWeekBoundaries = async () => {
+  const getCurrentWeekBoundaries = async () => {
     try {
       const { data, error } = await supabase.rpc('get_current_week_boundaries');
       
       if (error) throw error;
       
       if (data && data.length > 0) {
-        setWeekDates({
-          start: data[0].week_start,
-          end: data[0].week_end,
+        const w = data[0];
+        setCurrentWeek({
+          start: new Date(w.week_start + 'T00:00:00'),
+          end: new Date(w.week_end + 'T23:59:59'),
         });
+      } else {
+        const now = new Date();
+        const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+        const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
+        setCurrentWeek({ start: weekStart, end: weekEnd });
       }
     } catch (error) {
       console.error('Error fetching week boundaries:', error);
     }
   };
 
+  const navigateWeek = (dir: 'prev' | 'next') => {
+    if (!currentWeek) return;
+    const newStart = dir === 'prev' ? subWeeks(currentWeek.start, 1) : addWeeks(currentWeek.start, 1);
+    const newEnd = endOfWeek(newStart, { weekStartsOn: 1 });
+    setCurrentWeek({ start: newStart, end: newEnd });
+  };
+
   const fetchSystemsSummary = async () => {
-    if (!weekDates.start || !weekDates.end) return;
+    if (!currentWeek) return;
 
     try {
       setLoading(true);
 
-      // Get data from daily_cuadres_summary based on selected agency
+      const startStr = format(currentWeek.start, 'yyyy-MM-dd');
+      const endStr = format(currentWeek.end, 'yyyy-MM-dd');
+
+      console.log('Fetching systems summary for week:', startStr, 'to', endStr, 'agency:', selectedAgency);
+
+      // Get data from encargada_cuadre_details based on selected agency
       let query = supabase
-        .from('daily_cuadres_summary')
+        .from('encargada_cuadre_details')
         .select(`
           lottery_system_id,
-          total_sales_bs,
-          total_sales_usd,
-          total_prizes_bs,
-          total_prizes_usd
+          sales_bs,
+          sales_usd,
+          prizes_bs,
+          prizes_usd
         `)
-        .gte('session_date', weekDates.start)
-        .lte('session_date', weekDates.end)
-        .is('session_id', null); // Only encargada data
+        .gte('session_date', startStr)
+        .lte('session_date', endStr);
 
       // Filter by agency if selected
       if (selectedAgency !== 'all') {
@@ -114,6 +134,8 @@ export const SystemsSummaryWeekly = () => {
       }
 
       const { data: summaryData, error: summaryError } = await query;
+
+      console.log('Summary data fetched:', summaryData?.length, 'records');
 
       if (summaryError) throw summaryError;
 
@@ -160,10 +182,10 @@ export const SystemsSummaryWeekly = () => {
           const systemKey = system.parent_system_id || system.id;
           const summarySystem = allSystemsMap.get(systemKey);
           if (summarySystem) {
-            summarySystem.sales_bs += Number(row.total_sales_bs || 0);
-            summarySystem.sales_usd += Number(row.total_sales_usd || 0);
-            summarySystem.prizes_bs += Number(row.total_prizes_bs || 0);
-            summarySystem.prizes_usd += Number(row.total_prizes_usd || 0);
+            summarySystem.sales_bs += Number(row.sales_bs || 0);
+            summarySystem.sales_usd += Number(row.sales_usd || 0);
+            summarySystem.prizes_bs += Number(row.prizes_bs || 0);
+            summarySystem.prizes_usd += Number(row.prizes_usd || 0);
           }
         }
       });
@@ -180,7 +202,14 @@ export const SystemsSummaryWeekly = () => {
     }
   };
 
-  if (loading) {
+  const totalSalesBs = systemsSummary.reduce((sum, sys) => sum + sys.sales_bs, 0);
+  const totalPrizesBs = systemsSummary.reduce((sum, sys) => sum + sys.prizes_bs, 0);
+  const totalSalesUsd = systemsSummary.reduce((sum, sys) => sum + sys.sales_usd, 0);
+  const totalPrizesUsd = systemsSummary.reduce((sum, sys) => sum + sys.prizes_usd, 0);
+  const netBs = totalSalesBs - totalPrizesBs;
+  const netUsd = totalSalesUsd - totalPrizesUsd;
+
+  if (loading || !currentWeek) {
     return (
       <div className="flex items-center justify-center p-8">
         <div className="text-center">
@@ -191,22 +220,29 @@ export const SystemsSummaryWeekly = () => {
     );
   }
 
-  const totalSalesBs = systemsSummary.reduce((sum, sys) => sum + sys.sales_bs, 0);
-  const totalPrizesBs = systemsSummary.reduce((sum, sys) => sum + sys.prizes_bs, 0);
-  const totalSalesUsd = systemsSummary.reduce((sum, sys) => sum + sys.sales_usd, 0);
-  const totalPrizesUsd = systemsSummary.reduce((sum, sys) => sum + sys.prizes_usd, 0);
-  const netBs = totalSalesBs - totalPrizesBs;
-  const netUsd = totalSalesUsd - totalPrizesUsd;
-
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">Resumen por Sistemas</h2>
-          <p className="text-muted-foreground">
-            Semana del {weekDates.start} al {weekDates.end}
-          </p>
+      {/* Header with week navigation */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex items-center gap-3">
+          <Calendar className="h-6 w-6 text-primary" />
+          <div>
+            <h2 className="text-2xl font-bold">Resumen por Sistemas</h2>
+            <p className="text-sm text-muted-foreground">
+              {format(currentWeek.start, "d 'de' MMMM", { locale: es })} — {format(currentWeek.end, "d 'de' MMMM 'de' yyyy", { locale: es })}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="icon" onClick={() => navigateWeek('prev')}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Button variant="outline" size="icon" onClick={() => navigateWeek('next')}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+          <Button variant="outline" size="icon" onClick={fetchSystemsSummary} title="Refrescar datos">
+            <RefreshCcw className="h-4 w-4" />
+          </Button>
         </div>
       </div>
 
