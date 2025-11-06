@@ -33,6 +33,8 @@ export interface AgencyWeeklySummary {
   total_sales_usd: number;
   total_prizes_bs: number;
   total_prizes_usd: number;
+  total_cuadre_bs: number;  // Ventas - Premios en Bs
+  total_cuadre_usd: number; // Ventas - Premios en USD
   total_deudas_bs: number;
   total_deudas_usd: number;
   total_gastos_bs: number;
@@ -140,6 +142,8 @@ export function useWeeklyCuadre(currentWeek: WeekBoundaries | null): UseWeeklyCu
           total_sales_usd: 0,
           total_prizes_bs: 0,
           total_prizes_usd: 0,
+          total_cuadre_bs: 0,
+          total_cuadre_usd: 0,
           total_deudas_bs: 0,
           total_deudas_usd: 0,
           total_gastos_bs: 0,
@@ -168,7 +172,7 @@ export function useWeeklyCuadre(currentWeek: WeekBoundaries | null): UseWeeklyCu
         }
       });
 
-      // Calcular totales de ventas/premios
+      // Calcular totales de ventas/premios y cuadre
       Object.values(byAgency).forEach((ag) => {
         ag.per_system.forEach((s) => {
           ag.total_sales_bs += s.sales_bs;
@@ -176,6 +180,9 @@ export function useWeeklyCuadre(currentWeek: WeekBoundaries | null): UseWeeklyCu
           ag.total_prizes_bs += s.prizes_bs;
           ag.total_prizes_usd += s.prizes_usd;
         });
+        // Calcular total del cuadre (Ventas - Premios)
+        ag.total_cuadre_bs = ag.total_sales_bs - ag.total_prizes_bs;
+        ag.total_cuadre_usd = ag.total_sales_usd - ag.total_prizes_usd;
       });
 
       // Resumen encargada (banco, premios por pagar, tasa del domingo)

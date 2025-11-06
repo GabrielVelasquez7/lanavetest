@@ -49,14 +49,33 @@ export function AgencyWeeklyCard({ summary }: Props) {
       {hasActivity && (
         <CardContent className="pt-6 space-y-6">
           {/* Indicadores principales - Grid limpio */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Total Cuadre */}
+            <div className="relative p-5 rounded-xl bg-gradient-to-br from-blue-500/10 to-blue-500/5 border-2 border-blue-500/20">
+              <div className="flex items-start justify-between mb-2">
+                <div className="p-2 bg-blue-500/10 rounded-lg">
+                  <TrendingUp className="h-5 w-5 text-blue-600" />
+                </div>
+              </div>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                Total Cuadre
+              </p>
+              <div className="space-y-0.5">
+                <p className="text-2xl font-bold text-blue-600 font-mono">
+                  {formatCurrency(summary.total_cuadre_bs, "VES")}
+                </p>
+                <p className="text-sm font-semibold text-blue-600/70 font-mono">
+                  {formatCurrency(summary.total_cuadre_usd, "USD")}
+                </p>
+              </div>
+            </div>
+
             {/* Total en banco */}
             <div className="relative p-5 rounded-xl bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 border-2 border-emerald-500/20">
               <div className="flex items-start justify-between mb-2">
                 <div className="p-2 bg-emerald-500/10 rounded-lg">
                   <DollarSign className="h-5 w-5 text-emerald-600" />
                 </div>
-                <TrendingUp className="h-4 w-4 text-emerald-600" />
               </div>
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
                 Total en Banco
