@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { LogOut } from "lucide-react";
-import { AllTaquillerasCuadresOptimized } from "./AllTaquillerasCuadresOptimized";
 import { VentasPremiosEncargada } from "./VentasPremiosEncargada";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -74,8 +73,6 @@ export function EncargadaDashboard() {
         return <WeeklyCuadreHistory />;
       case "cuadre-agencias":
         return <VentasPremiosEncargada />;
-      case "supervision":
-        return <AllTaquillerasCuadresOptimized />;
       case "prestamos-deudas":
         return <InterAgencyManager />;
       case "resumen-sistemas":

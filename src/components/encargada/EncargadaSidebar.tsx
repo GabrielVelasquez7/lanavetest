@@ -38,7 +38,6 @@ const menuItems = [
   {
     group: "Supervisión",
     items: [
-      { id: "supervision", label: "Supervisión Taquilleras", icon: Users },
       { id: "resumen-sistemas", label: "Resumen por Sistemas", icon: BarChart3 },
       { id: "banco-semanal", label: "Bolívares en Banco", icon: Landmark },
     ],

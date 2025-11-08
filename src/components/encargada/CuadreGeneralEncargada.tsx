@@ -12,9 +12,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { formatCurrency } from '@/lib/utils';
 import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
 import { Calculator, CheckCircle2, XCircle, Save, TrendingUp, TrendingDown, ChevronDown, ChevronRight } from 'lucide-react';
 import { formatDateForDB } from '@/lib/dateUtils';
+import { CuadreReviewDialog } from './CuadreReviewDialog';
 
 interface CuadreGeneralEncargadaProps {
   selectedAgency: string;
@@ -105,6 +107,13 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
   // State for collapsible dropdowns
   const [gastosOpen, setGastosOpen] = useState(false);
   const [deudasOpen, setDeudasOpen] = useState(false);
+  
+  // Review status tracking
+  const [reviewStatus, setReviewStatus] = useState<string | null>(null);
+  const [reviewedBy, setReviewedBy] = useState<string | null>(null);
+  const [reviewedAt, setReviewedAt] = useState<string | null>(null);
+  const [reviewObservations, setReviewObservations] = useState<string | null>(null);
+  const [agencyName, setAgencyName] = useState<string>('');
   
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -251,7 +260,7 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
       console.log('✅ Totales calculados:', { ventas: totalSales, premios: totalPrizes });
 
       // 2. DATOS COMPLEMENTARIOS (por agencia + fecha)
-      const [expensesResult, mobileResult, posResult, summaryResult] = await Promise.all([
+      const [expensesResult, mobileResult, posResult, summaryResult, agencyResult] = await Promise.all([
         supabase
           .from('expenses')
           .select('amount_bs, amount_usd, category, description, created_at')
@@ -269,16 +278,29 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
           .eq('transaction_date', dateStr),
         supabase
           .from('daily_cuadres_summary')
-          .select('cash_available_bs, cash_available_usd, exchange_rate, closure_notes, daily_closure_confirmed, notes, pending_prizes, excess_usd, diferencia_final')
+          .select('cash_available_bs, cash_available_usd, exchange_rate, closure_notes, daily_closure_confirmed, notes, pending_prizes, excess_usd, diferencia_final, encargada_status, encargada_observations, encargada_reviewed_at, encargada_reviewed_by')
           .eq('agency_id', selectedAgency)
           .eq('session_date', dateStr)
           .is('session_id', null)
-          .maybeSingle()
+          .maybeSingle(),
+        supabase
+          .from('agencies')
+          .select('name')
+          .eq('id', selectedAgency)
+          .single()
       ]);
 
       if (expensesResult.error) throw expensesResult.error;
       if (mobileResult.error) throw mobileResult.error;
       if (posResult.error) throw posResult.error;
+      if (agencyResult.error) throw agencyResult.error;
+      
+      // Set agency name and review status
+      setAgencyName(agencyResult.data?.name || '');
+      setReviewStatus(summaryResult.data?.encargada_status || 'pendiente');
+      setReviewObservations(summaryResult.data?.encargada_observations || null);
+      setReviewedAt(summaryResult.data?.encargada_reviewed_at || null);
+      setReviewedBy(summaryResult.data?.encargada_reviewed_by || null);
 
       // 4. PROCESAR GASTOS Y DEUDAS
       const expensesList = expensesResult.data || [];
@@ -559,6 +581,89 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
     }
   };
 
+  const handleApproveCuadre = async (observations?: string) => {
+    if (!user || !selectedAgency || !selectedDate) return;
+
+    try {
+      const dateStr = formatDateForDB(selectedDate);
+
+      // First, save current form data to encargada_cuadre_details
+      await saveDailyClosure();
+
+      // Then update review status in daily_cuadres_summary
+      const { error } = await supabase
+        .from('daily_cuadres_summary')
+        .update({
+          encargada_status: 'aprobado',
+          encargada_observations: observations || null,
+          encargada_reviewed_by: user.id,
+          encargada_reviewed_at: new Date().toISOString(),
+        })
+        .eq('session_date', dateStr)
+        .eq('agency_id', selectedAgency)
+        .is('session_id', null);
+
+      if (error) throw error;
+
+      setReviewStatus('aprobado');
+      setReviewObservations(observations || null);
+      setReviewedAt(new Date().toISOString());
+      setReviewedBy(user.id);
+
+      toast({
+        title: '✅ Cuadre Aprobado',
+        description: 'El cuadre ha sido aprobado y guardado exitosamente',
+      });
+    } catch (error: any) {
+      console.error('Error approving cuadre:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Error al aprobar el cuadre',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleRejectCuadre = async (observations: string) => {
+    if (!user || !selectedAgency || !selectedDate) return;
+
+    try {
+      const dateStr = formatDateForDB(selectedDate);
+
+      const { error } = await supabase
+        .from('daily_cuadres_summary')
+        .update({
+          encargada_status: 'rechazado',
+          encargada_observations: observations,
+          encargada_reviewed_by: user.id,
+          encargada_reviewed_at: new Date().toISOString(),
+        })
+        .eq('session_date', dateStr)
+        .eq('agency_id', selectedAgency)
+        .is('session_id', null);
+
+      if (error) throw error;
+
+      setReviewStatus('rechazado');
+      setReviewObservations(observations);
+      setReviewedAt(new Date().toISOString());
+      setReviewedBy(user.id);
+
+      toast({
+        title: '❌ Cuadre Rechazado',
+        description: 'El cuadre ha sido rechazado',
+        variant: 'destructive',
+      });
+    } catch (error: any) {
+      console.error('Error rejecting cuadre:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Error al rechazar el cuadre',
+        variant: 'destructive',
+      });
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -632,15 +737,31 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
 
   return (
     <div className="space-y-6">
-      {/* Title and Status */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <h2 className="text-lg font-semibold">Resumen General (Encargada)</h2>
+      {/* Title and Review Status */}
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold">Cuadre General</h2>
+            <p className="text-sm text-muted-foreground">
+              {agencyName} - {format(selectedDate, "d 'de' MMMM 'de' yyyy", { locale: es })}
+            </p>
+          </div>
+          
+          <CuadreReviewDialog
+            currentStatus={reviewStatus}
+            reviewedBy={reviewedBy}
+            reviewedAt={reviewedAt}
+            currentObservations={reviewObservations}
+            onApprove={handleApproveCuadre}
+            onReject={handleRejectCuadre}
+            disabled={!hasData}
+          />
         </div>
+        
         {cuadre.closureConfirmed && (
-          <Badge variant="default" className="flex items-center gap-1">
+          <Badge variant="default" className="flex items-center gap-1 w-fit">
             <CheckCircle2 className="h-3 w-3" />
-            Cuadre Confirmado
+            Cuadre Confirmado por Taquillera
           </Badge>
         )}
       </div>
