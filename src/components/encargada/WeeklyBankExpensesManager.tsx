@@ -7,6 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/components/ui/use-toast';
@@ -333,7 +335,13 @@ export function WeeklyBankExpensesManager({ weekStart, weekEnd, onExpensesChange
     return fixedCommissions.includes(description);
   };
 
-  const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount_bs, 0);
+  // Separar comisiones fijas de gastos regulares
+  const fixedExpenses = expenses.filter(exp => isFixedCommission(exp.description));
+  const regularExpenses = expenses.filter(exp => !isFixedCommission(exp.description));
+  
+  const totalFixed = fixedExpenses.reduce((sum, exp) => sum + exp.amount_bs, 0);
+  const totalRegular = regularExpenses.reduce((sum, exp) => sum + exp.amount_bs, 0);
+  const totalExpenses = totalFixed + totalRegular;
 
   return (
     <Card>
@@ -443,56 +451,120 @@ export function WeeklyBankExpensesManager({ weekStart, weekEnd, onExpensesChange
       <CardContent>
         {loading ? (
           <div className="text-center py-4 text-muted-foreground">Cargando gastos...</div>
-        ) : expenses.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            No hay gastos registrados para esta semana
-          </div>
         ) : (
-          <>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Grupo</TableHead>
-                  <TableHead>Categoría</TableHead>
-                  <TableHead>Descripción</TableHead>
-                  <TableHead className="text-right">Monto</TableHead>
-                  <TableHead className="text-right">Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {expenses.map((expense) => (
-                  <TableRow key={expense.id}>
-                    <TableCell className="font-medium">{expense.group_name}</TableCell>
-                    <TableCell className="text-sm">
-                      {expense.category === 'gasto_operativo' ? 'Gastos Operativos' : expense.category === 'deuda' ? 'Deudas' : 'Otros'}
-                    </TableCell>
-                    <TableCell className="text-sm">{expense.description}</TableCell>
-                    <TableCell className="text-right font-semibold text-red-600">
-                      {formatCurrency(expense.amount_bs, 'VES')}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex gap-1 justify-end">
-                        <Button size="icon" variant="ghost" onClick={() => handleEdit(expense)}>
-                          <Edit2 className="h-4 w-4" />
-                        </Button>
-                        {!isFixedCommission(expense.description) && (
-                          <Button size="icon" variant="ghost" onClick={() => handleDelete(expense.id)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-            <div className="mt-4 flex justify-end border-t pt-4">
+          <div className="space-y-6">
+            {/* Comisiones Fijas */}
+            <Accordion type="single" collapsible defaultValue="fixed-commissions">
+              <AccordionItem value="fixed-commissions" className="border rounded-lg">
+                <AccordionTrigger className="px-4 hover:no-underline">
+                  <div className="flex items-center justify-between w-full pr-4">
+                    <div className="flex items-center gap-3">
+                      <Badge variant="secondary" className="font-semibold">COMISIONES FIJAS</Badge>
+                      <span className="text-sm text-muted-foreground">
+                        {fixedExpenses.length} comisiones
+                      </span>
+                    </div>
+                    <span className="font-bold text-red-600">
+                      {formatCurrency(totalFixed, 'VES')}
+                    </span>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="px-4 pb-4">
+                  {fixedExpenses.length === 0 ? (
+                    <div className="text-center py-4 text-sm text-muted-foreground">
+                      No hay comisiones registradas
+                    </div>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Descripción</TableHead>
+                          <TableHead className="text-right">Monto</TableHead>
+                          <TableHead className="text-right w-24">Acciones</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {fixedExpenses.map((expense) => (
+                          <TableRow key={expense.id}>
+                            <TableCell className="text-sm">{expense.description}</TableCell>
+                            <TableCell className="text-right font-semibold text-red-600">
+                              {formatCurrency(expense.amount_bs, 'VES')}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button size="icon" variant="ghost" onClick={() => handleEdit(expense)}>
+                                <Edit2 className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+
+            {/* Gastos Regulares */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-muted-foreground">GASTOS ADICIONALES</h3>
+                {regularExpenses.length > 0 && (
+                  <span className="text-sm font-bold text-red-600">
+                    {formatCurrency(totalRegular, 'VES')}
+                  </span>
+                )}
+              </div>
+              {regularExpenses.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground border rounded-lg bg-muted/20">
+                  No hay gastos adicionales para esta semana
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Grupo</TableHead>
+                      <TableHead>Categoría</TableHead>
+                      <TableHead>Descripción</TableHead>
+                      <TableHead className="text-right">Monto</TableHead>
+                      <TableHead className="text-right">Acciones</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {regularExpenses.map((expense) => (
+                      <TableRow key={expense.id}>
+                        <TableCell className="font-medium">{expense.group_name}</TableCell>
+                        <TableCell className="text-sm">
+                          {expense.category === 'gasto_operativo' ? 'Gastos Operativos' : expense.category === 'deuda' ? 'Deudas' : 'Otros'}
+                        </TableCell>
+                        <TableCell className="text-sm">{expense.description}</TableCell>
+                        <TableCell className="text-right font-semibold text-red-600">
+                          {formatCurrency(expense.amount_bs, 'VES')}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex gap-1 justify-end">
+                            <Button size="icon" variant="ghost" onClick={() => handleEdit(expense)}>
+                              <Edit2 className="h-4 w-4" />
+                            </Button>
+                            <Button size="icon" variant="ghost" onClick={() => handleDelete(expense.id)}>
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </div>
+
+            {/* Total General */}
+            <div className="flex justify-end border-t pt-4">
               <div className="text-right">
                 <p className="text-sm text-muted-foreground mb-1">Total Gastos Semanales</p>
                 <p className="text-2xl font-bold text-red-600">{formatCurrency(totalExpenses, 'VES')}</p>
               </div>
             </div>
-          </>
+          </div>
         )}
       </CardContent>
     </Card>
