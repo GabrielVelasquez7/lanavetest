@@ -98,7 +98,6 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
   const [exchangeRateInput, setExchangeRateInput] = useState<string>('36.00');
   const [cashAvailableInput, setCashAvailableInput] = useState<string>('0');
   const [cashAvailableUsdInput, setCashAvailableUsdInput] = useState<string>('0');
-  const [pendingPrizesInput, setPendingPrizesInput] = useState<string>('0');
   const [additionalAmountBsInput, setAdditionalAmountBsInput] = useState<string>('0');
   const [additionalAmountUsdInput, setAdditionalAmountUsdInput] = useState<string>('0');
   const [additionalNotesInput, setAdditionalNotesInput] = useState<string>('');
@@ -117,7 +116,6 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
   
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [savingField, setSavingField] = useState<string | null>(null);
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -332,7 +330,6 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
       };
       
       setCuadre(finalCuadre);
-      setPendingPrizesInput(premiosPorPagarFromDB.toString());
       setAdditionalAmountBsInput(additionalAmountBs.toString());
       setAdditionalAmountUsdInput(additionalAmountUsd.toString());
       setAdditionalNotesInput(additionalNotes);
@@ -438,9 +435,8 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
           (applyExcessUsdSwitch ? (excessUsd * cuadre.exchangeRate) : 0) +
           inputAdditionalAmountBs;
         
-        const inputPendingPrizes = parseFloat(pendingPrizesInput) || 0;
         const diferenciaCierre = sumatoriaBolivares - cuadreVentasPremios.bs;
-        const diferenciaFinal = diferenciaCierre - inputPendingPrizes;
+        const diferenciaFinal = diferenciaCierre - cuadre.premiosPorPagar;
         
         // Store additional data in notes field as JSON
         const notesData = {
@@ -485,7 +481,7 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
           daily_closure_confirmed: cuadre.closureConfirmed,
           excess_usd: excessUsd,
           diferencia_final: diferenciaFinal,
-          pending_prizes: inputPendingPrizes,
+          pending_prizes: cuadre.premiosPorPagar,
           closure_notes: cuadre.closureNotes,
           notes: JSON.stringify(notesData),
         };
@@ -513,79 +509,6 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
     }
   };
 
-  const saveField = async (fieldName: 'exchangeRate' | 'cashAvailable' | 'cashAvailableUsd') => {
-    if (!user || !dateRange) {
-      toast({
-        title: 'Error',
-        description: 'Usuario o fecha no válidos',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    setSavingField(fieldName);
-    try {
-      let sessionId = cuadre.sessionId;
-      
-      // Si no hay sesión, crear una para el día actual
-      if (!sessionId) {
-        const currentDate = formatDateForDB(dateRange.from);
-        
-        const { data: newSession, error: createError } = await supabase
-          .from('daily_sessions')
-          .insert({
-            user_id: user.id,
-            session_date: currentDate,
-            cash_available_bs: fieldName === 'cashAvailable' ? cuadre.cashAvailable : 0,
-            cash_available_usd: fieldName === 'cashAvailableUsd' ? cuadre.cashAvailableUsd : 0,
-            exchange_rate: fieldName === 'exchangeRate' ? cuadre.exchangeRate : 36.00,
-            is_closed: false,
-          })
-          .select('id')
-          .single();
-
-        if (createError) throw createError;
-        sessionId = newSession.id;
-        
-        // Actualizar el cuadre con el nuevo sessionId
-        setCuadre(prev => ({ ...prev, sessionId }));
-      } else {
-        // Si la sesión ya existe, actualizarla
-        const updateData: any = {};
-        if (fieldName === 'exchangeRate') {
-          updateData.exchange_rate = cuadre.exchangeRate;
-        } else if (fieldName === 'cashAvailable') {
-          updateData.cash_available_bs = cuadre.cashAvailable;
-        } else if (fieldName === 'cashAvailableUsd') {
-          updateData.cash_available_usd = cuadre.cashAvailableUsd;
-        }
-
-        const { error } = await supabase
-          .from('daily_sessions')
-          .update(updateData)
-          .eq('id', sessionId);
-
-        if (error) throw error;
-      }
-
-      toast({
-        title: 'Éxito',
-        description: 'Valor guardado correctamente',
-      });
-      
-      // Refrescar los datos
-      fetchCuadreData();
-    } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message || 'Error al guardar',
-        variant: 'destructive',
-      });
-    } finally {
-      setSavingField(null);
-    }
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -609,7 +532,6 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
   // Get additional amounts
   const inputAdditionalAmountBs = parseFloat(additionalAmountBsInput) || 0;
   const inputAdditionalAmountUsd = parseFloat(additionalAmountUsdInput) || 0;
-  const inputPendingPrizes = parseFloat(pendingPrizesInput) || 0;
 
   // Calculate USD excess (difference) for BS formula
   const excessUsd = Math.abs(cuadreVentasPremios.usd - cuadre.cashAvailableUsd) - inputAdditionalAmountUsd;
@@ -624,7 +546,7 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
     inputAdditionalAmountBs;
 
   const diferenciaCierre = sumatoriaBolivares - cuadreVentasPremios.bs;
-  const diferenciaFinal = diferenciaCierre - inputPendingPrizes;
+  const diferenciaFinal = diferenciaCierre - cuadre.premiosPorPagar;
   const isCuadreBalanced = Math.abs(diferenciaFinal) <= 100; // Allow 100 Bs tolerance
 
   const isSingleDay = dateRange && format(dateRange.from, 'yyyy-MM-dd') === format(dateRange.to, 'yyyy-MM-dd');
@@ -716,14 +638,6 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
                         Tasa del día (Bs por USD)
                       </p>
                     </div>
-                    <Button
-                      size="sm"
-                      onClick={() => saveField('exchangeRate')}
-                      disabled={savingField === 'exchangeRate'}
-                      className="h-9"
-                    >
-                      <Save className="h-3.5 w-3.5" />
-                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -732,83 +646,63 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="cash-available" className="text-sm">Efectivo disponible del día</Label>
-                <div className="flex items-center gap-2">
-                  <div className="relative flex-1">
-                    <Input
-                      id="cash-available"
-                      type="number"
-                      step="0.01"
-                      placeholder="0.00"
-                      value={cashAvailableInput}
-                      onChange={(e) => {
-                        setCashAvailableInput(e.target.value);
-                        setFieldsEditedByUser(prev => ({ ...prev, cashAvailable: true }));
-                        const amount = parseFloat(e.target.value);
-                        if (!isNaN(amount) && amount >= 0) {
-                          setCuadre(prev => ({ ...prev, cashAvailable: amount }));
-                        }
-                      }}
-                      onBlur={(e) => {
-                        if (e.target.value === '' || parseFloat(e.target.value) < 0) {
-                          setCashAvailableInput('0');
-                          setCuadre(prev => ({ ...prev, cashAvailable: 0 }));
-                        }
-                      }}
-                      className="pr-10 h-9"
-                    />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                      Bs
-                    </span>
-                  </div>
-                  <Button
-                    size="sm"
-                    onClick={() => saveField('cashAvailable')}
-                    disabled={savingField === 'cashAvailable'}
-                    className="h-9"
-                  >
-                    <Save className="h-3.5 w-3.5" />
-                  </Button>
+                <div className="relative">
+                  <Input
+                    id="cash-available"
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={cashAvailableInput}
+                    onChange={(e) => {
+                      setCashAvailableInput(e.target.value);
+                      setFieldsEditedByUser(prev => ({ ...prev, cashAvailable: true }));
+                      const amount = parseFloat(e.target.value);
+                      if (!isNaN(amount) && amount >= 0) {
+                        setCuadre(prev => ({ ...prev, cashAvailable: amount }));
+                      }
+                    }}
+                    onBlur={(e) => {
+                      if (e.target.value === '' || parseFloat(e.target.value) < 0) {
+                        setCashAvailableInput('0');
+                        setCuadre(prev => ({ ...prev, cashAvailable: 0 }));
+                      }
+                    }}
+                    className="pr-10"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                    Bs
+                  </span>
                 </div>
               </div>
               
               <div className="space-y-2">
                 <Label htmlFor="cash-available-usd" className="text-sm">Efectivo disponible en USD</Label>
-                <div className="flex items-center gap-2">
-                  <div className="relative flex-1">
-                    <Input
-                      id="cash-available-usd"
-                      type="number"
-                      step="0.01"
-                      placeholder="0.00"
-                      value={cashAvailableUsdInput}
-                      onChange={(e) => {
-                        setCashAvailableUsdInput(e.target.value);
-                        setFieldsEditedByUser(prev => ({ ...prev, cashAvailableUsd: true }));
-                        const amount = parseFloat(e.target.value);
-                        if (!isNaN(amount) && amount >= 0) {
-                          setCuadre(prev => ({ ...prev, cashAvailableUsd: amount }));
-                        }
-                      }}
-                      onBlur={(e) => {
-                        if (e.target.value === '' || parseFloat(e.target.value) < 0) {
-                          setCashAvailableUsdInput('0');
-                          setCuadre(prev => ({ ...prev, cashAvailableUsd: 0 }));
-                        }
-                      }}
-                      className="pr-10 h-9"
-                    />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                      $
-                    </span>
-                  </div>
-                  <Button
-                    size="sm"
-                    onClick={() => saveField('cashAvailableUsd')}
-                    disabled={savingField === 'cashAvailableUsd'}
-                    className="h-9"
-                  >
-                    <Save className="h-3.5 w-3.5" />
-                  </Button>
+                <div className="relative">
+                  <Input
+                    id="cash-available-usd"
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={cashAvailableUsdInput}
+                    onChange={(e) => {
+                      setCashAvailableUsdInput(e.target.value);
+                      setFieldsEditedByUser(prev => ({ ...prev, cashAvailableUsd: true }));
+                      const amount = parseFloat(e.target.value);
+                      if (!isNaN(amount) && amount >= 0) {
+                        setCuadre(prev => ({ ...prev, cashAvailableUsd: amount }));
+                      }
+                    }}
+                    onBlur={(e) => {
+                      if (e.target.value === '' || parseFloat(e.target.value) < 0) {
+                        setCashAvailableUsdInput('0');
+                        setCuadre(prev => ({ ...prev, cashAvailableUsd: 0 }));
+                      }
+                    }}
+                    className="pr-10"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                    $
+                  </span>
                 </div>
               </div>
             </div>
@@ -1055,7 +949,7 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
                   </div>
                   <div className="flex justify-between text-sm text-muted-foreground">
                     <span>Menos: Premios por pagar:</span>
-                    <span className="font-medium">-{formatCurrency(inputPendingPrizes, 'VES')}</span>
+                    <span className="font-medium">-{formatCurrency(cuadre.premiosPorPagar, 'VES')}</span>
                   </div>
                   <Separator className="my-3" />
                   <div className="flex justify-between font-bold text-xl mb-4">
@@ -1155,35 +1049,10 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
         </CardContent>
       </Card>
 
-      {/* Premios por Pagar and Confirmation Section - Only for single day */}
+      {/* Confirmation Section - Only for single day */}
       {isSingleDay && (
         <Card className="border-2 border-accent/20">
           <CardContent className="space-y-4 pt-6">
-            <div className="space-y-2">
-              <Label htmlFor="pending-prizes" className="text-sm font-medium">
-                Premios por pagar (según tabla de premios pendientes)
-              </Label>
-              <div className="relative">
-                <Input
-                  id="pending-prizes"
-                  type="number"
-                  step="0.01"
-                  placeholder="0.00"
-                  value={pendingPrizesInput}
-                  onChange={(e) => setPendingPrizesInput(e.target.value)}
-                  className="pr-10"
-                />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                  Bs
-                </span>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Monto calculado automáticamente desde la tabla de premios pendientes
-              </p>
-            </div>
-
-            <Separator />
-            
             <div className="flex items-center justify-center">
               <div className="flex items-center space-x-2">
                 <Switch
