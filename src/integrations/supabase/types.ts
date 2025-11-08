@@ -18,6 +18,7 @@ export type Database = {
         Row: {
           address: string | null
           created_at: string
+          group_id: string | null
           id: string
           is_active: boolean
           name: string
@@ -27,6 +28,7 @@ export type Database = {
         Insert: {
           address?: string | null
           created_at?: string
+          group_id?: string | null
           id?: string
           is_active?: boolean
           name: string
@@ -36,10 +38,43 @@ export type Database = {
         Update: {
           address?: string | null
           created_at?: string
+          group_id?: string | null
           id?: string
           is_active?: boolean
           name?: string
           phone?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agencies_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "agency_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agency_groups: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
           updated_at?: string
         }
         Relationships: []
@@ -845,6 +880,7 @@ export type Database = {
           created_at: string
           created_by: string
           description: string
+          group_id: string | null
           id: string
           updated_at: string
           week_end_date: string
@@ -857,6 +893,7 @@ export type Database = {
           created_at?: string
           created_by: string
           description: string
+          group_id?: string | null
           id?: string
           updated_at?: string
           week_end_date: string
@@ -869,6 +906,7 @@ export type Database = {
           created_at?: string
           created_by?: string
           description?: string
+          group_id?: string | null
           id?: string
           updated_at?: string
           week_end_date?: string
@@ -880,6 +918,13 @@ export type Database = {
             columns: ["agency_id"]
             isOneToOne: false
             referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "weekly_bank_expenses_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "agency_groups"
             referencedColumns: ["id"]
           },
         ]

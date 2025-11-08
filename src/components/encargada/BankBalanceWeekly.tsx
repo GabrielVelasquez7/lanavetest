@@ -331,12 +331,11 @@ export function BankBalanceWeekly() {
       </div>
 
       {/* Weekly Expenses Manager */}
-      <WeeklyBankExpensesManager 
-        weekStart={currentWeek.start}
-        weekEnd={currentWeek.end}
-        agencies={agencies}
-        onExpensesChange={fetchBankBalances}
-      />
+          <WeeklyBankExpensesManager
+            weekStart={currentWeek.start}
+            weekEnd={currentWeek.end}
+            onExpensesChange={fetchBankBalances}
+          />
 
       {/* Agency Details Table */}
       <Card>

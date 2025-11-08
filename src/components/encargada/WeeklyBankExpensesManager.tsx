@@ -16,40 +16,88 @@ import { format } from 'date-fns';
 
 interface WeeklyExpense {
   id: string;
-  agency_id: string | null;
-  agency_name: string;
+  group_id: string | null;
+  group_name: string;
   category: string;
   description: string;
   amount_bs: number;
   created_at: string;
 }
 
+interface AgencyGroup {
+  id: string;
+  name: string;
+  description: string;
+}
+
 interface WeeklyBankExpensesManagerProps {
   weekStart: Date;
   weekEnd: Date;
-  agencies: Array<{ id: string; name: string }>;
   onExpensesChange: () => void;
 }
 
-export function WeeklyBankExpensesManager({ weekStart, weekEnd, agencies, onExpensesChange }: WeeklyBankExpensesManagerProps) {
+export function WeeklyBankExpensesManager({ weekStart, weekEnd, onExpensesChange }: WeeklyBankExpensesManagerProps) {
   const { user } = useAuth();
   const { toast } = useToast();
 
   const [expenses, setExpenses] = useState<WeeklyExpense[]>([]);
+  const [groups, setGroups] = useState<AgencyGroup[]>([]);
   const [loading, setLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<WeeklyExpense | null>(null);
 
   const [formData, setFormData] = useState({
-    agency_id: '',
+    group_id: '',
     category: 'gasto_operativo' as const,
     description: '',
     amount_bs: '',
   });
 
   useEffect(() => {
-    fetchExpenses();
-  }, [weekStart, weekEnd]);
+    initializeGroups();
+  }, []);
+
+  useEffect(() => {
+    if (groups.length > 0) {
+      fetchExpenses();
+    }
+  }, [weekStart, weekEnd, groups]);
+
+  const initializeGroups = async () => {
+    try {
+      // Check if groups exist
+      const { data: existingGroups, error: fetchError } = await supabase
+        .from('agency_groups')
+        .select('*')
+        .order('name');
+
+      if (fetchError) throw fetchError;
+
+      if (!existingGroups || existingGroups.length === 0) {
+        // Create default groups
+        const defaultGroups = [
+          { name: 'GRUPO 1', description: 'CEMENTERIO, PANTEON, AV.SUCRE, SAN MARTIN, CAPITOLIO, VICTORIA 2, VICTORIA 1, BARALT' },
+          { name: 'GRUPO 2', description: 'CANDELARIA' },
+          { name: 'GRUPO 3', description: 'PARQUE CENTRAL' }
+        ];
+
+        const { data: newGroups, error: insertError } = await supabase
+          .from('agency_groups')
+          .insert(defaultGroups)
+          .select();
+
+        if (insertError) {
+          console.error('Error creating groups:', insertError);
+        } else {
+          setGroups(newGroups || []);
+        }
+      } else {
+        setGroups(existingGroups);
+      }
+    } catch (error) {
+      console.error('Error initializing groups:', error);
+    }
+  };
 
   const fetchExpenses = async () => {
     try {
@@ -59,7 +107,7 @@ export function WeeklyBankExpensesManager({ weekStart, weekEnd, agencies, onExpe
 
       const { data: expensesData, error } = await supabase
         .from('weekly_bank_expenses')
-        .select('*, agencies(name)')
+        .select('*, agency_groups(name)')
         .eq('week_start_date', startStr)
         .eq('week_end_date', endStr)
         .order('created_at', { ascending: false });
@@ -87,10 +135,11 @@ export function WeeklyBankExpensesManager({ weekStart, weekEnd, agencies, onExpe
         comm => !existingDescriptions.includes(comm)
       );
       
-      // Create missing commissions
+      // Create missing commissions (always GLOBAL)
       if (missingCommissions.length > 0 && user?.id) {
         const newCommissions = missingCommissions.map(description => ({
-          agency_id: null as string | null, // Global expenses
+          group_id: null as string | null,
+          agency_id: null as string | null,
           week_start_date: startStr,
           week_end_date: endStr,
           category: 'otros' as const,
@@ -109,7 +158,7 @@ export function WeeklyBankExpensesManager({ weekStart, weekEnd, agencies, onExpe
           // Refetch to get the complete list
           const { data: refreshedData } = await supabase
             .from('weekly_bank_expenses')
-            .select('*, agencies(name)')
+            .select('*, agency_groups(name)')
             .eq('week_start_date', startStr)
             .eq('week_end_date', endStr)
             .order('created_at', { ascending: false });
@@ -117,8 +166,8 @@ export function WeeklyBankExpensesManager({ weekStart, weekEnd, agencies, onExpe
           if (refreshedData) {
             const formatted = refreshedData.map(exp => ({
               id: exp.id,
-              agency_id: exp.agency_id,
-              agency_name: exp.agency_id ? (exp.agencies as any)?.name || 'Agencia desconocida' : 'GLOBAL - Todas las agencias',
+              group_id: exp.group_id,
+              group_name: exp.group_id ? (exp.agency_groups as any)?.name || 'Grupo desconocido' : 'GLOBAL',
               category: exp.category,
               description: exp.description,
               amount_bs: Number(exp.amount_bs),
@@ -133,8 +182,8 @@ export function WeeklyBankExpensesManager({ weekStart, weekEnd, agencies, onExpe
 
       const formatted = fetchedExpenses.map(exp => ({
         id: exp.id,
-        agency_id: exp.agency_id,
-        agency_name: exp.agency_id ? (exp.agencies as any)?.name || 'Agencia desconocida' : 'GLOBAL - Todas las agencias',
+        group_id: exp.group_id,
+        group_name: exp.group_id ? (exp.agency_groups as any)?.name || 'Grupo desconocido' : 'GLOBAL',
         category: exp.category,
         description: exp.description,
         amount_bs: Number(exp.amount_bs),
@@ -171,7 +220,8 @@ export function WeeklyBankExpensesManager({ weekStart, weekEnd, agencies, onExpe
       const endStr = format(weekEnd, 'yyyy-MM-dd');
 
       const expenseData = {
-        agency_id: formData.agency_id === 'global' || !formData.agency_id ? null : formData.agency_id,
+        group_id: formData.group_id === 'global' || !formData.group_id ? null : formData.group_id,
+        agency_id: null,
         week_start_date: startStr,
         week_end_date: endStr,
         category: formData.category,
@@ -205,7 +255,7 @@ export function WeeklyBankExpensesManager({ weekStart, weekEnd, agencies, onExpe
         });
       }
 
-      setFormData({ agency_id: '', category: 'gasto_operativo', description: '', amount_bs: '' });
+      setFormData({ group_id: '', category: 'gasto_operativo', description: '', amount_bs: '' });
       setEditingExpense(null);
       setDialogOpen(false);
       fetchExpenses();
@@ -251,7 +301,7 @@ export function WeeklyBankExpensesManager({ weekStart, weekEnd, agencies, onExpe
   const handleEdit = (expense: WeeklyExpense) => {
     setEditingExpense(expense);
     setFormData({
-      agency_id: expense.agency_id || 'global',
+      group_id: expense.group_id || 'global',
       category: expense.category as any,
       description: expense.description,
       amount_bs: expense.amount_bs.toString(),
@@ -273,7 +323,7 @@ export function WeeklyBankExpensesManager({ weekStart, weekEnd, agencies, onExpe
             setDialogOpen(open);
             if (!open) {
               setEditingExpense(null);
-              setFormData({ agency_id: '', category: 'gasto_operativo', description: '', amount_bs: '' });
+              setFormData({ group_id: '', category: 'gasto_operativo', description: '', amount_bs: '' });
             }
           }}>
             <DialogTrigger asChild>
@@ -288,16 +338,16 @@ export function WeeklyBankExpensesManager({ weekStart, weekEnd, agencies, onExpe
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <Label>Agencia</Label>
-                  <Select value={formData.agency_id} onValueChange={(val) => setFormData({ ...formData, agency_id: val })}>
+                  <Label>Grupo</Label>
+                  <Select value={formData.group_id} onValueChange={(val) => setFormData({ ...formData, group_id: val })}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar agencia" />
+                      <SelectValue placeholder="Seleccionar grupo" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="global">GLOBAL - Todas las agencias</SelectItem>
-                      {agencies.map((agency) => (
-                        <SelectItem key={agency.id} value={agency.id}>
-                          {agency.name}
+                      <SelectItem value="global">GLOBAL - Todos los grupos</SelectItem>
+                      {groups.map((group) => (
+                        <SelectItem key={group.id} value={group.id}>
+                          {group.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -364,7 +414,7 @@ export function WeeklyBankExpensesManager({ weekStart, weekEnd, agencies, onExpe
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Agencia</TableHead>
+                  <TableHead>Grupo</TableHead>
                   <TableHead>Categoría</TableHead>
                   <TableHead>Descripción</TableHead>
                   <TableHead className="text-right">Monto</TableHead>
@@ -374,7 +424,7 @@ export function WeeklyBankExpensesManager({ weekStart, weekEnd, agencies, onExpe
               <TableBody>
                 {expenses.map((expense) => (
                   <TableRow key={expense.id}>
-                    <TableCell className="font-medium">{expense.agency_name}</TableCell>
+                    <TableCell className="font-medium">{expense.group_name}</TableCell>
                     <TableCell className="text-sm">
                       {expense.category === 'gasto_operativo' ? 'Gastos Operativos' : expense.category === 'deuda' ? 'Deudas' : 'Otros'}
                     </TableCell>
