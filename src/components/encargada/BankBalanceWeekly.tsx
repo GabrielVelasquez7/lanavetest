@@ -403,26 +403,37 @@ export function BankBalanceWeekly() {
                 </TableFooter>
               </Table>
               
-              {/* Totals after expenses */}
-              <div className="mt-6 space-y-3 border-t pt-6">
-                <div className="flex justify-between items-center text-lg">
-                  <span className="font-semibold">Total en Banco (antes de gastos fijos):</span>
-                  <span className={`font-bold ${totalBankBeforeExpenses >= 0 ? 'text-primary' : 'text-destructive'}`}>
-                    {formatCurrency(totalBankBeforeExpenses, 'VES')}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center text-lg">
-                  <span className="font-semibold text-orange-700">(-) Gastos Fijos Semanales:</span>
-                  <span className="font-bold text-orange-600">
-                    -{formatCurrency(totalExpenses, 'VES')}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center text-xl border-t pt-3">
-                  <span className="font-bold">Total en Banco (después de gastos fijos):</span>
-                  <span className={`font-bold text-2xl ${totalBankAfterExpenses >= 0 ? 'text-primary' : 'text-destructive'}`}>
-                    {formatCurrency(totalBankAfterExpenses, 'VES')}
-                  </span>
-                </div>
+              {/* Final Totals Summary */}
+              <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Card className="border-2 border-primary/20">
+                  <CardContent className="pt-4">
+                    <p className="text-xs text-muted-foreground mb-1">Total en Banco</p>
+                    <p className={`text-2xl font-bold ${totalBankBeforeExpenses >= 0 ? 'text-primary' : 'text-destructive'}`}>
+                      {formatCurrency(totalBankBeforeExpenses, 'VES')}
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-2 border-orange-200 bg-orange-50/30">
+                  <CardContent className="pt-4">
+                    <p className="text-xs text-orange-700 mb-1">Gastos Fijos</p>
+                    <p className="text-2xl font-bold text-orange-600">
+                      -{formatCurrency(totalExpenses, 'VES')}
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-4 border-primary bg-primary/5">
+                  <CardContent className="pt-4">
+                    <p className="text-xs text-primary mb-1 flex items-center gap-1">
+                      <Landmark className="h-3 w-3" />
+                      Monto Definitivo en Banco
+                    </p>
+                    <p className={`text-3xl font-bold ${totalBankAfterExpenses >= 0 ? 'text-primary' : 'text-destructive'}`}>
+                      {formatCurrency(totalBankAfterExpenses, 'VES')}
+                    </p>
+                  </CardContent>
+                </Card>
               </div>
             </div>
           )}
