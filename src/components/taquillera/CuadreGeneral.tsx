@@ -12,6 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { formatCurrency } from '@/lib/utils';
 import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
 import { Calculator, CheckCircle2, XCircle, Save, TrendingUp, TrendingDown, ChevronDown, ChevronRight } from 'lucide-react';
 import { formatDateForDB } from '@/lib/dateUtils';
@@ -102,6 +103,10 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
   const [additionalAmountUsdInput, setAdditionalAmountUsdInput] = useState<string>('0');
   const [additionalNotesInput, setAdditionalNotesInput] = useState<string>('');
   const [applyExcessUsdSwitch, setApplyExcessUsdSwitch] = useState<boolean>(true);
+  
+  // Encargada review status
+  const [encargadaStatus, setEncargadaStatus] = useState<string | null>(null);
+  const [encargadaObservations, setEncargadaObservations] = useState<string | null>(null);
   
   // Track if user has manually edited the fields to prevent overriding them
   const [fieldsEditedByUser, setFieldsEditedByUser] = useState({
@@ -335,6 +340,26 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
       setAdditionalNotesInput(additionalNotes);
       setApplyExcessUsdSwitch(applyExcessUsd);
       
+      // Set encargada review status
+      if (encargadaFeedback) {
+        setEncargadaStatus(encargadaFeedback.encargada_status || null);
+        setEncargadaObservations(encargadaFeedback.encargada_observations || null);
+        
+        // Show toast if there's a review status
+        if (encargadaFeedback.encargada_status === 'aprobado') {
+          toast({
+            title: 'Cuadre Aprobado',
+            description: 'Tu cuadre ha sido aprobado por la encargada',
+          });
+        } else if (encargadaFeedback.encargada_status === 'rechazado') {
+          toast({
+            title: 'Cuadre Rechazado',
+            description: 'Tu cuadre fue rechazado. Revisa las observaciones.',
+            variant: 'destructive',
+          });
+        }
+      }
+      
       // Update input states only if user hasn't edited them manually
       if (!fieldsEditedByUser.exchangeRate) {
         setExchangeRateInput(finalCuadre.exchangeRate.toString());
@@ -554,49 +579,44 @@ export const CuadreGeneral = ({ refreshKey = 0, dateRange }: CuadreGeneralProps)
   return (
     <div className="space-y-6">
       {/* Title and Status */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <h2 className="text-2xl font-bold">
+          Cuadre Diario
+          {isSingleDay && dateRange && (
+            <span className="text-muted-foreground"> - {format(dateRange.from, "dd 'de' MMMM, yyyy", { locale: es })}</span>
+          )}
+        </h2>
         
-        {cuadre.closureConfirmed && (
-          <Badge variant="default" className="flex items-center gap-1">
-            <CheckCircle2 className="h-3 w-3" />
-            Cuadre Confirmado
-          </Badge>
-        )}
+        <div className="flex items-center gap-2">
+          {encargadaStatus && (
+            <Badge 
+              variant={encargadaStatus === 'aprobado' ? 'default' : encargadaStatus === 'rechazado' ? 'destructive' : 'secondary'}
+              className={encargadaStatus === 'aprobado' ? 'bg-green-600' : ''}
+            >
+              {encargadaStatus === 'aprobado' ? '✓ Aprobado' : encargadaStatus === 'rechazado' ? '✗ Rechazado' : 'Pendiente'}
+            </Badge>
+          )}
+          
+          {cuadre.closureConfirmed && (
+            <Badge variant="default" className="flex items-center gap-1">
+              <CheckCircle2 className="h-3 w-3" />
+              Cuadre Confirmado
+            </Badge>
+          )}
+        </div>
       </div>
 
       {/* Encargada Feedback Section */}
-      {cuadre.encargadaFeedback && cuadre.encargadaFeedback.encargada_status !== 'pendiente' && (
-        <Card className={`border-2 ${
-          cuadre.encargadaFeedback.encargada_status === 'aprobado' 
-            ? 'border-green-200 bg-green-50' 
-            : 'border-red-200 bg-red-50'
-        }`}>
+      {encargadaStatus === 'rechazado' && encargadaObservations && (
+        <Card className="border-2 border-destructive bg-destructive/5">
           <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base">Revisión de la Encargada</CardTitle>
-              <Badge 
-                variant={cuadre.encargadaFeedback.encargada_status === 'aprobado' ? 'default' : 'destructive'}
-                className={cuadre.encargadaFeedback.encargada_status === 'aprobado' ? 'bg-green-600' : ''}
-              >
-                {cuadre.encargadaFeedback.encargada_status === 'aprobado' ? 'Aprobado' : 'Rechazado'}
-              </Badge>
-            </div>
+            <CardTitle className="text-base text-destructive">Observaciones de la Encargada</CardTitle>
           </CardHeader>
-          {cuadre.encargadaFeedback.encargada_observations && (
-            <CardContent className="pt-0">
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">Observaciones:</Label>
-                <p className="text-sm p-3 bg-background/50 rounded border">
-                  {cuadre.encargadaFeedback.encargada_observations}
-                </p>
-                {cuadre.encargadaFeedback.encargada_reviewed_at && (
-                  <p className="text-xs text-muted-foreground">
-                    Revisado el {format(new Date(cuadre.encargadaFeedback.encargada_reviewed_at), 'dd/MM/yyyy HH:mm')}
-                  </p>
-                )}
-              </div>
-            </CardContent>
-          )}
+          <CardContent className="pt-0">
+            <p className="text-sm p-3 bg-background/50 rounded border">
+              {encargadaObservations}
+            </p>
+          </CardContent>
         </Card>
       )}
 
