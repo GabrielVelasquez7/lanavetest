@@ -837,6 +837,53 @@ export type Database = {
         }
         Relationships: []
       }
+      weekly_bank_expenses: {
+        Row: {
+          agency_id: string | null
+          amount_bs: number
+          category: Database["public"]["Enums"]["expense_category"]
+          created_at: string
+          created_by: string
+          description: string
+          id: string
+          updated_at: string
+          week_end_date: string
+          week_start_date: string
+        }
+        Insert: {
+          agency_id?: string | null
+          amount_bs?: number
+          category: Database["public"]["Enums"]["expense_category"]
+          created_at?: string
+          created_by: string
+          description: string
+          id?: string
+          updated_at?: string
+          week_end_date: string
+          week_start_date: string
+        }
+        Update: {
+          agency_id?: string | null
+          amount_bs?: number
+          category?: Database["public"]["Enums"]["expense_category"]
+          created_at?: string
+          created_by?: string
+          description?: string
+          id?: string
+          updated_at?: string
+          week_end_date?: string
+          week_start_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "weekly_bank_expenses_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       weekly_cuadre_config: {
         Row: {
           additional_amount_bs: number

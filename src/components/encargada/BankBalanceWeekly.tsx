@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/components/ui/use-toast';
@@ -12,7 +13,6 @@ import {
   ChevronLeft, 
   ChevronRight, 
   RefreshCcw, 
-  Building2,
   TrendingUp,
   TrendingDown,
   CreditCard,
@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { WeeklyBankExpensesManager } from './WeeklyBankExpensesManager';
 
 interface AgencyBankBalance {
   agency_id: string;
@@ -27,6 +28,7 @@ interface AgencyBankBalance {
   mobile_received: number;
   mobile_paid: number;
   pos_total: number;
+  expenses: number;
   bank_balance: number;
 }
 
@@ -137,6 +139,21 @@ export function BankBalanceWeekly() {
 
       if (posError) throw posError;
 
+      // Fetch weekly bank expenses
+      let expensesQuery = supabase
+        .from('weekly_bank_expenses')
+        .select('agency_id, amount_bs')
+        .eq('week_start_date', startStr)
+        .eq('week_end_date', endStr);
+
+      if (selectedAgency !== 'all') {
+        expensesQuery = expensesQuery.or(`agency_id.eq.${selectedAgency},agency_id.is.null`);
+      }
+
+      const { data: expensesData, error: expensesError } = await expensesQuery;
+
+      if (expensesError) throw expensesError;
+
       // Get agency names
       const agencyIds = Array.from(
         new Set([
@@ -171,7 +188,29 @@ export function BankBalanceWeekly() {
           ?.filter(p => p.agency_id === agencyId)
           .reduce((sum, p) => sum + Number(p.amount_bs), 0) || 0;
 
-        const bankBalance = mobileReceived - mobilePaid + posTotal;
+        // Calculate expenses for this agency (specific + proportional global)
+        const specificExpenses = expensesData
+          ?.filter(e => e.agency_id === agencyId)
+          .reduce((sum, e) => sum + Number(e.amount_bs), 0) || 0;
+
+        const globalExpenses = expensesData
+          ?.filter(e => e.agency_id === null)
+          .reduce((sum, e) => sum + Number(e.amount_bs), 0) || 0;
+
+        // Calculate proportional global expenses
+        const agencyBase = mobileReceived + posTotal;
+        const totalBase = agencyIds.reduce((sum, id) => {
+          const mReceived = (mobileData?.filter(m => m.agency_id === id) || [])
+            .filter(m => m.amount_bs > 0 || m.description?.includes('[RECIBIDO]'))
+            .reduce((s, m) => s + Math.abs(Number(m.amount_bs)), 0);
+          const pTotal = posData?.filter(p => p.agency_id === id).reduce((s, p) => s + Number(p.amount_bs), 0) || 0;
+          return sum + mReceived + pTotal;
+        }, 0);
+
+        const proportionalGlobal = totalBase > 0 ? (agencyBase / totalBase) * globalExpenses : 0;
+        const totalExpenses = specificExpenses + proportionalGlobal;
+
+        const bankBalance = mobileReceived - mobilePaid + posTotal - totalExpenses;
 
         balanceMap.set(agencyId, {
           agency_id: agencyId,
@@ -179,6 +218,7 @@ export function BankBalanceWeekly() {
           mobile_received: mobileReceived,
           mobile_paid: mobilePaid,
           pos_total: posTotal,
+          expenses: totalExpenses,
           bank_balance: bankBalance,
         });
       });
@@ -220,7 +260,8 @@ export function BankBalanceWeekly() {
   const totalReceived = balances.reduce((sum, b) => sum + b.mobile_received, 0);
   const totalPaid = balances.reduce((sum, b) => sum + b.mobile_paid, 0);
   const totalPos = balances.reduce((sum, b) => sum + b.pos_total, 0);
-  const totalBank = totalReceived - totalPaid + totalPos;
+  const totalExpenses = balances.reduce((sum, b) => sum + b.expenses, 0);
+  const totalBank = totalReceived - totalPaid + totalPos - totalExpenses;
 
   return (
     <div className="space-y-6">
@@ -270,72 +311,91 @@ export function BankBalanceWeekly() {
         </CardContent>
       </Card>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      {/* Summary Cards - Smaller */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <Card className="border-2 border-green-200 bg-green-50/50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-green-700 flex items-center gap-2">
-              <TrendingUp className="h-4 w-4" />
-              Pago Móvil Recibido
+          <CardHeader className="pb-2 pt-3">
+            <CardTitle className="text-xs text-green-700 flex items-center gap-1">
+              <TrendingUp className="h-3 w-3" />
+              PM Recibido
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-green-600">
+          <CardContent className="pb-3">
+            <p className="text-lg font-bold text-green-600">
               {formatCurrency(totalReceived, 'VES')}
             </p>
           </CardContent>
         </Card>
 
         <Card className="border-2 border-red-200 bg-red-50/50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-red-700 flex items-center gap-2">
-              <TrendingDown className="h-4 w-4" />
-              Pago Móvil Pagado
+          <CardHeader className="pb-2 pt-3">
+            <CardTitle className="text-xs text-red-700 flex items-center gap-1">
+              <TrendingDown className="h-3 w-3" />
+              PM Pagado
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-red-600">
+          <CardContent className="pb-3">
+            <p className="text-lg font-bold text-red-600">
               {formatCurrency(totalPaid, 'VES')}
             </p>
           </CardContent>
         </Card>
 
         <Card className="border-2 border-blue-200 bg-blue-50/50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-blue-700 flex items-center gap-2">
-              <CreditCard className="h-4 w-4" />
-              Punto de Venta
+          <CardHeader className="pb-2 pt-3">
+            <CardTitle className="text-xs text-blue-700 flex items-center gap-1">
+              <CreditCard className="h-3 w-3" />
+              Punto Venta
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-blue-600">
+          <CardContent className="pb-3">
+            <p className="text-lg font-bold text-blue-600">
               {formatCurrency(totalPos, 'VES')}
             </p>
           </CardContent>
         </Card>
 
-        <Card className="border-2 border-primary bg-primary/5">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-primary flex items-center gap-2">
-              <Landmark className="h-4 w-4" />
-              Total en Banco
+        <Card className="border-2 border-orange-200 bg-orange-50/50">
+          <CardHeader className="pb-2 pt-3">
+            <CardTitle className="text-xs text-orange-700 flex items-center gap-1">
+              <TrendingDown className="h-3 w-3" />
+              Gastos Fijos
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className={`text-2xl font-bold ${totalBank >= 0 ? 'text-primary' : 'text-destructive'}`}>
+          <CardContent className="pb-3">
+            <p className="text-lg font-bold text-orange-600">
+              {formatCurrency(totalExpenses, 'VES')}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-2 border-primary bg-primary/5">
+          <CardHeader className="pb-2 pt-3">
+            <CardTitle className="text-xs text-primary flex items-center gap-1">
+              <Landmark className="h-3 w-3" />
+              Total Banco
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pb-3">
+            <p className={`text-lg font-bold ${totalBank >= 0 ? 'text-primary' : 'text-destructive'}`}>
               {formatCurrency(totalBank, 'VES')}
             </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Agency Details */}
+      {/* Weekly Expenses Manager */}
+      <WeeklyBankExpensesManager 
+        weekStart={currentWeek.start}
+        weekEnd={currentWeek.end}
+        agencies={agencies}
+        onExpensesChange={fetchBankBalances}
+      />
+
+      {/* Agency Details Table */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Building2 className="h-5 w-5" />
-            Detalle por Agencia
-          </CardTitle>
+          <CardTitle>Detalle por Agencia</CardTitle>
         </CardHeader>
         <CardContent>
           {balances.length === 0 ? (
@@ -343,42 +403,61 @@ export function BankBalanceWeekly() {
               No hay datos bancarios para esta semana
             </div>
           ) : (
-            <div className="space-y-4">
-              {balances.map((balance) => (
-                <Card key={balance.agency_id} className="border-l-4 border-l-primary">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-lg">{balance.agency_name}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-center">
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-1">PM Recibido</p>
-                        <p className="text-lg font-semibold text-green-600">
-                          {formatCurrency(balance.mobile_received, 'VES')}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-1">PM Pagado</p>
-                        <p className="text-lg font-semibold text-red-600">
-                          -{formatCurrency(balance.mobile_paid, 'VES')}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-1">Punto de Venta</p>
-                        <p className="text-lg font-semibold text-blue-600">
-                          {formatCurrency(balance.pos_total, 'VES')}
-                        </p>
-                      </div>
-                      <div className="col-span-2 border-l-2 border-primary/20">
-                        <p className="text-xs text-muted-foreground mb-1">Total en Banco</p>
-                        <p className={`text-2xl font-bold ${balance.bank_balance >= 0 ? 'text-primary' : 'text-destructive'}`}>
-                          {formatCurrency(balance.bank_balance, 'VES')}
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="font-bold">Agencia</TableHead>
+                    <TableHead className="text-right font-bold text-green-700">PM Recibido</TableHead>
+                    <TableHead className="text-right font-bold text-red-700">PM Pagado</TableHead>
+                    <TableHead className="text-right font-bold text-blue-700">Punto Venta</TableHead>
+                    <TableHead className="text-right font-bold text-orange-700">Gastos Fijos</TableHead>
+                    <TableHead className="text-right font-bold text-primary">Total Banco</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {balances.map((balance) => (
+                    <TableRow key={balance.agency_id} className="hover:bg-muted/30">
+                      <TableCell className="font-medium text-sm">{balance.agency_name}</TableCell>
+                      <TableCell className="text-right text-sm font-semibold text-green-600">
+                        {formatCurrency(balance.mobile_received, 'VES')}
+                      </TableCell>
+                      <TableCell className="text-right text-sm font-semibold text-red-600">
+                        -{formatCurrency(balance.mobile_paid, 'VES')}
+                      </TableCell>
+                      <TableCell className="text-right text-sm font-semibold text-blue-600">
+                        {formatCurrency(balance.pos_total, 'VES')}
+                      </TableCell>
+                      <TableCell className="text-right text-sm font-semibold text-orange-600">
+                        -{formatCurrency(balance.expenses, 'VES')}
+                      </TableCell>
+                      <TableCell className={`text-right text-sm font-bold ${balance.bank_balance >= 0 ? 'text-primary' : 'text-destructive'}`}>
+                        {formatCurrency(balance.bank_balance, 'VES')}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+                <TableFooter>
+                  <TableRow className="bg-muted/50">
+                    <TableCell className="font-bold">TOTALES</TableCell>
+                    <TableCell className="text-right font-bold text-green-700">
+                      {formatCurrency(totalReceived, 'VES')}
+                    </TableCell>
+                    <TableCell className="text-right font-bold text-red-700">
+                      -{formatCurrency(totalPaid, 'VES')}
+                    </TableCell>
+                    <TableCell className="text-right font-bold text-blue-700">
+                      {formatCurrency(totalPos, 'VES')}
+                    </TableCell>
+                    <TableCell className="text-right font-bold text-orange-700">
+                      -{formatCurrency(totalExpenses, 'VES')}
+                    </TableCell>
+                    <TableCell className={`text-right font-bold text-lg ${totalBank >= 0 ? 'text-primary' : 'text-destructive'}`}>
+                      {formatCurrency(totalBank, 'VES')}
+                    </TableCell>
+                  </TableRow>
+                </TableFooter>
+              </Table>
             </div>
           )}
         </CardContent>
