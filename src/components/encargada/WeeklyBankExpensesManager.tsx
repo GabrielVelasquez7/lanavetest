@@ -66,7 +66,72 @@ export function WeeklyBankExpensesManager({ weekStart, weekEnd, agencies, onExpe
 
       if (error) throw error;
 
-      const formatted = (expensesData || []).map(exp => ({
+      const fetchedExpenses = expensesData || [];
+      
+      // Fixed commission expenses that should always exist
+      const fixedCommissions = [
+        'comision P/M PAGADOS',
+        'comision Puntos Bancamiga',
+        'comision semanal 1$ por el punto Bancamiga',
+        'comision puntos Banesco',
+        'comision diaria por mantenimiento banesco',
+        'comision por punto Venezuela',
+        'comision diaria por mantenimiento Venezuela',
+        'comision por cierre de punto BNC',
+        'comision diaria por mantenimiento BNC'
+      ];
+      
+      // Check which commissions are missing
+      const existingDescriptions = fetchedExpenses.map(e => e.description);
+      const missingCommissions = fixedCommissions.filter(
+        comm => !existingDescriptions.includes(comm)
+      );
+      
+      // Create missing commissions
+      if (missingCommissions.length > 0 && user?.id) {
+        const newCommissions = missingCommissions.map(description => ({
+          agency_id: null as string | null, // Global expenses
+          week_start_date: startStr,
+          week_end_date: endStr,
+          category: 'otros' as const,
+          description,
+          amount_bs: 0,
+          created_by: user.id
+        }));
+        
+        const { error: insertError } = await supabase
+          .from('weekly_bank_expenses')
+          .insert(newCommissions);
+        
+        if (insertError) {
+          console.error('Error creating fixed commissions:', insertError);
+        } else {
+          // Refetch to get the complete list
+          const { data: refreshedData } = await supabase
+            .from('weekly_bank_expenses')
+            .select('*, agencies(name)')
+            .eq('week_start_date', startStr)
+            .eq('week_end_date', endStr)
+            .order('created_at', { ascending: false });
+          
+          if (refreshedData) {
+            const formatted = refreshedData.map(exp => ({
+              id: exp.id,
+              agency_id: exp.agency_id,
+              agency_name: exp.agency_id ? (exp.agencies as any)?.name || 'Agencia desconocida' : 'GLOBAL - Todas las agencias',
+              category: exp.category,
+              description: exp.description,
+              amount_bs: Number(exp.amount_bs),
+              created_at: exp.created_at,
+            }));
+            setExpenses(formatted);
+          }
+          setLoading(false);
+          return;
+        }
+      }
+
+      const formatted = fetchedExpenses.map(exp => ({
         id: exp.id,
         agency_id: exp.agency_id,
         agency_name: exp.agency_id ? (exp.agencies as any)?.name || 'Agencia desconocida' : 'GLOBAL - Todas las agencias',
