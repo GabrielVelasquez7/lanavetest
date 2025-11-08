@@ -118,15 +118,15 @@ export function WeeklyBankExpensesManager({ weekStart, weekEnd, onExpensesChange
       
       // Fixed commission expenses that should always exist
       const fixedCommissions = [
-        'comision P/M PAGADOS',
-        'comision Puntos Bancamiga',
-        'comision semanal 1$ por el punto Bancamiga',
-        'comision puntos Banesco',
-        'comision diaria por mantenimiento banesco',
-        'comision por punto Venezuela',
-        'comision diaria por mantenimiento Venezuela',
-        'comision por cierre de punto BNC',
-        'comision diaria por mantenimiento BNC'
+        'Comisión P/M Pagados',
+        'Comisión Puntos Bancamiga',
+        'Comisión Semanal 1$ Punto Bancamiga',
+        'Comisión Puntos Banesco',
+        'Comisión Diaria Mantenimiento Banesco',
+        'Comisión Punto Venezuela',
+        'Comisión Diaria Mantenimiento Venezuela',
+        'Comisión Cierre Punto BNC',
+        'Comisión Diaria Mantenimiento BNC'
       ];
       
       // Check which commissions are missing
@@ -309,6 +309,22 @@ export function WeeklyBankExpensesManager({ weekStart, weekEnd, onExpensesChange
     setDialogOpen(true);
   };
 
+  // Check if a description is a fixed commission
+  const isFixedCommission = (description: string) => {
+    const fixedCommissions = [
+      'Comisión P/M Pagados',
+      'Comisión Puntos Bancamiga',
+      'Comisión Semanal 1$ Punto Bancamiga',
+      'Comisión Puntos Banesco',
+      'Comisión Diaria Mantenimiento Banesco',
+      'Comisión Punto Venezuela',
+      'Comisión Diaria Mantenimiento Venezuela',
+      'Comisión Cierre Punto BNC',
+      'Comisión Diaria Mantenimiento BNC'
+    ];
+    return fixedCommissions.includes(description);
+  };
+
   const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount_bs, 0);
 
   return (
@@ -375,7 +391,13 @@ export function WeeklyBankExpensesManager({ weekStart, weekEnd, onExpensesChange
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     placeholder="Describe el gasto..."
                     rows={3}
+                    disabled={editingExpense && isFixedCommission(editingExpense.description)}
                   />
+                  {editingExpense && isFixedCommission(editingExpense.description) && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Las comisiones fijas no pueden cambiar su descripción
+                    </p>
+                  )}
                 </div>
 
                 <div>
