@@ -199,79 +199,144 @@ export const VentasPremiosEncargada = ({}: VentasPremiosEncargadaProps) => {
         prizes_usd: 0,
       }));
 
-      // Buscar detalles existentes por sistema en la nueva tabla
+      // ========== PASO 1: PRIORIDAD 1 - Buscar datos YA MODIFICADOS por encargada ==========
       let { data: details } = await supabase
         .from('encargada_cuadre_details')
         .select('*')
         .eq('agency_id', selectedAgency)
         .eq('session_date', dateStr)
-        .eq('user_id', user.id);
+        .eq('user_id', user.id); // Datos de ESTA encargada específicamente
 
-      // Si no hay datos en la nueva tabla, intentar migrar desde daily_cuadres_summary
-      if (!details || details.length === 0) {
-        const { data: oldSummary } = await supabase
-          .from('daily_cuadres_summary')
-          .select('*, lottery_systems!inner(id, name)')
-          .eq('agency_id', selectedAgency)
-          .eq('session_date', dateStr)
-          .eq('user_id', user.id)
-          .is('session_id', null);
+      // ========== PASO 2: Si hay datos de encargada, usarlos directamente ==========
+      if (details && details.length > 0) {
+        console.log('✅ Cargando datos ya modificados por encargada:', details.length);
+        
+        const systemsWithData = systemsData.map(system => {
+          const detail = details?.find(d => d.lottery_system_id === system.lottery_system_id);
+          return {
+            ...system,
+            sales_bs: detail ? Number(detail.sales_bs || 0) : 0,
+            sales_usd: detail ? Number(detail.sales_usd || 0) : 0,
+            prizes_bs: detail ? Number(detail.prizes_bs || 0) : 0,
+            prizes_usd: detail ? Number(detail.prizes_usd || 0) : 0,
+          };
+        });
 
-        if (oldSummary && oldSummary.length > 0) {
-          // Migrar datos antiguos a la nueva estructura
-          const migrationData = oldSummary
-            .filter(s => s.lottery_system_id) // Solo los que tienen sistema
-            .map(s => ({
-              user_id: user.id,
-              agency_id: selectedAgency,
-              session_date: dateStr,
-              lottery_system_id: s.lottery_system_id!,
-              sales_bs: Number(s.total_sales_bs || 0),
-              sales_usd: Number(s.total_sales_usd || 0),
-              prizes_bs: Number(s.total_prizes_bs || 0),
-              prizes_usd: Number(s.total_prizes_usd || 0),
-            }));
-
-          if (migrationData.length > 0) {
-            await supabase
-              .from('encargada_cuadre_details')
-              .upsert(migrationData, {
-                onConflict: 'agency_id,session_date,user_id,lottery_system_id'
-              });
-
-            // Recargar después de migrar
-            const { data: newDetails } = await supabase
-              .from('encargada_cuadre_details')
-              .select('*')
-              .eq('agency_id', selectedAgency)
-              .eq('session_date', dateStr)
-              .eq('user_id', user.id);
-
-            details = newDetails;
-          }
-        }
+        form.setValue('systems', systemsWithData);
+        setEditMode(true); // Ya fueron editados
+        setCurrentCuadreId(details[0]?.id || null);
+        return; // Salir aquí
       }
 
-      // Mapear detalles guardados a los sistemas
-      const systemsWithData = systemsData.map(system => {
-        const detail = details?.find(d => d.lottery_system_id === system.lottery_system_id);
-        
+      // ========== PASO 3: PRIORIDAD 2 - No hay datos de encargada, buscar de TAQUILLERAS ==========
+      console.log('🔍 No hay datos de encargada, buscando datos de taquilleras...');
+
+      // 3a. Encontrar TODAS las taquilleras de esta agencia
+      const { data: taquilleras, error: taquillerasError } = await supabase
+        .from('profiles')
+        .select('user_id')
+        .eq('agency_id', selectedAgency)
+        .eq('role', 'taquillero')
+        .eq('is_active', true);
+
+      if (taquillerasError) {
+        console.error('Error buscando taquilleras:', taquillerasError);
+        throw taquillerasError;
+      }
+
+      if (!taquilleras || taquilleras.length === 0) {
+        console.log('⚠️ No hay taquilleras asignadas a esta agencia');
+        form.setValue('systems', systemsData); // Inicializar vacío
+        setEditMode(false);
+        setCurrentCuadreId(null);
+        return;
+      }
+
+      console.log(`📋 Encontradas ${taquilleras.length} taquillera(s) en esta agencia`);
+
+      const taquilleraIds = taquilleras.map(t => t.user_id);
+
+      // 3b. Buscar TODAS las sesiones de esas taquilleras para esta fecha
+      const { data: sessions, error: sessionsError } = await supabase
+        .from('daily_sessions')
+        .select('id, user_id')
+        .eq('session_date', dateStr)
+        .in('user_id', taquilleraIds); // Múltiples taquilleras
+
+      if (sessionsError) {
+        console.error('Error buscando sesiones:', sessionsError);
+        throw sessionsError;
+      }
+
+      if (!sessions || sessions.length === 0) {
+        console.log('⚠️ No hay sesiones de taquilleras para esta fecha');
+        form.setValue('systems', systemsData); // Inicializar vacío
+        setEditMode(false);
+        setCurrentCuadreId(null);
+        return;
+      }
+
+      console.log(`📅 Encontradas ${sessions.length} sesión(es) para esta fecha`);
+
+      const sessionIds = sessions.map(s => s.id);
+
+      // 3c. Obtener TODAS las transacciones de ventas de TODAS las sesiones
+      const { data: sales, error: salesError } = await supabase
+        .from('sales_transactions')
+        .select('lottery_system_id, amount_bs, amount_usd')
+        .in('session_id', sessionIds); // Todas las sesiones
+
+      if (salesError) {
+        console.error('Error obteniendo ventas:', salesError);
+        throw salesError;
+      }
+
+      // 3d. Obtener TODAS las transacciones de premios de TODAS las sesiones
+      const { data: prizes, error: prizesError } = await supabase
+        .from('prize_transactions')
+        .select('lottery_system_id, amount_bs, amount_usd')
+        .in('session_id', sessionIds); // Todas las sesiones
+
+      if (prizesError) {
+        console.error('Error obteniendo premios:', prizesError);
+        throw prizesError;
+      }
+
+      console.log('💰 Transacciones encontradas:', {
+        ventas: sales?.length || 0,
+        premios: prizes?.length || 0
+      });
+
+      // 3e. CONSOLIDAR: Agrupar y sumar por sistema de lotería
+      const groupedData = systemsData.map(system => {
+        const systemSales = sales?.filter(s => s.lottery_system_id === system.lottery_system_id) || [];
+        const systemPrizes = prizes?.filter(p => p.lottery_system_id === system.lottery_system_id) || [];
+
+        const totalSalesBs = systemSales.reduce((sum, s) => sum + Number(s.amount_bs || 0), 0);
+        const totalSalesUsd = systemSales.reduce((sum, s) => sum + Number(s.amount_usd || 0), 0);
+        const totalPrizesBs = systemPrizes.reduce((sum, p) => sum + Number(p.amount_bs || 0), 0);
+        const totalPrizesUsd = systemPrizes.reduce((sum, p) => sum + Number(p.amount_usd || 0), 0);
+
         return {
-          ...system,
-          sales_bs: detail ? Number(detail.sales_bs || 0) : 0,
-          sales_usd: detail ? Number(detail.sales_usd || 0) : 0,
-          prizes_bs: detail ? Number(detail.prizes_bs || 0) : 0,
-          prizes_usd: detail ? Number(detail.prizes_usd || 0) : 0,
+          lottery_system_id: system.lottery_system_id,
+          lottery_system_name: system.lottery_system_name,
+          sales_bs: totalSalesBs,
+          sales_usd: totalSalesUsd,
+          prizes_bs: totalPrizesBs,
+          prizes_usd: totalPrizesUsd,
         };
       });
 
-      // Usar setValue en lugar de reset para mantener la estructura
-      form.setValue('systems', systemsWithData);
-      
-      // Determinar si estamos en modo edición
-      const hasData = systemsWithData.some(s => s.sales_bs > 0 || s.sales_usd > 0 || s.prizes_bs > 0 || s.prizes_usd > 0);
-      setEditMode(hasData);
-      setCurrentCuadreId(details?.[0]?.id || null);
+      console.log('✅ Datos consolidados de taquilleras:', {
+        sistemas: groupedData.length,
+        totalSalesBs: groupedData.reduce((sum, s) => sum + s.sales_bs, 0),
+        totalPrizesBs: groupedData.reduce((sum, p) => sum + p.prizes_bs, 0)
+      });
+
+      form.setValue('systems', groupedData);
+      setEditMode(false); // No editados aún por encargada
+      setCurrentCuadreId(null);
+
     } catch (error) {
       console.error('Error loading agency data:', error);
       const systemsData: SystemEntry[] = lotteryOptions.map(system => ({

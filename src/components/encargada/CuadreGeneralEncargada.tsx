@@ -166,16 +166,89 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
         date: dateStr
       });
 
-      // 1. FUENTE PRINCIPAL: encargada_cuadre_details (datos de ventas/premios)
+      // 1. PRIORIDAD 1: FUENTE PRINCIPAL - encargada_cuadre_details (datos ya modificados)
       const { data: detailsData, error: detailsError } = await supabase
         .from('encargada_cuadre_details')
         .select('sales_bs, sales_usd, prizes_bs, prizes_usd')
         .eq('agency_id', selectedAgency)
-        .eq('session_date', dateStr);
+        .eq('session_date', dateStr)
+        .eq('user_id', user.id); // Datos de esta encargada
 
       if (detailsError) throw detailsError;
 
-      console.log('📊 Detalles de encargada encontrados:', detailsData?.length || 0);
+      let totalSales = { bs: 0, usd: 0 };
+      let totalPrizes = { bs: 0, usd: 0 };
+
+      // Si hay datos de encargada, usarlos
+      if (detailsData && detailsData.length > 0) {
+        console.log('📊 Usando datos modificados por encargada:', detailsData.length);
+        
+        totalSales = {
+          bs: detailsData.reduce((sum, d) => sum + Number(d.sales_bs || 0), 0),
+          usd: detailsData.reduce((sum, d) => sum + Number(d.sales_usd || 0), 0)
+        };
+
+        totalPrizes = {
+          bs: detailsData.reduce((sum, d) => sum + Number(d.prizes_bs || 0), 0),
+          usd: detailsData.reduce((sum, d) => sum + Number(d.prizes_usd || 0), 0)
+        };
+      } else {
+        // PRIORIDAD 2: Si no hay datos de encargada, buscar de taquilleras
+        console.log('🔍 No hay datos de encargada, buscando de taquilleras...');
+
+        // Encontrar taquilleras de esta agencia
+        const { data: taquilleras } = await supabase
+          .from('profiles')
+          .select('user_id')
+          .eq('agency_id', selectedAgency)
+          .eq('role', 'taquillero')
+          .eq('is_active', true);
+
+        if (taquilleras && taquilleras.length > 0) {
+          const taquilleraIds = taquilleras.map(t => t.user_id);
+
+          // Buscar sesiones de esas taquilleras
+          const { data: sessions } = await supabase
+            .from('daily_sessions')
+            .select('id')
+            .eq('session_date', dateStr)
+            .in('user_id', taquilleraIds);
+
+          if (sessions && sessions.length > 0) {
+            const sessionIds = sessions.map(s => s.id);
+
+            // Obtener transacciones consolidadas
+            const [salesResult, prizesResult] = await Promise.all([
+              supabase
+                .from('sales_transactions')
+                .select('amount_bs, amount_usd')
+                .in('session_id', sessionIds),
+              supabase
+                .from('prize_transactions')
+                .select('amount_bs, amount_usd')
+                .in('session_id', sessionIds)
+            ]);
+
+            if (salesResult.data) {
+              totalSales = {
+                bs: salesResult.data.reduce((sum, s) => sum + Number(s.amount_bs || 0), 0),
+                usd: salesResult.data.reduce((sum, s) => sum + Number(s.amount_usd || 0), 0)
+              };
+            }
+
+            if (prizesResult.data) {
+              totalPrizes = {
+                bs: prizesResult.data.reduce((sum, p) => sum + Number(p.amount_bs || 0), 0),
+                usd: prizesResult.data.reduce((sum, p) => sum + Number(p.amount_usd || 0), 0)
+              };
+            }
+
+            console.log('✅ Usando datos consolidados de taquilleras');
+          }
+        }
+      }
+
+      console.log('✅ Totales calculados:', { ventas: totalSales, premios: totalPrizes });
 
       // 2. DATOS COMPLEMENTARIOS (por agencia + fecha)
       const [expensesResult, mobileResult, posResult, summaryResult] = await Promise.all([
@@ -206,17 +279,6 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
       if (expensesResult.error) throw expensesResult.error;
       if (mobileResult.error) throw mobileResult.error;
       if (posResult.error) throw posResult.error;
-
-      // 3. CALCULAR TOTALES DE VENTAS Y PREMIOS
-      const totalSales = {
-        bs: (detailsData || []).reduce((sum, d) => sum + Number(d.sales_bs || 0), 0),
-        usd: (detailsData || []).reduce((sum, d) => sum + Number(d.sales_usd || 0), 0)
-      };
-
-      const totalPrizes = {
-        bs: (detailsData || []).reduce((sum, d) => sum + Number(d.prizes_bs || 0), 0),
-        usd: (detailsData || []).reduce((sum, d) => sum + Number(d.prizes_usd || 0), 0)
-      };
 
       // 4. PROCESAR GASTOS Y DEUDAS
       const expensesList = expensesResult.data || [];
@@ -286,7 +348,7 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
         }
       }
 
-      console.log('✅ Totales calculados (SOLO datos de encargada):', {
+      console.log('✅ Totales finales (encargada o consolidado de taquilleras):', {
         ventas: totalSales,
         premios: totalPrizes,
         gastos: totalGastos,
