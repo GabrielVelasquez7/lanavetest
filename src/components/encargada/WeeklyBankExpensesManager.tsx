@@ -18,7 +18,7 @@ interface WeeklyExpense {
   id: string;
   group_id: string | null;
   group_name: string;
-  category: string;
+  category: 'gasto_operativo' | 'deuda' | 'otros';
   description: string;
   amount_bs: number;
   created_at: string;
@@ -46,9 +46,14 @@ export function WeeklyBankExpensesManager({ weekStart, weekEnd, onExpensesChange
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<WeeklyExpense | null>(null);
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{ 
+    group_id: string;
+    category: 'gasto_operativo' | 'deuda' | 'otros';
+    description: string;
+    amount_bs: string;
+  }>({
     group_id: '',
-    category: 'gasto_operativo' as const,
+    category: 'gasto_operativo',
     description: '',
     amount_bs: '',
   });
@@ -129,10 +134,11 @@ export function WeeklyBankExpensesManager({ weekStart, weekEnd, onExpensesChange
         'Comisión Diaria Mantenimiento BNC'
       ];
       
-      // Check which commissions are missing
-      const existingDescriptions = fetchedExpenses.map(e => e.description);
+      // Check which commissions are missing using normalized comparison
+      const normalize = (s: string) => s.normalize('NFD').replace(/\p{Diacritic}/gu, '').trim().toLowerCase();
+      const existingSet = new Set((fetchedExpenses as any[]).map(e => normalize(e.description)));
       const missingCommissions = fixedCommissions.filter(
-        comm => !existingDescriptions.includes(comm)
+        (comm) => !existingSet.has(normalize(comm))
       );
       
       // Create missing commissions (always GLOBAL)
@@ -219,13 +225,15 @@ export function WeeklyBankExpensesManager({ weekStart, weekEnd, onExpensesChange
       const startStr = format(weekStart, 'yyyy-MM-dd');
       const endStr = format(weekEnd, 'yyyy-MM-dd');
 
+      const isFixed = editingExpense ? isFixedCommission(editingExpense.description) : isFixedCommission(formData.description);
+
       const expenseData = {
-        group_id: formData.group_id === 'global' || !formData.group_id ? null : formData.group_id,
+        group_id: isFixed ? null : (formData.group_id === 'global' || !formData.group_id ? null : formData.group_id),
         agency_id: null,
         week_start_date: startStr,
         week_end_date: endStr,
-        category: formData.category,
-        description: formData.description,
+        category: isFixed ? 'otros' : formData.category,
+        description: isFixed && editingExpense ? editingExpense.description : formData.description,
         amount_bs: Number(formData.amount_bs),
         created_by: user?.id,
       };
@@ -355,7 +363,11 @@ export function WeeklyBankExpensesManager({ weekStart, weekEnd, onExpensesChange
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <Label>Grupo</Label>
-                  <Select value={formData.group_id} onValueChange={(val) => setFormData({ ...formData, group_id: val })}>
+                  <Select 
+                    disabled={!!(editingExpense && isFixedCommission(editingExpense.description))}
+                    value={formData.group_id} 
+                    onValueChange={(val) => setFormData({ ...formData, group_id: val })}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Seleccionar grupo" />
                     </SelectTrigger>
@@ -372,7 +384,11 @@ export function WeeklyBankExpensesManager({ weekStart, weekEnd, onExpensesChange
 
                 <div>
                   <Label>Categoría</Label>
-                  <Select value={formData.category} onValueChange={(val: any) => setFormData({ ...formData, category: val })}>
+                  <Select 
+                    disabled={!!(editingExpense && isFixedCommission(editingExpense.description))}
+                    value={formData.category}
+                    onValueChange={(val: 'gasto_operativo' | 'deuda' | 'otros') => setFormData({ ...formData, category: val })}
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
