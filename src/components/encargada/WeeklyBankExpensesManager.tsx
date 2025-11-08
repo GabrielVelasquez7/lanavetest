@@ -459,9 +459,11 @@ export function WeeklyBankExpensesManager({ weekStart, weekEnd, onExpensesChange
                         <Button size="icon" variant="ghost" onClick={() => handleEdit(expense)}>
                           <Edit2 className="h-4 w-4" />
                         </Button>
-                        <Button size="icon" variant="ghost" onClick={() => handleDelete(expense.id)}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
+                        {!isFixedCommission(expense.description) && (
+                          <Button size="icon" variant="ghost" onClick={() => handleDelete(expense.id)}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
