@@ -28,7 +28,6 @@ interface AgencyBankBalance {
   mobile_received: number;
   mobile_paid: number;
   pos_total: number;
-  expenses: number;
   bank_balance: number;
 }
 
@@ -41,6 +40,7 @@ export function BankBalanceWeekly() {
   const [selectedAgency, setSelectedAgency] = useState<string>('all');
   const [agencies, setAgencies] = useState<any[]>([]);
   const [balances, setBalances] = useState<AgencyBankBalance[]>([]);
+  const [totalExpenses, setTotalExpenses] = useState(0);
 
   useEffect(() => {
     if (user) {
@@ -139,20 +139,16 @@ export function BankBalanceWeekly() {
 
       if (posError) throw posError;
 
-      // Fetch weekly bank expenses
-      let expensesQuery = supabase
+      // Fetch weekly bank expenses for total calculation
+      const { data: expensesData, error: expensesError } = await supabase
         .from('weekly_bank_expenses')
-        .select('agency_id, amount_bs')
+        .select('amount_bs')
         .eq('week_start_date', startStr)
         .eq('week_end_date', endStr);
 
-      if (selectedAgency !== 'all') {
-        expensesQuery = expensesQuery.or(`agency_id.eq.${selectedAgency},agency_id.is.null`);
-      }
-
-      const { data: expensesData, error: expensesError } = await expensesQuery;
-
       if (expensesError) throw expensesError;
+      
+      const totalWeeklyExpenses = expensesData?.reduce((sum, e) => sum + Number(e.amount_bs), 0) || 0;
 
       // Get agency names
       const agencyIds = Array.from(
@@ -188,29 +184,7 @@ export function BankBalanceWeekly() {
           ?.filter(p => p.agency_id === agencyId)
           .reduce((sum, p) => sum + Number(p.amount_bs), 0) || 0;
 
-        // Calculate expenses for this agency (specific + proportional global)
-        const specificExpenses = expensesData
-          ?.filter(e => e.agency_id === agencyId)
-          .reduce((sum, e) => sum + Number(e.amount_bs), 0) || 0;
-
-        const globalExpenses = expensesData
-          ?.filter(e => e.agency_id === null)
-          .reduce((sum, e) => sum + Number(e.amount_bs), 0) || 0;
-
-        // Calculate proportional global expenses
-        const agencyBase = mobileReceived + posTotal;
-        const totalBase = agencyIds.reduce((sum, id) => {
-          const mReceived = (mobileData?.filter(m => m.agency_id === id) || [])
-            .filter(m => m.amount_bs > 0 || m.description?.includes('[RECIBIDO]'))
-            .reduce((s, m) => s + Math.abs(Number(m.amount_bs)), 0);
-          const pTotal = posData?.filter(p => p.agency_id === id).reduce((s, p) => s + Number(p.amount_bs), 0) || 0;
-          return sum + mReceived + pTotal;
-        }, 0);
-
-        const proportionalGlobal = totalBase > 0 ? (agencyBase / totalBase) * globalExpenses : 0;
-        const totalExpenses = specificExpenses + proportionalGlobal;
-
-        const bankBalance = mobileReceived - mobilePaid + posTotal - totalExpenses;
+        const bankBalance = mobileReceived - mobilePaid + posTotal;
 
         balanceMap.set(agencyId, {
           agency_id: agencyId,
@@ -218,7 +192,6 @@ export function BankBalanceWeekly() {
           mobile_received: mobileReceived,
           mobile_paid: mobilePaid,
           pos_total: posTotal,
-          expenses: totalExpenses,
           bank_balance: bankBalance,
         });
       });
@@ -227,6 +200,7 @@ export function BankBalanceWeekly() {
         .sort((a, b) => a.agency_name.localeCompare(b.agency_name));
 
       setBalances(balancesList);
+      setTotalExpenses(totalWeeklyExpenses);
     } catch (error) {
       console.error('Error fetching bank balances:', error);
       toast({
@@ -260,8 +234,8 @@ export function BankBalanceWeekly() {
   const totalReceived = balances.reduce((sum, b) => sum + b.mobile_received, 0);
   const totalPaid = balances.reduce((sum, b) => sum + b.mobile_paid, 0);
   const totalPos = balances.reduce((sum, b) => sum + b.pos_total, 0);
-  const totalExpenses = balances.reduce((sum, b) => sum + b.expenses, 0);
-  const totalBank = totalReceived - totalPaid + totalPos - totalExpenses;
+  const totalBankBeforeExpenses = totalReceived - totalPaid + totalPos;
+  const totalBankAfterExpenses = totalBankBeforeExpenses - totalExpenses;
 
   return (
     <div className="space-y-6">
@@ -312,7 +286,7 @@ export function BankBalanceWeekly() {
       </Card>
 
       {/* Summary Cards - Smaller */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <Card className="border-2 border-green-200 bg-green-50/50">
           <CardHeader className="pb-2 pt-3">
             <CardTitle className="text-xs text-green-700 flex items-center gap-1">
@@ -345,40 +319,12 @@ export function BankBalanceWeekly() {
           <CardHeader className="pb-2 pt-3">
             <CardTitle className="text-xs text-blue-700 flex items-center gap-1">
               <CreditCard className="h-3 w-3" />
-              Punto Venta
+              Punto de Venta
             </CardTitle>
           </CardHeader>
           <CardContent className="pb-3">
             <p className="text-lg font-bold text-blue-600">
               {formatCurrency(totalPos, 'VES')}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="border-2 border-orange-200 bg-orange-50/50">
-          <CardHeader className="pb-2 pt-3">
-            <CardTitle className="text-xs text-orange-700 flex items-center gap-1">
-              <TrendingDown className="h-3 w-3" />
-              Gastos Fijos
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pb-3">
-            <p className="text-lg font-bold text-orange-600">
-              {formatCurrency(totalExpenses, 'VES')}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="border-2 border-primary bg-primary/5">
-          <CardHeader className="pb-2 pt-3">
-            <CardTitle className="text-xs text-primary flex items-center gap-1">
-              <Landmark className="h-3 w-3" />
-              Total Banco
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pb-3">
-            <p className={`text-lg font-bold ${totalBank >= 0 ? 'text-primary' : 'text-destructive'}`}>
-              {formatCurrency(totalBank, 'VES')}
             </p>
           </CardContent>
         </Card>
@@ -411,7 +357,7 @@ export function BankBalanceWeekly() {
                     <TableHead className="text-right font-bold text-green-700">PM Recibido</TableHead>
                     <TableHead className="text-right font-bold text-red-700">PM Pagado</TableHead>
                     <TableHead className="text-right font-bold text-blue-700">Punto Venta</TableHead>
-                    <TableHead className="text-right font-bold text-orange-700">Gastos Fijos</TableHead>
+                    <TableHead className="text-center font-bold text-muted-foreground">Banco POS</TableHead>
                     <TableHead className="text-right font-bold text-primary">Total Banco</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -428,8 +374,8 @@ export function BankBalanceWeekly() {
                       <TableCell className="text-right text-sm font-semibold text-blue-600">
                         {formatCurrency(balance.pos_total, 'VES')}
                       </TableCell>
-                      <TableCell className="text-right text-sm font-semibold text-orange-600">
-                        -{formatCurrency(balance.expenses, 'VES')}
+                      <TableCell className="text-center text-xs text-muted-foreground">
+                        <span className="bg-muted px-2 py-1 rounded">-</span>
                       </TableCell>
                       <TableCell className={`text-right text-sm font-bold ${balance.bank_balance >= 0 ? 'text-primary' : 'text-destructive'}`}>
                         {formatCurrency(balance.bank_balance, 'VES')}
@@ -449,15 +395,35 @@ export function BankBalanceWeekly() {
                     <TableCell className="text-right font-bold text-blue-700">
                       {formatCurrency(totalPos, 'VES')}
                     </TableCell>
-                    <TableCell className="text-right font-bold text-orange-700">
-                      -{formatCurrency(totalExpenses, 'VES')}
-                    </TableCell>
-                    <TableCell className={`text-right font-bold text-lg ${totalBank >= 0 ? 'text-primary' : 'text-destructive'}`}>
-                      {formatCurrency(totalBank, 'VES')}
+                    <TableCell></TableCell>
+                    <TableCell className={`text-right font-bold text-lg ${totalBankBeforeExpenses >= 0 ? 'text-primary' : 'text-destructive'}`}>
+                      {formatCurrency(totalBankBeforeExpenses, 'VES')}
                     </TableCell>
                   </TableRow>
                 </TableFooter>
               </Table>
+              
+              {/* Totals after expenses */}
+              <div className="mt-6 space-y-3 border-t pt-6">
+                <div className="flex justify-between items-center text-lg">
+                  <span className="font-semibold">Total en Banco (antes de gastos fijos):</span>
+                  <span className={`font-bold ${totalBankBeforeExpenses >= 0 ? 'text-primary' : 'text-destructive'}`}>
+                    {formatCurrency(totalBankBeforeExpenses, 'VES')}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-lg">
+                  <span className="font-semibold text-orange-700">(-) Gastos Fijos Semanales:</span>
+                  <span className="font-bold text-orange-600">
+                    -{formatCurrency(totalExpenses, 'VES')}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-xl border-t pt-3">
+                  <span className="font-bold">Total en Banco (después de gastos fijos):</span>
+                  <span className={`font-bold text-2xl ${totalBankAfterExpenses >= 0 ? 'text-primary' : 'text-destructive'}`}>
+                    {formatCurrency(totalBankAfterExpenses, 'VES')}
+                  </span>
+                </div>
+              </div>
             </div>
           )}
         </CardContent>
