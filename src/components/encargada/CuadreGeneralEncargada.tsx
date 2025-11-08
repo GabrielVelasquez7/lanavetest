@@ -581,7 +581,7 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
     }
   };
 
-  const handleApproveCuadre = async (observations?: string) => {
+  const handleApproveCuadre = async () => {
     if (!user || !selectedAgency || !selectedDate) return;
 
     try {
@@ -595,7 +595,7 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
         .from('daily_cuadres_summary')
         .update({
           encargada_status: 'aprobado',
-          encargada_observations: observations || null,
+          encargada_observations: null,
           encargada_reviewed_by: user.id,
           encargada_reviewed_at: new Date().toISOString(),
         })
@@ -606,7 +606,7 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
       if (error) throw error;
 
       setReviewStatus('aprobado');
-      setReviewObservations(observations || null);
+      setReviewObservations(null);
       setReviewedAt(new Date().toISOString());
       setReviewedBy(user.id);
 
