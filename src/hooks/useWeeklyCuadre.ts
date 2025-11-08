@@ -185,6 +185,23 @@ export function useWeeklyCuadre(currentWeek: WeekBoundaries | null): UseWeeklyCu
         ag.total_cuadre_usd = ag.total_sales_usd - ag.total_prizes_usd;
       });
 
+      // Si una agencia no tiene datos en encargada_cuadre_details, usar datos de daily_cuadres_summary
+      Object.values(byAgency).forEach((ag) => {
+        // Si no hay ventas/premios desde encargada_cuadre_details, buscar en summaryData
+        if (ag.total_sales_bs === 0 && ag.total_sales_usd === 0) {
+          const summariesForAgency = (summaryData || []).filter((s) => s.agency_id === ag.agency_id);
+          summariesForAgency.forEach((s: any) => {
+            ag.total_sales_bs += Number(s.total_sales_bs || 0);
+            ag.total_sales_usd += Number(s.total_sales_usd || 0);
+            ag.total_prizes_bs += Number(s.total_prizes_bs || 0);
+            ag.total_prizes_usd += Number(s.total_prizes_usd || 0);
+          });
+          // Recalcular cuadre
+          ag.total_cuadre_bs = ag.total_sales_bs - ag.total_prizes_bs;
+          ag.total_cuadre_usd = ag.total_sales_usd - ag.total_prizes_usd;
+        }
+      });
+
       // Resumen encargada (banco, premios por pagar, tasa del domingo)
       const latestByDateByAgency = new Map<string, Map<string, any>>();
       (summaryData || []).forEach((s) => {
