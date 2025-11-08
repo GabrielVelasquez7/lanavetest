@@ -511,7 +511,11 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
         closure_notes: closureNotesInput,
         notes: JSON.stringify(notesData),
         daily_closure_confirmed: true,
-        is_closed: true
+        is_closed: true,
+        // Auto-aprobar al guardar
+        encargada_status: 'aprobado',
+        encargada_reviewed_by: user.id,
+        encargada_reviewed_at: new Date().toISOString(),
       };
 
       console.log('💾 Guardando cuadre con valores calculados:', {
@@ -554,6 +558,12 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
 
       console.log('✅ Cuadre guardado exitosamente. Ahora refrescando datos...');
 
+      // Actualizar estado de revisión inmediatamente
+      setReviewStatus('aprobado');
+      setReviewObservations(null);
+      setReviewedAt(new Date().toISOString());
+      setReviewedBy(user.id);
+
       // Reset edit flags so inputs update with saved values
       setFieldsEditedByUser({
         exchangeRate: false,
@@ -563,7 +573,7 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
 
       toast({
         title: 'Éxito',
-        description: 'Cierre diario guardado correctamente'
+        description: 'Cierre diario guardado y aprobado correctamente'
       });
 
       // Reload data
@@ -581,48 +591,6 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
     }
   };
 
-  const handleApproveCuadre = async () => {
-    if (!user || !selectedAgency || !selectedDate) return;
-
-    try {
-      const dateStr = formatDateForDB(selectedDate);
-
-      // First, save current form data to encargada_cuadre_details
-      await saveDailyClosure();
-
-      // Then update review status in daily_cuadres_summary
-      const { error } = await supabase
-        .from('daily_cuadres_summary')
-        .update({
-          encargada_status: 'aprobado',
-          encargada_observations: null,
-          encargada_reviewed_by: user.id,
-          encargada_reviewed_at: new Date().toISOString(),
-        })
-        .eq('session_date', dateStr)
-        .eq('agency_id', selectedAgency)
-        .is('session_id', null);
-
-      if (error) throw error;
-
-      setReviewStatus('aprobado');
-      setReviewObservations(null);
-      setReviewedAt(new Date().toISOString());
-      setReviewedBy(user.id);
-
-      toast({
-        title: '✅ Cuadre Aprobado',
-        description: 'El cuadre ha sido aprobado y guardado exitosamente',
-      });
-    } catch (error: any) {
-      console.error('Error approving cuadre:', error);
-      toast({
-        title: 'Error',
-        description: error.message || 'Error al aprobar el cuadre',
-        variant: 'destructive',
-      });
-    }
-  };
 
   const handleRejectCuadre = async (observations: string) => {
     if (!user || !selectedAgency || !selectedDate) return;
@@ -752,7 +720,6 @@ export const CuadreGeneralEncargada = ({ selectedAgency, selectedDate, refreshKe
             reviewedBy={reviewedBy}
             reviewedAt={reviewedAt}
             currentObservations={reviewObservations}
-            onApprove={handleApproveCuadre}
             onReject={handleRejectCuadre}
             disabled={!hasData}
           />

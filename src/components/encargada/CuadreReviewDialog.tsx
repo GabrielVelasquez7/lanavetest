@@ -21,7 +21,6 @@ interface CuadreReviewDialogProps {
   reviewedBy?: string | null;
   reviewedAt?: string | null;
   currentObservations?: string | null;
-  onApprove: () => Promise<void>;
   onReject: (observations: string) => Promise<void>;
   disabled?: boolean;
 }
@@ -31,22 +30,12 @@ export function CuadreReviewDialog({
   reviewedBy,
   reviewedAt,
   currentObservations,
-  onApprove,
   onReject,
   disabled = false,
 }: CuadreReviewDialogProps) {
   const [open, setOpen] = useState(false);
   const [observations, setObservations] = useState("");
   const [loading, setLoading] = useState(false);
-
-  const handleApproveDirectly = async () => {
-    setLoading(true);
-    try {
-      await onApprove();
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleRejectWithDialog = async () => {
     if (!observations.trim()) return;
@@ -89,28 +78,16 @@ export function CuadreReviewDialog({
         )}
       </div>
 
-      {/* Mostrar botones solo si está pendiente */}
+      {/* Mostrar botón rechazar solo si está pendiente */}
       {isPending && !disabled && (
-        <>
-          <Button
-            onClick={handleApproveDirectly}
-            disabled={loading}
-            size="sm"
-            className="bg-green-600 hover:bg-green-700"
-          >
-            <CheckCircle2 className="h-4 w-4 mr-1" />
-            Aprobar
-          </Button>
-
-          <Button
-            onClick={() => setOpen(true)}
-            size="sm"
-            variant="destructive"
-          >
-            <XCircle className="h-4 w-4 mr-1" />
-            Rechazar
-          </Button>
-        </>
+        <Button
+          onClick={() => setOpen(true)}
+          size="sm"
+          variant="destructive"
+        >
+          <XCircle className="h-4 w-4 mr-1" />
+          Rechazar
+        </Button>
       )}
 
       {/* Dialog SOLO para rechazar */}
