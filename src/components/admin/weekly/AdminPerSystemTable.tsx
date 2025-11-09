@@ -18,7 +18,7 @@ export function AdminPerSystemTable({ data, commissions }: Props) {
       const commission = commissions.get(s.system_id);
       
       const comision_bs = commission
-        ? cuadre_bs * (commission.commission_percentage / 100)
+        ? s.sales_bs * (commission.commission_percentage / 100)
         : 0;
       const subtotal_bs = cuadre_bs - comision_bs;
 
@@ -37,7 +37,7 @@ export function AdminPerSystemTable({ data, commissions }: Props) {
       const commission = commissions.get(s.system_id);
       
       const comision_usd = commission
-        ? cuadre_usd * (commission.commission_percentage_usd / 100)
+        ? s.sales_usd * (commission.commission_percentage_usd / 100)
         : 0;
       const subtotal_usd = cuadre_usd - comision_usd;
 
@@ -77,7 +77,7 @@ export function AdminPerSystemTable({ data, commissions }: Props) {
                 const commission = commissions.get(s.system_id);
                 const commission_percentage_bs = commission?.commission_percentage || 0;
                 const comision_bs = commission
-                  ? cuadre_bs * (commission_percentage_bs / 100)
+                  ? s.sales_bs * (commission_percentage_bs / 100)
                   : 0;
                 const subtotal_bs = cuadre_bs - comision_bs;
 
@@ -135,7 +135,7 @@ export function AdminPerSystemTable({ data, commissions }: Props) {
                 const commission = commissions.get(s.system_id);
                 const commission_percentage_usd = commission?.commission_percentage_usd || 0;
                 const comision_usd = commission
-                  ? cuadre_usd * (commission_percentage_usd / 100)
+                  ? s.sales_usd * (commission_percentage_usd / 100)
                   : 0;
                 const subtotal_usd = cuadre_usd - comision_usd;
 

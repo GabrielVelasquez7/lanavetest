@@ -26,13 +26,11 @@ export function AdminAgencyWeeklyCard({ summary, commissions }: Props) {
 
   // Calculate total commissions
   const totalCommissions = summary.per_system.reduce((acc, sys) => {
-    const cuadre_bs = sys.sales_bs - sys.prizes_bs;
-    const cuadre_usd = sys.sales_usd - sys.prizes_usd;
     const commission = commissions.get(sys.system_id);
     
     if (commission) {
-      acc.bs += cuadre_bs * (commission.commission_percentage / 100);
-      acc.usd += cuadre_usd * (commission.commission_percentage_usd / 100);
+      acc.bs += sys.sales_bs * (commission.commission_percentage / 100);
+      acc.usd += sys.sales_usd * (commission.commission_percentage_usd / 100);
     }
     
     return acc;
