@@ -15,6 +15,7 @@ interface WeeklyBankExpense {
   amount_bs: number;
   description: string;
   agency_id: string | null;
+  group_id: string | null;
 }
 
 interface AgencyGroup {
@@ -23,10 +24,17 @@ interface AgencyGroup {
   description: string | null;
 }
 
+interface Agency {
+  id: string;
+  name: string;
+  group_id: string | null;
+}
+
 export function AdminGananciasView() {
   const [currentWeek, setCurrentWeek] = useState<WeekBoundaries | null>(null);
   const [bankExpenses, setBankExpenses] = useState<WeeklyBankExpense[]>([]);
   const [agencyGroups, setAgencyGroups] = useState<AgencyGroup[]>([]);
+  const [agencies, setAgencies] = useState<Agency[]>([]);
   const { summaries, loading: summariesLoading } = useWeeklyCuadre(currentWeek);
   const { commissions, loading: commissionsLoading } = useSystemCommissions();
 
@@ -46,6 +54,7 @@ export function AdminGananciasView() {
     if (currentWeek) {
       fetchBankExpenses();
       fetchAgencyGroups();
+      fetchAgencies();
     }
   }, [currentWeek]);
 
@@ -80,6 +89,20 @@ export function AdminGananciasView() {
       setAgencyGroups(data || []);
     } catch (error) {
       console.error("Error fetching agency groups:", error);
+    }
+  };
+
+  const fetchAgencies = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("agencies")
+        .select("id, name, group_id")
+        .eq("is_active", true);
+
+      if (error) throw error;
+      setAgencies(data || []);
+    } catch (error) {
+      console.error("Error fetching agencies:", error);
     }
   };
 
@@ -141,14 +164,75 @@ export function AdminGananciasView() {
   // Calculate final profit (net profit - fixed expenses)
   const finalProfitBs = totalNetProfitBs - totalFixedExpensesBs;
 
-  // Group expenses by category
-  const expensesByCategory = useMemo(() => {
-    const grouped: Record<string, number> = {};
-    bankExpenses.forEach((expense) => {
-      grouped[expense.category] = (grouped[expense.category] || 0) + Number(expense.amount_bs || 0);
+  // Calculate data by groups
+  const groupsData = useMemo(() => {
+    return agencyGroups.map((group) => {
+      // Get agencies in this group
+      const groupAgencies = agencies.filter((a) => a.group_id === group.id);
+      const groupAgencyIds = groupAgencies.map((a) => a.id);
+      
+      // Get summaries for agencies in this group
+      const groupSummaries = summaries.filter((s) => groupAgencyIds.includes(s.agency_id));
+      
+      // Calculate gross profit (commissions)
+      const grossProfitBs = groupSummaries.reduce((total, summary) => {
+        const agencyCommissions = summary.per_system.reduce((acc, sys) => {
+          const commission = commissions.get(sys.system_id);
+          if (commission) {
+            acc += sys.sales_bs * (commission.commission_percentage / 100);
+          }
+          return acc;
+        }, 0);
+        return total + agencyCommissions;
+      }, 0);
+      
+      const grossProfitUsd = groupSummaries.reduce((total, summary) => {
+        const agencyCommissions = summary.per_system.reduce((acc, sys) => {
+          const commission = commissions.get(sys.system_id);
+          if (commission) {
+            acc += sys.sales_usd * (commission.commission_percentage_usd / 100);
+          }
+          return acc;
+        }, 0);
+        return total + agencyCommissions;
+      }, 0);
+      
+      // Calculate operational expenses
+      const operationalExpensesBs = groupSummaries.reduce((total, summary) => total + summary.total_gastos_bs, 0);
+      const operationalExpensesUsd = groupSummaries.reduce((total, summary) => total + summary.total_gastos_usd, 0);
+      
+      // Calculate net profit
+      const netProfitBs = grossProfitBs - operationalExpensesBs;
+      const netProfitUsd = grossProfitUsd - operationalExpensesUsd;
+      
+      // Get fixed expenses for this group
+      const groupFixedExpenses = bankExpenses.filter((e) => e.group_id === group.id);
+      const fixedExpensesBs = groupFixedExpenses.reduce((total, e) => total + Number(e.amount_bs || 0), 0);
+      
+      // Calculate final profit
+      const finalProfitBs = netProfitBs - fixedExpensesBs;
+      
+      // Group expenses by category
+      const expensesByCategory: Record<string, number> = {};
+      groupFixedExpenses.forEach((expense) => {
+        expensesByCategory[expense.category] = (expensesByCategory[expense.category] || 0) + Number(expense.amount_bs || 0);
+      });
+      
+      return {
+        group,
+        grossProfitBs,
+        grossProfitUsd,
+        operationalExpensesBs,
+        operationalExpensesUsd,
+        netProfitBs,
+        netProfitUsd,
+        fixedExpensesBs,
+        finalProfitBs,
+        expensesByCategory,
+        agenciesCount: groupAgencies.length,
+      };
     });
-    return grouped;
-  }, [bankExpenses]);
+  }, [agencyGroups, agencies, summaries, commissions, bankExpenses]);
 
   const loading = summariesLoading || commissionsLoading;
 
@@ -273,30 +357,89 @@ export function AdminGananciasView() {
               </CardContent>
             </Card>
 
-            {/* Desglose de Gastos Fijos */}
-            {bankExpenses.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Desglose de Gastos Fijos</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {Object.entries(expensesByCategory).map(([category, amount]) => (
-                      <div
-                        key={category}
-                        className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
-                      >
-                        <span className="font-medium capitalize">
-                          {category.replace(/_/g, " ")}
-                        </span>
-                        <span className="font-bold font-mono">
-                          {formatCurrency(amount, "VES")}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+            {/* Desglose por Grupos */}
+            {groupsData.length > 0 && (
+              <div className="space-y-4">
+                <h2 className="text-xl font-bold text-foreground">Desglose por Grupos</h2>
+                <div className="grid grid-cols-1 gap-4">
+                  {groupsData.map(({ group, grossProfitBs, grossProfitUsd, operationalExpensesBs, operationalExpensesUsd, netProfitBs, netProfitUsd, fixedExpensesBs, finalProfitBs, expensesByCategory, agenciesCount }) => (
+                    <Card key={group.id} className="border-2">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="flex items-center justify-between">
+                          <span>{group.name}</span>
+                          <span className="text-sm font-normal text-muted-foreground">
+                            {agenciesCount} {agenciesCount === 1 ? "agencia" : "agencias"}
+                          </span>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
+                          <div className="space-y-1">
+                            <p className="text-xs text-muted-foreground">Bruto</p>
+                            <p className="text-sm font-bold text-green-600 font-mono">
+                              {formatCurrency(grossProfitBs, "VES")}
+                            </p>
+                            <p className="text-xs text-green-600/70 font-mono">
+                              {formatCurrency(grossProfitUsd, "USD")}
+                            </p>
+                          </div>
+                          
+                          <div className="space-y-1">
+                            <p className="text-xs text-muted-foreground">Gastos Op.</p>
+                            <p className="text-sm font-bold text-red-600 font-mono">
+                              -{formatCurrency(operationalExpensesBs, "VES")}
+                            </p>
+                            <p className="text-xs text-red-600/70 font-mono">
+                              -{formatCurrency(operationalExpensesUsd, "USD")}
+                            </p>
+                          </div>
+                          
+                          <div className="space-y-1">
+                            <p className="text-xs text-muted-foreground">Neto</p>
+                            <p className="text-sm font-bold text-blue-600 font-mono">
+                              {formatCurrency(netProfitBs, "VES")}
+                            </p>
+                            <p className="text-xs text-blue-600/70 font-mono">
+                              {formatCurrency(netProfitUsd, "USD")}
+                            </p>
+                          </div>
+                          
+                          <div className="space-y-1">
+                            <p className="text-xs text-muted-foreground">Gastos Fijos</p>
+                            <p className="text-sm font-bold text-orange-600 font-mono">
+                              -{formatCurrency(fixedExpensesBs, "VES")}
+                            </p>
+                          </div>
+                          
+                          <div className="space-y-1 bg-purple-500/10 p-2 rounded-lg">
+                            <p className="text-xs font-semibold text-purple-700">Final</p>
+                            <p className="text-lg font-bold text-purple-700 font-mono">
+                              {formatCurrency(finalProfitBs, "VES")}
+                            </p>
+                          </div>
+                        </div>
+                        
+                        {Object.keys(expensesByCategory).length > 0 && (
+                          <div className="pt-3 border-t">
+                            <p className="text-xs font-semibold text-muted-foreground mb-2">Gastos Fijos:</p>
+                            <div className="flex flex-wrap gap-2">
+                              {Object.entries(expensesByCategory).map(([category, amount]) => (
+                                <div
+                                  key={category}
+                                  className="flex items-center gap-2 px-3 py-1 bg-muted/50 rounded-full text-xs"
+                                >
+                                  <span className="capitalize">{category.replace(/_/g, " ")}</span>
+                                  <span className="font-bold font-mono">{formatCurrency(amount, "VES")}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
             )}
           </CardContent>
         </Card>
