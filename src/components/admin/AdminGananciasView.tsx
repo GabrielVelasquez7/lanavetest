@@ -190,11 +190,18 @@ export function AdminGananciasView() {
   const groupsData = useMemo(() => {
     // Total de gastos globales (comisiones fijas + otros gastos globales)
     const totalGlobalExpenses = fixedCommissionsBs + globalExpensesBs;
+    
+    // Total number of agencies across all groups
+    const totalAgenciesCount = agencies.length;
+    
+    // Global expense per agency (divided equally)
+    const globalExpensePerAgency = totalAgenciesCount > 0 ? totalGlobalExpenses / totalAgenciesCount : 0;
 
     return agencyGroups.map((group) => {
       // Get agencies in this group
       const groupAgencies = agencies.filter((a) => a.group_id === group.id);
       const groupAgencyIds = groupAgencies.map((a) => a.id);
+      const groupAgenciesCount = groupAgencies.length;
 
       // Get summaries for agencies in this group
       const groupSummaries = summaries.filter((s) => groupAgencyIds.includes(s.agency_id));
@@ -226,9 +233,8 @@ export function AdminGananciasView() {
       const groupExpenses = groupSpecificExpenses.filter((e) => e.group_id === group.id);
       const groupExpensesBs = groupExpenses.reduce((total, e) => total + Number(e.amount_bs || 0), 0);
 
-      // Net profit after all global expenses (distributed proportionally based on gross profit)
-      const proportion = totalGrossProfitBs > 0 ? grossProfitBs / totalGrossProfitBs : 0;
-      const allocatedGlobalExpenses = totalGlobalExpenses * proportion;
+      // Global expenses allocated equally per agency: globalExpensePerAgency * number of agencies in group
+      const allocatedGlobalExpenses = globalExpensePerAgency * groupAgenciesCount;
       const netProfitBs = grossProfitBs - allocatedGlobalExpenses;
       const netProfitUsd = grossProfitUsd;
 
@@ -252,7 +258,7 @@ export function AdminGananciasView() {
         groupExpensesBs,
         finalProfitBs,
         expensesByCategory,
-        agenciesCount: groupAgencies.length,
+        agenciesCount: groupAgenciesCount,
       };
     });
   }, [
@@ -263,7 +269,6 @@ export function AdminGananciasView() {
     groupSpecificExpenses,
     fixedCommissionsBs,
     globalExpensesBs,
-    totalGrossProfitBs,
   ]);
 
   const loading = summariesLoading || commissionsLoading;
@@ -526,8 +531,7 @@ export function AdminGananciasView() {
                                 -{formatCurrency(allocatedGlobalExpenses, "VES")}
                               </p>
                               <p className="text-xs text-muted-foreground">
-                                {((allocatedGlobalExpenses / (fixedCommissionsBs + globalExpensesBs)) * 100).toFixed(1)}
-                                %
+                                {agenciesCount} {agenciesCount === 1 ? "agencia" : "agencias"}
                               </p>
                             </div>
 
