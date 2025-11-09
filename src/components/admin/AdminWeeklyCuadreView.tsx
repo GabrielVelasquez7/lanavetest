@@ -5,39 +5,29 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AdminSystemsTable, SystemWithCommission } from "./AdminSystemsTable";
 import { useSystemCommissions } from "@/hooks/useSystemCommissions";
-import { ChevronLeft, ChevronRight, RefreshCw, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, RefreshCw, Calendar } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks } from "date-fns";
 import { es } from "date-fns/locale";
-
-interface WeekBoundaries {
-  start: Date;
-  end: Date;
-}
-
-interface Agency {
-  id: string;
-  name: string;
-}
+import { useWeeklyCuadre, WeekBoundaries } from "@/hooks/useWeeklyCuadre";
+import { useToast } from "@/components/ui/use-toast";
 
 export function AdminWeeklyCuadreView() {
+  const { toast } = useToast();
   const [currentWeek, setCurrentWeek] = useState<WeekBoundaries | null>(null);
-  const [agencies, setAgencies] = useState<Agency[]>([]);
   const [selectedAgency, setSelectedAgency] = useState<string>("all");
-  const [systems, setSystems] = useState<SystemWithCommission[]>([]);
-  const [loading, setLoading] = useState(true);
-  const { commissions, loading: commissionsLoading } = useSystemCommissions();
+  const { commissions } = useSystemCommissions();
+  const { loading, summaries, agencies, refresh, error } = useWeeklyCuadre(currentWeek);
 
   useEffect(() => {
     initializeCurrentWeek();
-    fetchAgencies();
   }, []);
 
   useEffect(() => {
-    if (currentWeek && !commissionsLoading) {
-      fetchWeeklySummary();
+    if (error) {
+      toast({ title: "Error", description: error, variant: "destructive" });
     }
-  }, [currentWeek, selectedAgency, commissionsLoading]);
+  }, [error, toast]);
 
   const initializeCurrentWeek = async () => {
     try {
@@ -59,95 +49,54 @@ export function AdminWeeklyCuadreView() {
       }
     } catch (error) {
       console.error("Error getting current week:", error);
-    }
-  };
-
-  const fetchAgencies = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("agencies")
-        .select("id, name")
-        .eq("is_active", true)
-        .order("name");
-
-      if (error) throw error;
-      setAgencies(data || []);
-    } catch (error) {
-      console.error("Error fetching agencies:", error);
-    }
-  };
-
-  const fetchWeeklySummary = async () => {
-    if (!currentWeek) return;
-
-    try {
-      setLoading(true);
-
-      const weekStart = format(currentWeek.start, "yyyy-MM-dd");
-      const weekEnd = format(currentWeek.end, "yyyy-MM-dd");
-
-      let query = supabase
-        .from("encargada_cuadre_details")
-        .select(
-          `
-          *,
-          lottery_systems!inner(id, name, code),
-          agencies!inner(id, name)
-        `
-        )
-        .gte("session_date", weekStart)
-        .lte("session_date", weekEnd);
-
-      if (selectedAgency !== "all") {
-        query = query.eq("agency_id", selectedAgency);
-      }
-
-      const { data, error } = await query;
-
-      if (error) throw error;
-
-      // Agrupar por sistema y calcular totales
-      const systemsMap = new Map<string, SystemWithCommission>();
-
-      data?.forEach((detail: any) => {
-        const systemId = detail.lottery_system_id;
-        const existing = systemsMap.get(systemId);
-
-        if (existing) {
-          existing.sales_bs += detail.sales_bs || 0;
-          existing.sales_usd += detail.sales_usd || 0;
-          existing.prizes_bs += detail.prizes_bs || 0;
-          existing.prizes_usd += detail.prizes_usd || 0;
-        } else {
-          const commission = commissions.get(systemId);
-          systemsMap.set(systemId, {
-            system_id: systemId,
-            system_name: detail.lottery_systems.name,
-            sales_bs: detail.sales_bs || 0,
-            sales_usd: detail.sales_usd || 0,
-            prizes_bs: detail.prizes_bs || 0,
-            prizes_usd: detail.prizes_usd || 0,
-            commission_percentage: commission?.commission_percentage || 0,
-            utility_percentage: commission?.utility_percentage || 0,
-          });
-        }
+      toast({
+        title: "Error",
+        description: "No se pudieron obtener las fechas de la semana",
+        variant: "destructive",
       });
-
-      setSystems(Array.from(systemsMap.values()));
-    } catch (error) {
-      console.error("Error fetching weekly summary:", error);
-    } finally {
-      setLoading(false);
     }
   };
 
   const navigateWeek = (direction: "prev" | "next") => {
     if (!currentWeek) return;
-
     const newStart = direction === "prev" ? subWeeks(currentWeek.start, 1) : addWeeks(currentWeek.start, 1);
     const newEnd = endOfWeek(newStart, { weekStartsOn: 1 });
     setCurrentWeek({ start: newStart, end: newEnd });
   };
+
+  // Filtrar summaries por agencia seleccionada
+  const filteredSummaries = selectedAgency === "all" 
+    ? summaries 
+    : summaries.filter((s) => s.agency_id === selectedAgency);
+
+  // Consolidar por sistema
+  const systemsMap = new Map<string, SystemWithCommission>();
+  
+  filteredSummaries.forEach((summary) => {
+    summary.per_system.forEach((sys) => {
+      const existing = systemsMap.get(sys.system_id);
+      if (existing) {
+        existing.sales_bs += sys.sales_bs;
+        existing.sales_usd += sys.sales_usd;
+        existing.prizes_bs += sys.prizes_bs;
+        existing.prizes_usd += sys.prizes_usd;
+      } else {
+        const commission = commissions.get(sys.system_id);
+        systemsMap.set(sys.system_id, {
+          system_id: sys.system_id,
+          system_name: sys.system_name,
+          sales_bs: sys.sales_bs,
+          sales_usd: sys.sales_usd,
+          prizes_bs: sys.prizes_bs,
+          prizes_usd: sys.prizes_usd,
+          commission_percentage: commission?.commission_percentage || 0,
+          utility_percentage: commission?.utility_percentage || 0,
+        });
+      }
+    });
+  });
+
+  const systems = Array.from(systemsMap.values());
 
   const calculateSummaryTotals = () => {
     return systems.reduce(
@@ -166,10 +115,13 @@ export function AdminWeeklyCuadreView() {
     );
   };
 
-  if (!currentWeek) {
+  if (loading || !currentWeek) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div className="flex items-center justify-center p-12">
+        <div className="text-center">
+          <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
+          <p className="text-muted-foreground">Cargando datos semanales...</p>
+        </div>
       </div>
     );
   }
@@ -178,15 +130,28 @@ export function AdminWeeklyCuadreView() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">Cuadre Semanal Completo</h2>
-          <p className="text-muted-foreground">Vista administrativa con comisiones detalladas</p>
+      {/* Encabezado y navegación */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex items-center gap-3">
+          <Calendar className="h-6 w-6 text-primary" />
+          <div>
+            <h2 className="text-2xl font-bold">Cuadre Semanal Administrativo</h2>
+            <p className="text-sm text-muted-foreground">
+              {format(currentWeek.start, "d 'de' MMMM", { locale: es })} — {format(currentWeek.end, "d 'de' MMMM 'de' yyyy", { locale: es })}
+            </p>
+          </div>
         </div>
-        <Button onClick={fetchWeeklySummary} variant="outline" size="sm">
-          <RefreshCw className="h-4 w-4" />
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="icon" onClick={() => navigateWeek("prev")}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Button variant="outline" size="icon" onClick={() => navigateWeek("next")}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+          <Button variant="outline" size="icon" onClick={refresh} title="Refrescar datos">
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       {/* Summary Cards */}
@@ -236,34 +201,27 @@ export function AdminWeeklyCuadreView() {
         </Card>
       </div>
 
-      {/* Week Navigation & Filters */}
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-2">
-          <Button onClick={() => navigateWeek("prev")} variant="outline" size="sm">
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <div className="text-sm font-medium">
-            {format(currentWeek.start, "d 'de' MMMM", { locale: es })} - {format(currentWeek.end, "d 'de' MMMM, yyyy", { locale: es })}
-          </div>
-          <Button onClick={() => navigateWeek("next")} variant="outline" size="sm">
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
-
-        <Select value={selectedAgency} onValueChange={setSelectedAgency}>
-          <SelectTrigger className="w-64">
-            <SelectValue placeholder="Seleccionar agencia" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todas las agencias</SelectItem>
-            {agencies.map((agency) => (
-              <SelectItem key={agency.id} value={agency.id}>
-                {agency.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      {/* Filtro de agencia */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Filtrar por Agencia</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Select value={selectedAgency} onValueChange={setSelectedAgency}>
+            <SelectTrigger className="w-full sm:w-64">
+              <SelectValue placeholder="Seleccionar agencia" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas las agencias</SelectItem>
+              {agencies.map((agency) => (
+                <SelectItem key={agency.id} value={agency.id}>
+                  {agency.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </CardContent>
+      </Card>
 
       {/* Systems Table with Commissions */}
       <AdminSystemsTable systems={systems} loading={loading} />
