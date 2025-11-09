@@ -848,6 +848,44 @@ export type Database = {
         }
         Relationships: []
       }
+      system_commission_rates: {
+        Row: {
+          commission_percentage: number
+          created_at: string
+          id: string
+          is_active: boolean
+          lottery_system_id: string
+          updated_at: string
+          utility_percentage: number
+        }
+        Insert: {
+          commission_percentage?: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          lottery_system_id: string
+          updated_at?: string
+          utility_percentage?: number
+        }
+        Update: {
+          commission_percentage?: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          lottery_system_id?: string
+          updated_at?: string
+          utility_percentage?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "system_commission_rates_lottery_system_id_fkey"
+            columns: ["lottery_system_id"]
+            isOneToOne: true
+            referencedRelation: "lottery_systems"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string | null

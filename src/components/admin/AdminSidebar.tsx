@@ -1,4 +1,4 @@
-import { Building2, Users, Settings, Home, LogOut, Calculator } from "lucide-react";
+import { Building2, Users, Settings, Home, LogOut, Calculator, Percent, FileSpreadsheet } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/hooks/useAuth";
 
-type AdminView = 'agencies' | 'users' | 'systems' | 'cuadres' | 'dashboard';
+type AdminView = 'agencies' | 'users' | 'systems' | 'cuadres' | 'system-commissions' | 'weekly-cuadre-complete' | 'dashboard';
 
 const menuItems = [
   { title: "Dashboard", key: "dashboard" as AdminView, icon: Home },
@@ -21,6 +21,8 @@ const menuItems = [
   { title: "Usuarios", key: "users" as AdminView, icon: Users },
   { title: "Sistemas", key: "systems" as AdminView, icon: Settings },
   { title: "Cuadres", key: "cuadres" as AdminView, icon: Calculator },
+  { title: "Comisiones", key: "system-commissions" as AdminView, icon: Percent },
+  { title: "Cuadre Semanal", key: "weekly-cuadre-complete" as AdminView, icon: FileSpreadsheet },
 ];
 
 interface AdminSidebarProps {

@@ -4,12 +4,14 @@ import { AgenciesCrud } from "./AgenciesCrud";
 import { UsersCrud } from "./UsersCrud";
 import { SystemsCrud } from "./SystemsCrud";
 import { AdminCuadresView } from "./AdminCuadresView";
+import { SystemCommissionsCrud } from "./SystemCommissionsCrud";
+import { AdminWeeklyCuadreView } from "./AdminWeeklyCuadreView";
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-type AdminView = 'agencies' | 'users' | 'systems' | 'cuadres' | 'dashboard';
+type AdminView = 'agencies' | 'users' | 'systems' | 'cuadres' | 'system-commissions' | 'weekly-cuadre-complete' | 'dashboard';
 
 export const AdminDashboard = () => {
   const [currentView, setCurrentView] = useState<AdminView>('dashboard');
@@ -24,6 +26,10 @@ export const AdminDashboard = () => {
         return <SystemsCrud />;
       case 'cuadres':
         return <AdminCuadresView />;
+      case 'system-commissions':
+        return <SystemCommissionsCrud />;
+      case 'weekly-cuadre-complete':
+        return <AdminWeeklyCuadreView />;
       default:
         return (
           <div className="p-4 sm:p-6">
@@ -56,6 +62,20 @@ export const AdminDashboard = () => {
               >
                 <h3 className="text-lg sm:text-xl font-semibold mb-2 text-primary">Cuadres</h3>
                 <p className="text-sm sm:text-base text-muted-foreground">Ver cuadres del sistema</p>
+              </Card>
+              <Card 
+                className="p-4 sm:p-6 cursor-pointer hover:shadow-lg transition-shadow border-primary/20"
+                onClick={() => setCurrentView('system-commissions')}
+              >
+                <h3 className="text-lg sm:text-xl font-semibold mb-2 text-primary">Comisiones</h3>
+                <p className="text-sm sm:text-base text-muted-foreground">Configurar comisiones de sistemas</p>
+              </Card>
+              <Card 
+                className="p-4 sm:p-6 cursor-pointer hover:shadow-lg transition-shadow border-primary/20"
+                onClick={() => setCurrentView('weekly-cuadre-complete')}
+              >
+                <h3 className="text-lg sm:text-xl font-semibold mb-2 text-primary">Cuadre Semanal</h3>
+                <p className="text-sm sm:text-base text-muted-foreground">Ver cuadre semanal completo</p>
               </Card>
             </div>
           </div>
