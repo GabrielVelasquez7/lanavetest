@@ -333,7 +333,7 @@ export function AdminGananciasView() {
                     <Receipt className="h-5 w-5 text-amber-600" />
                   </div>
                   <p className="text-2xl font-bold text-amber-600 font-mono">
-                    -{currency === "bs" ? formatCurrency(globalExpensesBs, "VES") : formatCurrency(globalExpensesBs / 36, "USD")}
+                    -{currency === "bs" ? formatCurrency(globalExpensesBs, "VES") : formatCurrency(0, "USD")}
                   </p>
                 </CardContent>
               </Card>
@@ -345,7 +345,7 @@ export function AdminGananciasView() {
                     <Receipt className="h-5 w-5 text-red-600" />
                   </div>
                   <p className="text-2xl font-bold text-red-600 font-mono">
-                    -{currency === "bs" ? formatCurrency(totalGroupExpensesBs, "VES") : formatCurrency(totalGroupExpensesBs / 36, "USD")}
+                    -{currency === "bs" ? formatCurrency(totalGroupExpensesBs, "VES") : formatCurrency(0, "USD")}
                   </p>
                 </CardContent>
               </Card>
@@ -434,7 +434,7 @@ export function AdminGananciasView() {
                               </p>
                             </div>
                             <span className="font-bold font-mono text-amber-600">
-                              {currency === "bs" ? formatCurrency(Number(expense.amount_bs), "VES") : formatCurrency(Number(expense.amount_bs) / 36, "USD")}
+                              {currency === "bs" ? formatCurrency(Number(expense.amount_bs), "VES") : formatCurrency(0, "USD")}
                             </span>
                           </div>
                         ))}
@@ -442,7 +442,7 @@ export function AdminGananciasView() {
                           <div className="flex items-center justify-between">
                             <span className="font-bold">Total Gastos Globales:</span>
                             <span className="font-bold font-mono text-amber-600 text-lg">
-                              {currency === "bs" ? formatCurrency(globalExpensesBs, "VES") : formatCurrency(globalExpensesBs / 36, "USD")}
+                              {currency === "bs" ? formatCurrency(globalExpensesBs, "VES") : formatCurrency(0, "USD")}
                             </span>
                           </div>
                         </div>
@@ -492,7 +492,7 @@ export function AdminGananciasView() {
                             <div className="space-y-1">
                               <p className="text-xs text-muted-foreground">Gastos Globales</p>
                               <p className="text-sm font-bold text-amber-600 font-mono">
-                                -{currency === "bs" ? formatCurrency(allocatedGlobalExpenses, "VES") : formatCurrency(allocatedGlobalExpenses / 36, "USD")}
+                                -{currency === "bs" ? formatCurrency(allocatedGlobalExpenses, "VES") : formatCurrency(0, "USD")}
                               </p>
                             </div>
 
@@ -506,14 +506,14 @@ export function AdminGananciasView() {
                             <div className="space-y-1">
                               <p className="text-xs text-muted-foreground">Gastos Grupo</p>
                               <p className="text-sm font-bold text-red-600 font-mono">
-                                -{currency === "bs" ? formatCurrency(groupExpensesBs, "VES") : formatCurrency(groupExpensesBs / 36, "USD")}
+                                -{currency === "bs" ? formatCurrency(groupExpensesBs, "VES") : formatCurrency(0, "USD")}
                               </p>
                             </div>
 
                             <div className="space-y-1 bg-purple-500/10 p-2 rounded-lg">
                               <p className="text-xs font-semibold text-purple-700">Final</p>
                               <p className="text-lg font-bold text-purple-700 font-mono">
-                                {currency === "bs" ? formatCurrency(finalProfitBs, "VES") : formatCurrency(finalProfitBs / 36, "USD")}
+                                {currency === "bs" ? formatCurrency(finalProfitBs, "VES") : formatCurrency(netProfitUsd, "USD")}
                               </p>
                             </div>
                           </div>
@@ -531,7 +531,7 @@ export function AdminGananciasView() {
                                   >
                                     <span>{expense.description}</span>
                                     <span className="font-bold font-mono">
-                                      {currency === "bs" ? formatCurrency(expense.amount, "VES") : formatCurrency(expense.amount / 36, "USD")}
+                                      {currency === "bs" ? formatCurrency(expense.amount, "VES") : formatCurrency(0, "USD")}
                                     </span>
                                   </div>
                                 ))}
