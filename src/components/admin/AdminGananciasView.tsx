@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ChevronLeft, ChevronRight, TrendingUp, DollarSign, Receipt, Calculator, ChevronDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useWeeklyCuadre, type WeekBoundaries } from "@/hooks/useWeeklyCuadre";
@@ -359,35 +360,81 @@ export function AdminGananciasView() {
                       />
                     </Button>
                   </CollapsibleTrigger>
-                  <p className="text-4xl font-bold text-purple-700 font-mono mb-4">{formatCurrency(finalProfitBs, "VES")}</p>
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-1">Bolívares</p>
+                      <p className="text-3xl font-bold text-purple-700 font-mono">{formatCurrency(finalProfitBs, "VES")}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-1">Dólares</p>
+                      <p className="text-3xl font-bold text-purple-700 font-mono">{formatCurrency(totalNetProfitUsd, "USD")}</p>
+                    </div>
+                  </div>
                   
                   <CollapsibleContent>
                     <div className="mt-4 border-t border-purple-200 pt-4">
-                      <h4 className="text-sm font-medium text-muted-foreground mb-3">Distribución de Ganancias</h4>
-                      <div className="space-y-2">
-                        {["Denis", "Jonathan", "Byker", "Daniela", "Jorge"].map((person) => {
-                          const share = finalProfitBs / 5;
-                          return (
-                            <div
-                              key={person}
-                              className="flex items-center justify-between p-3 bg-purple-500/5 border border-purple-500/20 rounded-lg"
-                            >
-                              <span className="font-medium">{person}</span>
-                              <span className="font-bold font-mono text-purple-700">
-                                {formatCurrency(share, "VES")}
-                              </span>
+                      <Tabs defaultValue="bs" className="w-full">
+                        <TabsList className="grid w-full grid-cols-2 mb-4">
+                          <TabsTrigger value="bs">Bolívares</TabsTrigger>
+                          <TabsTrigger value="usd">Dólares</TabsTrigger>
+                        </TabsList>
+                        
+                        <TabsContent value="bs">
+                          <h4 className="text-sm font-medium text-muted-foreground mb-3">Distribución de Ganancias (Bs)</h4>
+                          <div className="space-y-2">
+                            {["Denis", "Jonathan", "Byker", "Daniela", "Jorge"].map((person) => {
+                              const share = finalProfitBs / 5;
+                              return (
+                                <div
+                                  key={person}
+                                  className="flex items-center justify-between p-3 bg-purple-500/5 border border-purple-500/20 rounded-lg"
+                                >
+                                  <span className="font-medium">{person}</span>
+                                  <span className="font-bold font-mono text-purple-700">
+                                    {formatCurrency(share, "VES")}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                            <div className="pt-2 border-t border-purple-200 mt-2">
+                              <div className="flex items-center justify-between p-3 bg-purple-500/10 rounded-lg">
+                                <span className="font-bold">Total:</span>
+                                <span className="font-bold font-mono text-purple-700 text-lg">
+                                  {formatCurrency(finalProfitBs, "VES")}
+                                </span>
+                              </div>
                             </div>
-                          );
-                        })}
-                        <div className="pt-2 border-t border-purple-200 mt-2">
-                          <div className="flex items-center justify-between p-3 bg-purple-500/10 rounded-lg">
-                            <span className="font-bold">Total:</span>
-                            <span className="font-bold font-mono text-purple-700 text-lg">
-                              {formatCurrency(finalProfitBs, "VES")}
-                            </span>
                           </div>
-                        </div>
-                      </div>
+                        </TabsContent>
+                        
+                        <TabsContent value="usd">
+                          <h4 className="text-sm font-medium text-muted-foreground mb-3">Distribución de Ganancias (USD)</h4>
+                          <div className="space-y-2">
+                            {["Denis", "Jonathan", "Byker", "Daniela", "Jorge"].map((person) => {
+                              const share = totalNetProfitUsd / 5;
+                              return (
+                                <div
+                                  key={person}
+                                  className="flex items-center justify-between p-3 bg-purple-500/5 border border-purple-500/20 rounded-lg"
+                                >
+                                  <span className="font-medium">{person}</span>
+                                  <span className="font-bold font-mono text-purple-700">
+                                    {formatCurrency(share, "USD")}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                            <div className="pt-2 border-t border-purple-200 mt-2">
+                              <div className="flex items-center justify-between p-3 bg-purple-500/10 rounded-lg">
+                                <span className="font-bold">Total:</span>
+                                <span className="font-bold font-mono text-purple-700 text-lg">
+                                  {formatCurrency(totalNetProfitUsd, "USD")}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </TabsContent>
+                      </Tabs>
                     </div>
                   </CollapsibleContent>
                 </CardContent>
