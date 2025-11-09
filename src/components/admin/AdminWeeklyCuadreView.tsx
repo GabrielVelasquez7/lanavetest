@@ -7,12 +7,12 @@ import { AdminSystemsTable, SystemWithCommission } from "./AdminSystemsTable";
 import { useSystemCommissions } from "@/hooks/useSystemCommissions";
 import { ChevronLeft, ChevronRight, RefreshCw, Loader2 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
-import { format } from "date-fns";
+import { format, startOfWeek, endOfWeek, addWeeks, subWeeks } from "date-fns";
 import { es } from "date-fns/locale";
 
 interface WeekBoundaries {
-  week_start: string;
-  week_end: string;
+  start: Date;
+  end: Date;
 }
 
 interface Agency {
@@ -46,10 +46,16 @@ export function AdminWeeklyCuadreView() {
       if (error) throw error;
 
       if (data && data.length > 0) {
+        const w = data[0];
         setCurrentWeek({
-          week_start: data[0].week_start,
-          week_end: data[0].week_end,
+          start: new Date(w.week_start + "T00:00:00"),
+          end: new Date(w.week_end + "T23:59:59"),
         });
+      } else {
+        const now = new Date();
+        const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+        const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
+        setCurrentWeek({ start: weekStart, end: weekEnd });
       }
     } catch (error) {
       console.error("Error getting current week:", error);
@@ -77,6 +83,9 @@ export function AdminWeeklyCuadreView() {
     try {
       setLoading(true);
 
+      const weekStart = format(currentWeek.start, "yyyy-MM-dd");
+      const weekEnd = format(currentWeek.end, "yyyy-MM-dd");
+
       let query = supabase
         .from("encargada_cuadre_details")
         .select(
@@ -86,8 +95,8 @@ export function AdminWeeklyCuadreView() {
           agencies!inner(id, name)
         `
         )
-        .gte("session_date", currentWeek.week_start)
-        .lte("session_date", currentWeek.week_end);
+        .gte("session_date", weekStart)
+        .lte("session_date", weekEnd);
 
       if (selectedAgency !== "all") {
         query = query.eq("agency_id", selectedAgency);
@@ -135,17 +144,9 @@ export function AdminWeeklyCuadreView() {
   const navigateWeek = (direction: "prev" | "next") => {
     if (!currentWeek) return;
 
-    const startDate = new Date(currentWeek.week_start);
-    const offset = direction === "prev" ? -7 : 7;
-    startDate.setDate(startDate.getDate() + offset);
-
-    const endDate = new Date(startDate);
-    endDate.setDate(endDate.getDate() + 6);
-
-    setCurrentWeek({
-      week_start: startDate.toISOString().split("T")[0],
-      week_end: endDate.toISOString().split("T")[0],
-    });
+    const newStart = direction === "prev" ? subWeeks(currentWeek.start, 1) : addWeeks(currentWeek.start, 1);
+    const newEnd = endOfWeek(newStart, { weekStartsOn: 1 });
+    setCurrentWeek({ start: newStart, end: newEnd });
   };
 
   const calculateSummaryTotals = () => {
@@ -242,8 +243,7 @@ export function AdminWeeklyCuadreView() {
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <div className="text-sm font-medium">
-            {format(new Date(currentWeek.week_start), "d 'de' MMMM", { locale: es })} -{" "}
-            {format(new Date(currentWeek.week_end), "d 'de' MMMM, yyyy", { locale: es })}
+            {format(currentWeek.start, "d 'de' MMMM", { locale: es })} - {format(currentWeek.end, "d 'de' MMMM, yyyy", { locale: es })}
           </div>
           <Button onClick={() => navigateWeek("next")} variant="outline" size="sm">
             <ChevronRight className="h-4 w-4" />
