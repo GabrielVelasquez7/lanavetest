@@ -183,7 +183,6 @@ export function SystemCommissionsCrud() {
           <TableHeader>
             <TableRow>
               <TableHead>Sistema</TableHead>
-              <TableHead>Código</TableHead>
               <TableHead className="text-right">% Comisión</TableHead>
               <TableHead className="text-right">% Utilidad</TableHead>
               <TableHead>Estado</TableHead>
@@ -198,7 +197,6 @@ export function SystemCommissionsCrud() {
               return (
                 <TableRow key={system.id}>
                   <TableCell className="font-medium">{system.name}</TableCell>
-                  <TableCell className="font-mono text-sm">{system.code}</TableCell>
                   <TableCell className="text-right">
                     {isEditing ? (
                       <Input
