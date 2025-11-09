@@ -851,30 +851,36 @@ export type Database = {
       system_commission_rates: {
         Row: {
           commission_percentage: number
+          commission_percentage_usd: number
           created_at: string
           id: string
           is_active: boolean
           lottery_system_id: string
           updated_at: string
           utility_percentage: number
+          utility_percentage_usd: number
         }
         Insert: {
           commission_percentage?: number
+          commission_percentage_usd?: number
           created_at?: string
           id?: string
           is_active?: boolean
           lottery_system_id: string
           updated_at?: string
           utility_percentage?: number
+          utility_percentage_usd?: number
         }
         Update: {
           commission_percentage?: number
+          commission_percentage_usd?: number
           created_at?: string
           id?: string
           is_active?: boolean
           lottery_system_id?: string
           updated_at?: string
           utility_percentage?: number
+          utility_percentage_usd?: number
         }
         Relationships: [
           {

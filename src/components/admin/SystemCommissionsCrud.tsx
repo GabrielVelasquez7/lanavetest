@@ -19,6 +19,8 @@ interface CommissionRate {
   lottery_system_id: string;
   commission_percentage: number;
   utility_percentage: number;
+  commission_percentage_usd: number;
+  utility_percentage_usd: number;
   is_active: boolean;
 }
 
@@ -26,9 +28,16 @@ export function SystemCommissionsCrud() {
   const [systems, setSystems] = useState<LotterySystem[]>([]);
   const [commissions, setCommissions] = useState<Map<string, CommissionRate>>(new Map());
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editValues, setEditValues] = useState<{ commission: string; utility: string }>({
+  const [editValues, setEditValues] = useState<{ 
+    commission: string; 
+    utility: string;
+    commissionUsd: string;
+    utilityUsd: string;
+  }>({
     commission: "",
     utility: "",
+    commissionUsd: "",
+    utilityUsd: "",
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -84,22 +93,26 @@ export function SystemCommissionsCrud() {
     setEditValues({
       commission: existing?.commission_percentage.toString() || "0",
       utility: existing?.utility_percentage.toString() || "0",
+      commissionUsd: existing?.commission_percentage_usd.toString() || "0",
+      utilityUsd: existing?.utility_percentage_usd.toString() || "0",
     });
   };
 
   const handleCancel = () => {
     setEditingId(null);
-    setEditValues({ commission: "", utility: "" });
+    setEditValues({ commission: "", utility: "", commissionUsd: "", utilityUsd: "" });
   };
 
   const handleSave = async (systemId: string) => {
     const commission = parseFloat(editValues.commission);
     const utility = parseFloat(editValues.utility);
+    const commissionUsd = parseFloat(editValues.commissionUsd);
+    const utilityUsd = parseFloat(editValues.utilityUsd);
 
     if (isNaN(commission) || commission < 0 || commission > 100) {
       toast({
         title: "Error de validación",
-        description: "El porcentaje de comisión debe estar entre 0 y 100",
+        description: "El porcentaje de comisión Bs debe estar entre 0 y 100",
         variant: "destructive",
       });
       return;
@@ -108,7 +121,25 @@ export function SystemCommissionsCrud() {
     if (isNaN(utility) || utility < 0 || utility > 100) {
       toast({
         title: "Error de validación",
-        description: "El porcentaje de utilidad debe estar entre 0 y 100",
+        description: "El porcentaje de utilidad Bs debe estar entre 0 y 100",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (isNaN(commissionUsd) || commissionUsd < 0 || commissionUsd > 100) {
+      toast({
+        title: "Error de validación",
+        description: "El porcentaje de comisión USD debe estar entre 0 y 100",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (isNaN(utilityUsd) || utilityUsd < 0 || utilityUsd > 100) {
+      toast({
+        title: "Error de validación",
+        description: "El porcentaje de utilidad USD debe estar entre 0 y 100",
         variant: "destructive",
       });
       return;
@@ -126,6 +157,8 @@ export function SystemCommissionsCrud() {
           .update({
             commission_percentage: commission,
             utility_percentage: utility,
+            commission_percentage_usd: commissionUsd,
+            utility_percentage_usd: utilityUsd,
           })
           .eq("id", existing.id);
 
@@ -138,6 +171,8 @@ export function SystemCommissionsCrud() {
             lottery_system_id: systemId,
             commission_percentage: commission,
             utility_percentage: utility,
+            commission_percentage_usd: commissionUsd,
+            utility_percentage_usd: utilityUsd,
             is_active: true,
           });
 
@@ -185,8 +220,10 @@ export function SystemCommissionsCrud() {
           <TableHeader>
             <TableRow>
               <TableHead>Sistema</TableHead>
-              <TableHead className="text-right">% Comisión</TableHead>
-              <TableHead className="text-right">% Utilidad</TableHead>
+              <TableHead className="text-right">% Comisión Bs</TableHead>
+              <TableHead className="text-right">% Utilidad Bs</TableHead>
+              <TableHead className="text-right">% Comisión USD</TableHead>
+              <TableHead className="text-right">% Utilidad USD</TableHead>
               <TableHead>Estado</TableHead>
               <TableHead className="text-right">Acciones</TableHead>
             </TableRow>
@@ -234,6 +271,44 @@ export function SystemCommissionsCrud() {
                     ) : (
                       <span className="font-mono">
                         {commission?.utility_percentage.toFixed(2) || "0.00"}%
+                      </span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {isEditing ? (
+                      <Input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        value={editValues.commissionUsd}
+                        onChange={(e) =>
+                          setEditValues({ ...editValues, commissionUsd: e.target.value })
+                        }
+                        className="w-24 text-right"
+                      />
+                    ) : (
+                      <span className="font-mono">
+                        {commission?.commission_percentage_usd.toFixed(2) || "0.00"}%
+                      </span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {isEditing ? (
+                      <Input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        value={editValues.utilityUsd}
+                        onChange={(e) =>
+                          setEditValues({ ...editValues, utilityUsd: e.target.value })
+                        }
+                        className="w-24 text-right"
+                      />
+                    ) : (
+                      <span className="font-mono">
+                        {commission?.utility_percentage_usd.toFixed(2) || "0.00"}%
                       </span>
                     )}
                   </TableCell>

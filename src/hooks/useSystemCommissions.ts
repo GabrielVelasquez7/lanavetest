@@ -6,6 +6,8 @@ export interface CommissionRate {
   lottery_system_id: string;
   commission_percentage: number;
   utility_percentage: number;
+  commission_percentage_usd: number;
+  utility_percentage_usd: number;
   is_active: boolean;
 }
 

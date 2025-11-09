@@ -24,6 +24,25 @@ export function AdminAgencyWeeklyCard({ summary, commissions }: Props) {
     summary.total_gastos_bs > 0 ||
     summary.total_banco_bs > 0;
 
+  // Calculate total commissions
+  const totalCommissions = summary.per_system.reduce((acc, sys) => {
+    const cuadre_bs = sys.sales_bs - sys.prizes_bs;
+    const cuadre_usd = sys.sales_usd - sys.prizes_usd;
+    const commission = commissions.get(sys.system_id);
+    
+    if (commission) {
+      acc.bs += cuadre_bs * (commission.commission_percentage / 100);
+      acc.usd += cuadre_usd * (commission.commission_percentage_usd / 100);
+    }
+    
+    return acc;
+  }, { bs: 0, usd: 0 });
+
+  const totalWithCommissions = {
+    bs: summary.total_cuadre_bs - totalCommissions.bs,
+    usd: summary.total_cuadre_usd - totalCommissions.usd,
+  };
+
   return (
     <Card className="overflow-hidden border-2 hover:shadow-lg transition-shadow">
       <CardHeader className="bg-gradient-to-br from-background via-muted/30 to-background pb-4">
@@ -51,7 +70,7 @@ export function AdminAgencyWeeklyCard({ summary, commissions }: Props) {
       {hasActivity && (
         <CardContent className="pt-6 space-y-6">
           {/* Indicadores principales - Grid limpio */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             {/* Total Cuadre */}
             <div className="relative p-5 rounded-xl bg-gradient-to-br from-blue-500/10 to-blue-500/5 border-2 border-blue-500/20">
               <div className="flex items-start justify-between mb-2">
@@ -72,6 +91,46 @@ export function AdminAgencyWeeklyCard({ summary, commissions }: Props) {
               </div>
             </div>
 
+            {/* Total Comisiones */}
+            <div className="relative p-5 rounded-xl bg-gradient-to-br from-yellow-500/10 to-yellow-500/5 border-2 border-yellow-500/20">
+              <div className="flex items-start justify-between mb-2">
+                <div className="p-2 bg-yellow-500/10 rounded-lg">
+                  <DollarSign className="h-5 w-5 text-yellow-600" />
+                </div>
+              </div>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                Total Comisiones
+              </p>
+              <div className="space-y-0.5">
+                <p className="text-xl font-bold text-yellow-600 font-mono">
+                  {formatCurrency(totalCommissions.bs, "VES")}
+                </p>
+                <p className="text-sm font-semibold text-yellow-600/70 font-mono">
+                  {formatCurrency(totalCommissions.usd, "USD")}
+                </p>
+              </div>
+            </div>
+
+            {/* Cuadre con Comisiones */}
+            <div className="relative p-5 rounded-xl bg-gradient-to-br from-purple-500/10 to-purple-500/5 border-2 border-purple-500/20">
+              <div className="flex items-start justify-between mb-2">
+                <div className="p-2 bg-purple-500/10 rounded-lg">
+                  <TrendingUp className="h-5 w-5 text-purple-600" />
+                </div>
+              </div>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                Cuadre con Comisiones
+              </p>
+              <div className="space-y-0.5">
+                <p className="text-xl font-bold text-purple-600 font-mono">
+                  {formatCurrency(totalWithCommissions.bs, "VES")}
+                </p>
+                <p className="text-sm font-semibold text-purple-600/70 font-mono">
+                  {formatCurrency(totalWithCommissions.usd, "USD")}
+                </p>
+              </div>
+            </div>
+
             {/* Total en banco */}
             <div className="relative p-5 rounded-xl bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 border-2 border-emerald-500/20">
               <div className="flex items-start justify-between mb-2">
@@ -87,51 +146,26 @@ export function AdminAgencyWeeklyCard({ summary, commissions }: Props) {
               </p>
             </div>
 
-            {/* Deudas */}
+            {/* Deudas y Gastos */}
             <div className="relative p-5 rounded-xl bg-gradient-to-br from-red-500/10 to-red-500/5 border-2 border-red-500/20">
               <div className="flex items-start justify-between mb-2">
                 <div className="p-2 bg-red-500/10 rounded-lg">
                   <AlertCircle className="h-5 w-5 text-red-600" />
                 </div>
                 <Badge variant="destructive" className="text-[10px] h-5">
-                  {summary.deudas_details.length}
+                  {summary.deudas_details.length + summary.gastos_details.length}
                 </Badge>
               </div>
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
-                Deudas
+                Deudas + Gastos
               </p>
               <div className="space-y-0.5">
                 <p className="text-xl font-bold text-red-600 font-mono">
-                  {formatCurrency(summary.total_deudas_bs, "VES")}
+                  {formatCurrency(summary.total_deudas_bs + summary.total_gastos_bs, "VES")}
                 </p>
-                {summary.total_deudas_usd > 0 && (
+                {(summary.total_deudas_usd + summary.total_gastos_usd) > 0 && (
                   <p className="text-sm font-semibold text-red-600/70 font-mono">
-                    {formatCurrency(summary.total_deudas_usd, "USD")}
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* Gastos */}
-            <div className="relative p-5 rounded-xl bg-gradient-to-br from-orange-500/10 to-orange-500/5 border-2 border-orange-500/20">
-              <div className="flex items-start justify-between mb-2">
-                <div className="p-2 bg-orange-500/10 rounded-lg">
-                  <Receipt className="h-5 w-5 text-orange-600" />
-                </div>
-                <Badge variant="outline" className="text-[10px] h-5 border-orange-500/50 text-orange-600">
-                  {summary.gastos_details.length}
-                </Badge>
-              </div>
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
-                Gastos
-              </p>
-              <div className="space-y-0.5">
-                <p className="text-xl font-bold text-orange-600 font-mono">
-                  {formatCurrency(summary.total_gastos_bs, "VES")}
-                </p>
-                {summary.total_gastos_usd > 0 && (
-                  <p className="text-sm font-semibold text-orange-600/70 font-mono">
-                    {formatCurrency(summary.total_gastos_usd, "USD")}
+                    {formatCurrency(summary.total_deudas_usd + summary.total_gastos_usd, "USD")}
                   </p>
                 )}
               </div>
