@@ -6,17 +6,53 @@ import { SystemsCrud } from "./SystemsCrud";
 import { AdminCuadresView } from "./AdminCuadresView";
 import { SystemCommissionsCrud } from "./SystemCommissionsCrud";
 import { AdminWeeklyCuadreView } from "./AdminWeeklyCuadreView";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/components/ui/use-toast";
 
 type AdminView = 'agencies' | 'users' | 'systems' | 'cuadres' | 'system-commissions' | 'weekly-cuadre-complete' | 'dashboard';
 
 export const AdminDashboard = () => {
   const [currentView, setCurrentView] = useState<AdminView>('dashboard');
-  const { signOut } = useAuth();
+  const { user, signOut } = useAuth();
+  const { toast } = useToast();
+  const [profile, setProfile] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (user) {
+      fetchProfile();
+    }
+  }, [user]);
+
+  const fetchProfile = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', user?.id)
+        .single();
+
+      if (error) throw error;
+      setProfile(data);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: "No se pudo cargar el perfil",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return <div className="p-6">Cargando...</div>;
+  }
 
   const renderContent = () => {
     switch (currentView) {
@@ -99,6 +135,9 @@ export const AdminDashboard = () => {
                   <h1 className="text-2xl font-bold text-primary-foreground">
                     Panel de Administración
                   </h1>
+                  <p className="text-primary-foreground/80">
+                    Bienvenido, {profile?.full_name || "Administrador"}
+                  </p>
                 </div>
               </div>
               <Button variant="secondary" onClick={signOut}>
