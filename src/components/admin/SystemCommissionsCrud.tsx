@@ -42,10 +42,10 @@ export function SystemCommissionsCrud() {
     try {
       setLoading(true);
 
-      // Fetch lottery systems
+      // Fetch lottery systems (exclude parent systems with subcategories)
       const { data: systemsData, error: systemsError } = await supabase
         .from("lottery_systems")
-        .select("id, name, code, is_active")
+        .select("id, name, code, is_active, has_subcategories")
         .order("name");
 
       if (systemsError) throw systemsError;
@@ -57,7 +57,9 @@ export function SystemCommissionsCrud() {
 
       if (ratesError) throw ratesError;
 
-      setSystems(systemsData || []);
+      // Filter out parent systems that have subcategories
+      const filteredSystems = (systemsData || []).filter(system => !system.has_subcategories);
+      setSystems(filteredSystems);
 
       const commissionsMap = new Map<string, CommissionRate>();
       ratesData?.forEach((rate) => {
