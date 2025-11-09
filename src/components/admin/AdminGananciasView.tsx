@@ -36,7 +36,6 @@ export function AdminGananciasView() {
   const [bankExpenses, setBankExpenses] = useState<WeeklyBankExpense[]>([]);
   const [agencyGroups, setAgencyGroups] = useState<AgencyGroup[]>([]);
   const [agencies, setAgencies] = useState<Agency[]>([]);
-  const [isFixedCommissionsOpen, setIsFixedCommissionsOpen] = useState(false);
   const [isGlobalExpensesOpen, setIsGlobalExpensesOpen] = useState(false);
   const { summaries, loading: summariesLoading } = useWeeklyCuadre(currentWeek);
   const { commissions, loading: commissionsLoading } = useSystemCommissions();
@@ -392,52 +391,6 @@ export function AdminGananciasView() {
                 <p className="text-4xl font-bold text-purple-700 font-mono">{formatCurrency(finalProfitBs, "VES")}</p>
               </CardContent>
             </Card>
-
-            {/* Desglose de Comisiones Fijas */}
-            {fixedCommissionsDetails.length > 0 && (
-              <Collapsible open={isFixedCommissionsOpen} onOpenChange={setIsFixedCommissionsOpen}>
-                <Card>
-                  <CardHeader>
-                    <CollapsibleTrigger asChild>
-                      <Button variant="ghost" className="w-full justify-between p-0 hover:bg-transparent">
-                        <CardTitle>Comisiones Fijas (Distribuidas proporcionalmente)</CardTitle>
-                        <ChevronDown
-                          className={`h-5 w-5 transition-transform ${isFixedCommissionsOpen ? "rotate-180" : ""}`}
-                        />
-                      </Button>
-                    </CollapsibleTrigger>
-                  </CardHeader>
-                  <CollapsibleContent>
-                    <CardContent>
-                      <div className="space-y-2">
-                        {fixedCommissionsDetails.map((expense) => (
-                          <div
-                            key={expense.id}
-                            className="flex items-center justify-between p-3 bg-orange-500/5 border border-orange-500/20 rounded-lg"
-                          >
-                            <div>
-                              <p className="font-medium">{expense.description}</p>
-                              <p className="text-xs text-muted-foreground">Comisión</p>
-                            </div>
-                            <span className="font-bold font-mono text-orange-600">
-                              {formatCurrency(Number(expense.amount_bs), "VES")}
-                            </span>
-                          </div>
-                        ))}
-                        <div className="pt-2 border-t mt-2">
-                          <div className="flex items-center justify-between">
-                            <span className="font-bold">Total Comisiones Fijas:</span>
-                            <span className="font-bold font-mono text-orange-600 text-lg">
-                              {formatCurrency(fixedCommissionsBs, "VES")}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </CollapsibleContent>
-                </Card>
-              </Collapsible>
-            )}
 
             {/* Desglose de Gastos Globales */}
             {globalExpensesDetails.length > 0 && (
