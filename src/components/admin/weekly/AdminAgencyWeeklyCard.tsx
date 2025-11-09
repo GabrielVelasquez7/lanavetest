@@ -126,6 +126,59 @@ export function AdminAgencyWeeklyCard({ summary, commissions }: Props) {
 
           <Separator />
 
+          {/* Ganancias Netas - Destacado */}
+          <Card className="bg-gradient-to-br from-purple-500/10 via-purple-500/5 to-background border-2 border-purple-500/30">
+            <CardContent className="pt-6">
+              <h3 className="text-lg font-bold text-purple-700 mb-4 flex items-center gap-2">
+                <DollarSign className="h-5 w-5" />
+                Ganancias Netas
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    Total Bruto (Comisiones)
+                  </p>
+                  <div className="space-y-0.5">
+                    <p className="text-xl font-bold text-purple-600 font-mono">
+                      {formatCurrency(totalCommissions.bs, "VES")}
+                    </p>
+                    <p className="text-sm font-semibold text-purple-600/70 font-mono">
+                      {formatCurrency(totalCommissions.usd, "USD")}
+                    </p>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    Total Gastos
+                  </p>
+                  <div className="space-y-0.5">
+                    <p className="text-xl font-bold text-red-600 font-mono">
+                      -{formatCurrency(summary.total_gastos_bs, "VES")}
+                    </p>
+                    <p className="text-sm font-semibold text-red-600/70 font-mono">
+                      -{formatCurrency(summary.total_gastos_usd || 0, "USD")}
+                    </p>
+                  </div>
+                </div>
+                <div className="space-y-2 p-4 bg-purple-500/10 rounded-lg border border-purple-500/20">
+                  <p className="text-xs font-bold text-purple-700 uppercase tracking-wide">
+                    Total Neto
+                  </p>
+                  <div className="space-y-0.5">
+                    <p className="text-2xl font-bold text-purple-700 font-mono">
+                      {formatCurrency(totalCommissions.bs - summary.total_gastos_bs, "VES")}
+                    </p>
+                    <p className="text-sm font-semibold text-purple-700/70 font-mono">
+                      {formatCurrency(totalCommissions.usd - (summary.total_gastos_usd || 0), "USD")}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Separator />
+
           {/* Ventas y Premios - Layout compacto */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-3">
