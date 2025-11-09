@@ -186,10 +186,10 @@ export function AdminGananciasView() {
   const groupsData = useMemo(() => {
     // Total de gastos globales (comisiones fijas + otros gastos globales)
     const totalGlobalExpenses = fixedCommissionsBs + globalExpensesBs;
-    
+
     // Total number of agencies across all groups
     const totalAgenciesCount = agencies.length;
-    
+
     // Global expense per agency (divided equally)
     const globalExpensePerAgency = totalAgenciesCount > 0 ? totalGlobalExpenses / totalAgenciesCount : 0;
 
@@ -256,15 +256,7 @@ export function AdminGananciasView() {
         agenciesCount: groupAgenciesCount,
       };
     });
-  }, [
-    agencyGroups,
-    agencies,
-    summaries,
-    commissions,
-    groupSpecificExpenses,
-    fixedCommissionsBs,
-    globalExpensesBs,
-  ]);
+  }, [agencyGroups, agencies, summaries, commissions, groupSpecificExpenses, fixedCommissionsBs, globalExpensesBs]);
 
   // Calculate final profit as sum of all groups' final profits
   const finalProfitBs = useMemo(() => {
@@ -324,18 +316,6 @@ export function AdminGananciasView() {
                   </p>
                   <p className="text-sm text-green-600/70 font-mono mt-1">
                     {formatCurrency(totalGrossProfitUsd, "USD")}
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-gradient-to-br from-orange-500/10 to-background border-2 border-orange-500/30">
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm font-medium text-muted-foreground">Comisiones Fijas</p>
-                    <Receipt className="h-5 w-5 text-orange-600" />
-                  </div>
-                  <p className="text-2xl font-bold text-orange-600 font-mono">
-                    -{formatCurrency(fixedCommissionsBs, "VES")}
                   </p>
                 </CardContent>
               </Card>
