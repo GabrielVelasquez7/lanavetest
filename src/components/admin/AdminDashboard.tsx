@@ -8,13 +8,15 @@ import { SystemCommissionsCrud } from "./SystemCommissionsCrud";
 import { AdminWeeklyCuadreView } from "./AdminWeeklyCuadreView";
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
-import { Menu } from "lucide-react";
+import { LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
 
 type AdminView = 'agencies' | 'users' | 'systems' | 'cuadres' | 'system-commissions' | 'weekly-cuadre-complete' | 'dashboard';
 
 export const AdminDashboard = () => {
   const [currentView, setCurrentView] = useState<AdminView>('dashboard');
+  const { signOut } = useAuth();
 
   const renderContent = () => {
     switch (currentView) {
@@ -84,21 +86,32 @@ export const AdminDashboard = () => {
   };
 
   return (
-    <SidebarProvider>
-      <div className="min-h-screen flex w-full">
-        {/* Header móvil con trigger del sidebar */}
-        <div className="fixed top-0 left-0 right-0 z-50 h-12 bg-background border-b flex items-center px-4 lg:hidden">
-          <SidebarTrigger className="mr-3">
-            <Menu className="h-5 w-5" />
-          </SidebarTrigger>
-          <h1 className="text-lg font-semibold text-foreground">Panel Admin</h1>
-        </div>
-
+    <SidebarProvider defaultOpen={true}>
+      <div className="min-h-screen flex w-full bg-muted/30">
         <AdminSidebar currentView={currentView} onViewChange={setCurrentView} />
         
-        <main className="flex-1 bg-gradient-subtle pt-12 lg:pt-0">
-          {renderContent()}
-        </main>
+        <div className="flex-1 flex flex-col">
+          <header className="bg-primary border-b px-6 py-4 sticky top-0 z-10">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <SidebarTrigger className="text-primary-foreground" />
+                <div>
+                  <h1 className="text-2xl font-bold text-primary-foreground">
+                    Panel de Administración
+                  </h1>
+                </div>
+              </div>
+              <Button variant="secondary" onClick={signOut}>
+                <LogOut className="h-4 w-4 mr-2" />
+                Salir
+              </Button>
+            </div>
+          </header>
+
+          <main className="flex-1 container mx-auto p-6">
+            {renderContent()}
+          </main>
+        </div>
       </div>
     </SidebarProvider>
   );
