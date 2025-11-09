@@ -426,15 +426,7 @@ export function AdminGananciasView() {
                           );
                         })}
                         
-                        <div className="pt-2 mt-4 border-t-2 border-purple-300">
-                          <Card className="bg-purple-500/10 border-2 border-purple-500/30">
-                            <CardContent className="p-4">
-                              <div className="flex items-center justify-between">
-                                <span className="font-bold text-lg">Total General:</span>
-                                <span className="font-bold font-mono text-purple-700 text-2xl">
-                                  {currency === "bs" ? formatCurrency(finalProfitBs, "VES") : formatCurrency(totalNetProfitUsd, "USD")}
-                                </span>
-                              </div>
+                       
                             </CardContent>
                           </Card>
                         </div>
