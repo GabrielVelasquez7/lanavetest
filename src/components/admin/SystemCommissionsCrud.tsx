@@ -209,51 +209,45 @@ export function SystemCommissionsCrud() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div>
-        <h2 className="text-3xl font-bold flex items-center gap-2">
-          <Percent className="h-8 w-8 text-primary" />
+        <h2 className="text-2xl font-bold flex items-center gap-2">
+          <Percent className="h-6 w-6 text-primary" />
           Comisiones de Sistemas
         </h2>
-        <p className="text-muted-foreground mt-2">
+        <p className="text-sm text-muted-foreground mt-1">
           Configure los porcentajes de comisión y utilidad para cada sistema de lotería
         </p>
       </div>
 
-      <div className="grid gap-4">
+      <div className="grid gap-3">
         {systems.map((system) => {
           const commission = commissions.get(system.id);
           const isEditing = editingId === system.id;
 
           return (
-            <Card key={system.id} className="overflow-hidden border-2 hover:shadow-md transition-shadow">
-              <CardHeader className="bg-gradient-to-br from-background via-muted/30 to-background pb-4">
+            <Card key={system.id} className="overflow-hidden">
+              <CardHeader className="pb-3 pt-4 px-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle className="text-xl font-bold">{system.name}</CardTitle>
-                    <CardDescription className="mt-1">
-                      Sistema de lotería
-                    </CardDescription>
+                    <CardTitle className="text-base font-bold">{system.name}</CardTitle>
                   </div>
                   <div className="flex items-center gap-2">
                     {commission ? (
-                      <Badge variant="default" className="bg-emerald-600">
-                        <span className="flex items-center gap-1">
-                          <TrendingUp className="h-3 w-3" />
-                          Configurado
-                        </span>
+                      <Badge variant="default" className="bg-emerald-600 text-xs h-5">
+                        Configurado
                       </Badge>
                     ) : (
-                      <Badge variant="secondary">Sin configurar</Badge>
+                      <Badge variant="secondary" className="text-xs h-5">Sin configurar</Badge>
                     )}
                     {!isEditing && (
                       <Button
                         size="sm"
                         variant="outline"
                         onClick={() => handleEdit(system.id)}
-                        className="gap-1"
+                        className="gap-1 h-7 text-xs"
                       >
-                        <Pencil className="h-4 w-4" />
+                        <Pencil className="h-3 w-3" />
                         Editar
                       </Button>
                     )}
@@ -261,20 +255,20 @@ export function SystemCommissionsCrud() {
                 </div>
               </CardHeader>
 
-              <CardContent className="pt-6">
+              <CardContent className="px-4 pb-4">
                 {isEditing ? (
-                  <div className="space-y-6">
+                  <div className="space-y-3">
                     <Tabs defaultValue="bolivares" className="w-full">
-                      <TabsList className="grid w-full grid-cols-2">
-                        <TabsTrigger value="bolivares">Bolívares (Bs)</TabsTrigger>
-                        <TabsTrigger value="dolares">Dólares (USD)</TabsTrigger>
+                      <TabsList className="grid w-full grid-cols-2 h-8">
+                        <TabsTrigger value="bolivares" className="text-xs">Bolívares</TabsTrigger>
+                        <TabsTrigger value="dolares" className="text-xs">Dólares</TabsTrigger>
                       </TabsList>
 
-                      <TabsContent value="bolivares" className="space-y-4 mt-4">
-                        <div className="grid gap-4 md:grid-cols-2">
-                          <div className="space-y-2">
-                            <Label htmlFor={`commission-bs-${system.id}`} className="flex items-center gap-2 text-base">
-                              <Percent className="h-4 w-4 text-yellow-600" />
+                      <TabsContent value="bolivares" className="space-y-2 mt-2">
+                        <div className="grid gap-2 grid-cols-2">
+                          <div className="space-y-1.5">
+                            <Label htmlFor={`commission-bs-${system.id}`} className="flex items-center gap-1 text-xs">
+                              <Percent className="h-3 w-3 text-yellow-600" />
                               Comisión Bs
                             </Label>
                             <div className="relative">
@@ -288,19 +282,16 @@ export function SystemCommissionsCrud() {
                                 onChange={(e) =>
                                   setEditValues({ ...editValues, commission: e.target.value })
                                 }
-                                className="text-right pr-8 text-lg font-mono"
+                                className="text-right pr-6 h-8 text-sm font-mono"
                                 placeholder="0.00"
                               />
-                              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">%</span>
+                              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
                             </div>
-                            <p className="text-xs text-muted-foreground">
-                              Porcentaje sobre las ventas brutas
-                            </p>
                           </div>
 
-                          <div className="space-y-2">
-                            <Label htmlFor={`utility-bs-${system.id}`} className="flex items-center gap-2 text-base">
-                              <TrendingUp className="h-4 w-4 text-green-600" />
+                          <div className="space-y-1.5">
+                            <Label htmlFor={`utility-bs-${system.id}`} className="flex items-center gap-1 text-xs">
+                              <TrendingUp className="h-3 w-3 text-green-600" />
                               Utilidad Bs
                             </Label>
                             <div className="relative">
@@ -314,23 +305,20 @@ export function SystemCommissionsCrud() {
                                 onChange={(e) =>
                                   setEditValues({ ...editValues, utility: e.target.value })
                                 }
-                                className="text-right pr-8 text-lg font-mono"
+                                className="text-right pr-6 h-8 text-sm font-mono"
                                 placeholder="0.00"
                               />
-                              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">%</span>
+                              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
                             </div>
-                            <p className="text-xs text-muted-foreground">
-                              Porcentaje de ganancia esperada
-                            </p>
                           </div>
                         </div>
                       </TabsContent>
 
-                      <TabsContent value="dolares" className="space-y-4 mt-4">
-                        <div className="grid gap-4 md:grid-cols-2">
-                          <div className="space-y-2">
-                            <Label htmlFor={`commission-usd-${system.id}`} className="flex items-center gap-2 text-base">
-                              <DollarSign className="h-4 w-4 text-yellow-600" />
+                      <TabsContent value="dolares" className="space-y-2 mt-2">
+                        <div className="grid gap-2 grid-cols-2">
+                          <div className="space-y-1.5">
+                            <Label htmlFor={`commission-usd-${system.id}`} className="flex items-center gap-1 text-xs">
+                              <DollarSign className="h-3 w-3 text-yellow-600" />
                               Comisión USD
                             </Label>
                             <div className="relative">
@@ -344,19 +332,16 @@ export function SystemCommissionsCrud() {
                                 onChange={(e) =>
                                   setEditValues({ ...editValues, commissionUsd: e.target.value })
                                 }
-                                className="text-right pr-8 text-lg font-mono"
+                                className="text-right pr-6 h-8 text-sm font-mono"
                                 placeholder="0.00"
                               />
-                              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">%</span>
+                              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
                             </div>
-                            <p className="text-xs text-muted-foreground">
-                              Porcentaje sobre las ventas brutas
-                            </p>
                           </div>
 
-                          <div className="space-y-2">
-                            <Label htmlFor={`utility-usd-${system.id}`} className="flex items-center gap-2 text-base">
-                              <TrendingUp className="h-4 w-4 text-green-600" />
+                          <div className="space-y-1.5">
+                            <Label htmlFor={`utility-usd-${system.id}`} className="flex items-center gap-1 text-xs">
+                              <TrendingUp className="h-3 w-3 text-green-600" />
                               Utilidad USD
                             </Label>
                             <div className="relative">
@@ -370,14 +355,11 @@ export function SystemCommissionsCrud() {
                                 onChange={(e) =>
                                   setEditValues({ ...editValues, utilityUsd: e.target.value })
                                 }
-                                className="text-right pr-8 text-lg font-mono"
+                                className="text-right pr-6 h-8 text-sm font-mono"
                                 placeholder="0.00"
                               />
-                              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">%</span>
+                              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
                             </div>
-                            <p className="text-xs text-muted-foreground">
-                              Porcentaje de ganancia esperada
-                            </p>
                           </div>
                         </div>
                       </TabsContent>
@@ -385,76 +367,78 @@ export function SystemCommissionsCrud() {
 
                     <div className="flex justify-end gap-2 pt-2 border-t">
                       <Button
+                        size="sm"
                         variant="outline"
                         onClick={handleCancel}
                         disabled={saving}
-                        className="gap-2"
+                        className="gap-1 h-7 text-xs"
                       >
-                        <X className="h-4 w-4" />
+                        <X className="h-3 w-3" />
                         Cancelar
                       </Button>
                       <Button
+                        size="sm"
                         onClick={() => handleSave(system.id)}
                         disabled={saving}
-                        className="gap-2"
+                        className="gap-1 h-7 text-xs"
                       >
                         {saving ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <Loader2 className="h-3 w-3 animate-spin" />
                         ) : (
-                          <Save className="h-4 w-4" />
+                          <Save className="h-3 w-3" />
                         )}
                         Guardar
                       </Button>
                     </div>
                   </div>
                 ) : (
-                  <div className="grid gap-6 md:grid-cols-2">
-                    <div className="space-y-4">
-                      <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">
-                        Bolívares (Bs)
+                  <div className="grid gap-3 grid-cols-2">
+                    <div className="space-y-2">
+                      <h4 className="font-semibold text-xs text-muted-foreground uppercase tracking-wider">
+                        Bolívares
                       </h4>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1">
-                          <p className="text-xs text-muted-foreground flex items-center gap-1">
-                            <Percent className="h-3 w-3" />
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-0.5">
+                          <p className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                            <Percent className="h-2.5 w-2.5" />
                             Comisión
                           </p>
-                          <p className="text-2xl font-bold font-mono text-yellow-600">
+                          <p className="text-lg font-bold font-mono text-yellow-600">
                             {commission?.commission_percentage.toFixed(2) || "0.00"}%
                           </p>
                         </div>
-                        <div className="space-y-1">
-                          <p className="text-xs text-muted-foreground flex items-center gap-1">
-                            <TrendingUp className="h-3 w-3" />
+                        <div className="space-y-0.5">
+                          <p className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                            <TrendingUp className="h-2.5 w-2.5" />
                             Utilidad
                           </p>
-                          <p className="text-2xl font-bold font-mono text-green-600">
+                          <p className="text-lg font-bold font-mono text-green-600">
                             {commission?.utility_percentage.toFixed(2) || "0.00"}%
                           </p>
                         </div>
                       </div>
                     </div>
 
-                    <div className="space-y-4">
-                      <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">
-                        Dólares (USD)
+                    <div className="space-y-2">
+                      <h4 className="font-semibold text-xs text-muted-foreground uppercase tracking-wider">
+                        Dólares
                       </h4>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1">
-                          <p className="text-xs text-muted-foreground flex items-center gap-1">
-                            <DollarSign className="h-3 w-3" />
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-0.5">
+                          <p className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                            <DollarSign className="h-2.5 w-2.5" />
                             Comisión
                           </p>
-                          <p className="text-2xl font-bold font-mono text-yellow-600">
+                          <p className="text-lg font-bold font-mono text-yellow-600">
                             {commission?.commission_percentage_usd.toFixed(2) || "0.00"}%
                           </p>
                         </div>
-                        <div className="space-y-1">
-                          <p className="text-xs text-muted-foreground flex items-center gap-1">
-                            <TrendingUp className="h-3 w-3" />
+                        <div className="space-y-0.5">
+                          <p className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                            <TrendingUp className="h-2.5 w-2.5" />
                             Utilidad
                           </p>
-                          <p className="text-2xl font-bold font-mono text-green-600">
+                          <p className="text-lg font-bold font-mono text-green-600">
                             {commission?.utility_percentage_usd.toFixed(2) || "0.00"}%
                           </p>
                         </div>
