@@ -184,9 +184,6 @@ export function AdminGananciasView() {
   const totalGroupExpensesBs = useMemo(() => {
     return groupSpecificExpenses.reduce((total, expense) => total + Number(expense.amount_bs || 0), 0);
   }, [groupSpecificExpenses]);
-
-  // Calculate final profit (net profit - global expenses - group-specific expenses)
-  const finalProfitBs = totalNetProfitBs - globalExpensesBs - totalGroupExpensesBs;
   const groupsData = useMemo(() => {
     // Total de gastos globales (comisiones fijas + otros gastos globales)
     const totalGlobalExpenses = fixedCommissionsBs + globalExpensesBs;
@@ -270,6 +267,11 @@ export function AdminGananciasView() {
     fixedCommissionsBs,
     globalExpensesBs,
   ]);
+
+  // Calculate final profit as sum of all groups' final profits
+  const finalProfitBs = useMemo(() => {
+    return groupsData.reduce((total, groupData) => total + groupData.finalProfitBs, 0);
+  }, [groupsData]);
 
   const loading = summariesLoading || commissionsLoading;
 
