@@ -37,6 +37,7 @@ export function AdminGananciasView() {
   const [agencyGroups, setAgencyGroups] = useState<AgencyGroup[]>([]);
   const [agencies, setAgencies] = useState<Agency[]>([]);
   const [isFixedCommissionsOpen, setIsFixedCommissionsOpen] = useState(false);
+  const [isGlobalExpensesOpen, setIsGlobalExpensesOpen] = useState(false);
   const { summaries, loading: summariesLoading } = useWeeklyCuadre(currentWeek);
   const { commissions, loading: commissionsLoading } = useSystemCommissions();
 
@@ -438,39 +439,48 @@ export function AdminGananciasView() {
 
             {/* Desglose de Gastos Globales */}
             {globalExpensesDetails.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Gastos Globales (Afectan ganancia final, no se distribuyen)</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    {globalExpensesDetails.map((expense) => (
-                      <div
-                        key={expense.id}
-                        className="flex items-center justify-between p-3 bg-amber-500/5 border border-amber-500/20 rounded-lg"
-                      >
-                        <div>
-                          <p className="font-medium">{expense.description}</p>
-                          <p className="text-xs text-muted-foreground capitalize">
-                            {expense.category.replace(/_/g, " ")}
-                          </p>
+              <Collapsible open={isGlobalExpensesOpen} onOpenChange={setIsGlobalExpensesOpen}>
+                <Card>
+                  <CardHeader>
+                    <CollapsibleTrigger asChild>
+                      <Button variant="ghost" className="w-full justify-between p-0 hover:bg-transparent">
+                        <CardTitle>Gastos Globales (Afectan ganancia final, distribuidos proporcionalmente)</CardTitle>
+                        <ChevronDown className={`h-5 w-5 transition-transform ${isGlobalExpensesOpen ? 'rotate-180' : ''}`} />
+                      </Button>
+                    </CollapsibleTrigger>
+                  </CardHeader>
+                  <CollapsibleContent>
+                    <CardContent>
+                      <div className="space-y-2">
+                        {globalExpensesDetails.map((expense) => (
+                          <div
+                            key={expense.id}
+                            className="flex items-center justify-between p-3 bg-amber-500/5 border border-amber-500/20 rounded-lg"
+                          >
+                            <div>
+                              <p className="font-medium">{expense.description}</p>
+                              <p className="text-xs text-muted-foreground capitalize">
+                                {expense.category.replace(/_/g, " ")}
+                              </p>
+                            </div>
+                            <span className="font-bold font-mono text-amber-600">
+                              {formatCurrency(Number(expense.amount_bs), "VES")}
+                            </span>
+                          </div>
+                        ))}
+                        <div className="pt-2 border-t mt-2">
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold">Total Gastos Globales:</span>
+                            <span className="font-bold font-mono text-amber-600 text-lg">
+                              {formatCurrency(globalExpensesBs, "VES")}
+                            </span>
+                          </div>
                         </div>
-                        <span className="font-bold font-mono text-amber-600">
-                          {formatCurrency(Number(expense.amount_bs), "VES")}
-                        </span>
                       </div>
-                    ))}
-                    <div className="pt-2 border-t mt-2">
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold">Total Gastos Globales:</span>
-                        <span className="font-bold font-mono text-amber-600 text-lg">
-                          {formatCurrency(globalExpensesBs, "VES")}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                    </CardContent>
+                  </CollapsibleContent>
+                </Card>
+              </Collapsible>
             )}
 
             {/* Desglose por Grupos */}
@@ -501,7 +511,7 @@ export function AdminGananciasView() {
                           </div>
                           
                           <div className="space-y-1">
-                            <p className="text-xs text-muted-foreground">Gastos Globales (Prop.)</p>
+                            <p className="text-xs text-muted-foreground">Gastos Globales</p>
                             <p className="text-sm font-bold text-amber-600 font-mono">
                               -{formatCurrency(allocatedGlobalExpenses, "VES")}
                             </p>
