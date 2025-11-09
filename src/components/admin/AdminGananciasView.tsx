@@ -363,66 +363,30 @@ export function AdminGananciasView() {
                   
                   <CollapsibleContent>
                     <div className="mt-4 border-t border-purple-200 pt-4">
-                      <h4 className="text-lg font-bold text-purple-600 mb-4 text-center">GANANCIAS POR VENTAS</h4>
-                      <div className="overflow-x-auto">
-                        <table className="w-full border-collapse">
-                          <thead>
-                            <tr className="bg-blue-600 text-white">
-                              <th className="border border-gray-300 px-4 py-2 text-center font-bold">NOMBRE</th>
-                              <th className="border border-gray-300 px-4 py-2 text-center font-bold">BS</th>
-                              <th className="border border-gray-300 px-4 py-2 text-center font-bold">RESTA PERDIDA</th>
-                              <th className="border border-gray-300 px-4 py-2 text-center font-bold">SUMA GANANCIA</th>
-                              <th className="border border-gray-300 px-4 py-2 text-center font-bold">ABONOS</th>
-                              <th className="border border-gray-300 px-4 py-2 text-center font-bold">TOTAL</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {[
-                              { name: "DENIS", bs: 52035.74, restaPerdida: 46042.42, sumaGanancia: 0, abonos: 8100, total: 37942.42 },
-                              { name: "JONATHAN", bs: 47191.25, restaPerdida: 37312.61, sumaGanancia: 0, abonos: 20000, total: 17312.61 },
-                              { name: "BYKER", bs: 29822.54, restaPerdida: 18355.03, sumaGanancia: 0, abonos: 0, total: 18355.03 },
-                              { name: "DANIELA", bs: 39649.01, restaPerdida: 0, sumaGanancia: 43370, abonos: 0, total: 43370 },
-                              { name: "JORGE", bs: 34804.52, restaPerdida: 34104.43, sumaGanancia: 0, abonos: 20000, total: 14104.43 },
-                            ].map((person, idx) => (
-                              <tr key={idx} className={idx % 2 === 0 ? "bg-gray-100" : "bg-white"}>
-                                <td className="border border-gray-300 px-4 py-2 font-bold">{person.name}</td>
-                                <td className="border border-gray-300 px-4 py-2 text-center font-mono">
-                                  {formatCurrency(person.bs, "VES")}
-                                </td>
-                                <td className="border border-gray-300 px-4 py-2 text-center font-mono">
-                                  {formatCurrency(person.restaPerdida, "VES")}
-                                </td>
-                                <td className="border border-gray-300 px-4 py-2 text-center font-mono">
-                                  {formatCurrency(person.sumaGanancia, "VES")}
-                                </td>
-                                <td className="border border-gray-300 px-4 py-2 text-center font-mono">
-                                  {formatCurrency(person.abonos, "VES")}
-                                </td>
-                                <td className="border border-gray-300 px-4 py-2 text-center font-mono font-bold">
-                                  {formatCurrency(person.total, "VES")}
-                                </td>
-                              </tr>
-                            ))}
-                            <tr className="bg-gray-800 text-white font-bold">
-                              <td className="border border-gray-300 px-4 py-2">TOTAL</td>
-                              <td className="border border-gray-300 px-4 py-2 text-center font-mono">
-                                {formatCurrency(203503.06, "VES")}
-                              </td>
-                              <td className="border border-gray-300 px-4 py-2 text-center font-mono">
-                                {formatCurrency(135814.48, "VES")}
-                              </td>
-                              <td className="border border-gray-300 px-4 py-2 text-center font-mono">
-                                {formatCurrency(43370, "VES")}
-                              </td>
-                              <td className="border border-gray-300 px-4 py-2 text-center font-mono">
-                                {formatCurrency(48100, "VES")}
-                              </td>
-                              <td className="border border-gray-300 px-4 py-2 text-center font-mono">
-                                {formatCurrency(131084.48, "VES")}
-                              </td>
-                            </tr>
-                          </tbody>
-                        </table>
+                      <h4 className="text-sm font-medium text-muted-foreground mb-3">Distribución de Ganancias</h4>
+                      <div className="space-y-2">
+                        {["Denis", "Jonathan", "Byker", "Daniela", "Jorge"].map((person) => {
+                          const share = finalProfitBs / 5;
+                          return (
+                            <div
+                              key={person}
+                              className="flex items-center justify-between p-3 bg-purple-500/5 border border-purple-500/20 rounded-lg"
+                            >
+                              <span className="font-medium">{person}</span>
+                              <span className="font-bold font-mono text-purple-700">
+                                {formatCurrency(share, "VES")}
+                              </span>
+                            </div>
+                          );
+                        })}
+                        <div className="pt-2 border-t border-purple-200 mt-2">
+                          <div className="flex items-center justify-between p-3 bg-purple-500/10 rounded-lg">
+                            <span className="font-bold">Total:</span>
+                            <span className="font-bold font-mono text-purple-700 text-lg">
+                              {formatCurrency(finalProfitBs, "VES")}
+                            </span>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </CollapsibleContent>
