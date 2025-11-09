@@ -39,6 +39,7 @@ export function AdminGananciasView() {
   const [agencies, setAgencies] = useState<Agency[]>([]);
   const [isGlobalExpensesOpen, setIsGlobalExpensesOpen] = useState(false);
   const [isProfitDistributionOpen, setIsProfitDistributionOpen] = useState(false);
+  const [currency, setCurrency] = useState<"bs" | "usd">("bs");
   const { summaries, loading: summariesLoading } = useWeeklyCuadre(currentWeek);
   const { commissions, loading: commissionsLoading } = useSystemCommissions();
 
@@ -303,6 +304,12 @@ export function AdminGananciasView() {
                 <ChevronRight className="h-4 w-4 ml-1" />
               </Button>
             </div>
+            <Tabs value={currency} onValueChange={(value) => setCurrency(value as "bs" | "usd")} className="w-full mt-4">
+              <TabsList className="grid w-full max-w-md mx-auto grid-cols-2">
+                <TabsTrigger value="bs">Bolívares</TabsTrigger>
+                <TabsTrigger value="usd">Dólares</TabsTrigger>
+              </TabsList>
+            </Tabs>
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Resumen Principal */}
@@ -314,9 +321,8 @@ export function AdminGananciasView() {
                     <Calculator className="h-5 w-5 text-blue-600" />
                   </div>
                   <p className="text-2xl font-bold text-blue-600 font-mono">
-                    {formatCurrency(totalNetProfitBs, "VES")}
+                    {currency === "bs" ? formatCurrency(totalNetProfitBs, "VES") : formatCurrency(totalNetProfitUsd, "USD")}
                   </p>
-                  <p className="text-sm text-blue-600/70 font-mono mt-1">{formatCurrency(totalNetProfitUsd, "USD")}</p>
                 </CardContent>
               </Card>
 
@@ -327,7 +333,7 @@ export function AdminGananciasView() {
                     <Receipt className="h-5 w-5 text-amber-600" />
                   </div>
                   <p className="text-2xl font-bold text-amber-600 font-mono">
-                    -{formatCurrency(globalExpensesBs, "VES")}
+                    -{currency === "bs" ? formatCurrency(globalExpensesBs, "VES") : formatCurrency(globalExpensesBs / 36, "USD")}
                   </p>
                 </CardContent>
               </Card>
@@ -339,7 +345,7 @@ export function AdminGananciasView() {
                     <Receipt className="h-5 w-5 text-red-600" />
                   </div>
                   <p className="text-2xl font-bold text-red-600 font-mono">
-                    -{formatCurrency(totalGroupExpensesBs, "VES")}
+                    -{currency === "bs" ? formatCurrency(totalGroupExpensesBs, "VES") : formatCurrency(totalGroupExpensesBs / 36, "USD")}
                   </p>
                 </CardContent>
               </Card>
@@ -360,81 +366,39 @@ export function AdminGananciasView() {
                       />
                     </Button>
                   </CollapsibleTrigger>
-                  <div className="grid grid-cols-2 gap-4 mb-4">
-                    <div>
-                      <p className="text-sm text-muted-foreground mb-1">Bolívares</p>
-                      <p className="text-3xl font-bold text-purple-700 font-mono">{formatCurrency(finalProfitBs, "VES")}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground mb-1">Dólares</p>
-                      <p className="text-3xl font-bold text-purple-700 font-mono">{formatCurrency(totalNetProfitUsd, "USD")}</p>
-                    </div>
-                  </div>
+                  <p className="text-4xl font-bold text-purple-700 font-mono mb-4">
+                    {currency === "bs" ? formatCurrency(finalProfitBs, "VES") : formatCurrency(totalNetProfitUsd, "USD")}
+                  </p>
                   
                   <CollapsibleContent>
                     <div className="mt-4 border-t border-purple-200 pt-4">
-                      <Tabs defaultValue="bs" className="w-full">
-                        <TabsList className="grid w-full grid-cols-2 mb-4">
-                          <TabsTrigger value="bs">Bolívares</TabsTrigger>
-                          <TabsTrigger value="usd">Dólares</TabsTrigger>
-                        </TabsList>
-                        
-                        <TabsContent value="bs">
-                          <h4 className="text-sm font-medium text-muted-foreground mb-3">Distribución de Ganancias (Bs)</h4>
-                          <div className="space-y-2">
-                            {["Denis", "Jonathan", "Byker", "Daniela", "Jorge"].map((person) => {
-                              const share = finalProfitBs / 5;
-                              return (
-                                <div
-                                  key={person}
-                                  className="flex items-center justify-between p-3 bg-purple-500/5 border border-purple-500/20 rounded-lg"
-                                >
-                                  <span className="font-medium">{person}</span>
-                                  <span className="font-bold font-mono text-purple-700">
-                                    {formatCurrency(share, "VES")}
-                                  </span>
-                                </div>
-                              );
-                            })}
-                            <div className="pt-2 border-t border-purple-200 mt-2">
-                              <div className="flex items-center justify-between p-3 bg-purple-500/10 rounded-lg">
-                                <span className="font-bold">Total:</span>
-                                <span className="font-bold font-mono text-purple-700 text-lg">
-                                  {formatCurrency(finalProfitBs, "VES")}
-                                </span>
-                              </div>
+                      <h4 className="text-sm font-medium text-muted-foreground mb-3">
+                        Distribución de Ganancias ({currency === "bs" ? "Bs" : "USD"})
+                      </h4>
+                      <div className="space-y-2">
+                        {["Denis", "Jonathan", "Byker", "Daniela", "Jorge"].map((person) => {
+                          const share = currency === "bs" ? finalProfitBs / 5 : totalNetProfitUsd / 5;
+                          return (
+                            <div
+                              key={person}
+                              className="flex items-center justify-between p-3 bg-purple-500/5 border border-purple-500/20 rounded-lg"
+                            >
+                              <span className="font-medium">{person}</span>
+                              <span className="font-bold font-mono text-purple-700">
+                                {currency === "bs" ? formatCurrency(share, "VES") : formatCurrency(share, "USD")}
+                              </span>
                             </div>
+                          );
+                        })}
+                        <div className="pt-2 border-t border-purple-200 mt-2">
+                          <div className="flex items-center justify-between p-3 bg-purple-500/10 rounded-lg">
+                            <span className="font-bold">Total:</span>
+                            <span className="font-bold font-mono text-purple-700 text-lg">
+                              {currency === "bs" ? formatCurrency(finalProfitBs, "VES") : formatCurrency(totalNetProfitUsd, "USD")}
+                            </span>
                           </div>
-                        </TabsContent>
-                        
-                        <TabsContent value="usd">
-                          <h4 className="text-sm font-medium text-muted-foreground mb-3">Distribución de Ganancias (USD)</h4>
-                          <div className="space-y-2">
-                            {["Denis", "Jonathan", "Byker", "Daniela", "Jorge"].map((person) => {
-                              const share = totalNetProfitUsd / 5;
-                              return (
-                                <div
-                                  key={person}
-                                  className="flex items-center justify-between p-3 bg-purple-500/5 border border-purple-500/20 rounded-lg"
-                                >
-                                  <span className="font-medium">{person}</span>
-                                  <span className="font-bold font-mono text-purple-700">
-                                    {formatCurrency(share, "USD")}
-                                  </span>
-                                </div>
-                              );
-                            })}
-                            <div className="pt-2 border-t border-purple-200 mt-2">
-                              <div className="flex items-center justify-between p-3 bg-purple-500/10 rounded-lg">
-                                <span className="font-bold">Total:</span>
-                                <span className="font-bold font-mono text-purple-700 text-lg">
-                                  {formatCurrency(totalNetProfitUsd, "USD")}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        </TabsContent>
-                      </Tabs>
+                        </div>
+                      </div>
                     </div>
                   </CollapsibleContent>
                 </CardContent>
@@ -470,7 +434,7 @@ export function AdminGananciasView() {
                               </p>
                             </div>
                             <span className="font-bold font-mono text-amber-600">
-                              {formatCurrency(Number(expense.amount_bs), "VES")}
+                              {currency === "bs" ? formatCurrency(Number(expense.amount_bs), "VES") : formatCurrency(Number(expense.amount_bs) / 36, "USD")}
                             </span>
                           </div>
                         ))}
@@ -478,7 +442,7 @@ export function AdminGananciasView() {
                           <div className="flex items-center justify-between">
                             <span className="font-bold">Total Gastos Globales:</span>
                             <span className="font-bold font-mono text-amber-600 text-lg">
-                              {formatCurrency(globalExpensesBs, "VES")}
+                              {currency === "bs" ? formatCurrency(globalExpensesBs, "VES") : formatCurrency(globalExpensesBs / 36, "USD")}
                             </span>
                           </div>
                         </div>
@@ -517,128 +481,63 @@ export function AdminGananciasView() {
                           </CardTitle>
                         </CardHeader>
                         <CardContent>
-                          <Tabs defaultValue="bs" className="w-full">
-                            <TabsList className="grid w-full grid-cols-2 mb-4">
-                              <TabsTrigger value="bs">Bolívares</TabsTrigger>
-                              <TabsTrigger value="usd">Dólares</TabsTrigger>
-                            </TabsList>
-                            
-                            <TabsContent value="bs">
-                              <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
-                                <div className="space-y-1">
-                                  <p className="text-xs text-muted-foreground">Bruto</p>
-                                  <p className="text-sm font-bold text-green-600 font-mono">
-                                    {formatCurrency(grossProfitBs, "VES")}
-                                  </p>
-                                </div>
+                          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
+                            <div className="space-y-1">
+                              <p className="text-xs text-muted-foreground">Bruto</p>
+                              <p className="text-sm font-bold text-green-600 font-mono">
+                                {currency === "bs" ? formatCurrency(grossProfitBs, "VES") : formatCurrency(grossProfitUsd, "USD")}
+                              </p>
+                            </div>
 
-                                <div className="space-y-1">
-                                  <p className="text-xs text-muted-foreground">Gastos Globales</p>
-                                  <p className="text-sm font-bold text-amber-600 font-mono">
-                                    -{formatCurrency(allocatedGlobalExpenses, "VES")}
-                                  </p>
-                                </div>
+                            <div className="space-y-1">
+                              <p className="text-xs text-muted-foreground">Gastos Globales</p>
+                              <p className="text-sm font-bold text-amber-600 font-mono">
+                                -{currency === "bs" ? formatCurrency(allocatedGlobalExpenses, "VES") : formatCurrency(allocatedGlobalExpenses / 36, "USD")}
+                              </p>
+                            </div>
 
-                                <div className="space-y-1">
-                                  <p className="text-xs text-muted-foreground">Neto</p>
-                                  <p className="text-sm font-bold text-blue-600 font-mono">
-                                    {formatCurrency(netProfitBs, "VES")}
-                                  </p>
-                                </div>
+                            <div className="space-y-1">
+                              <p className="text-xs text-muted-foreground">Neto</p>
+                              <p className="text-sm font-bold text-blue-600 font-mono">
+                                {currency === "bs" ? formatCurrency(netProfitBs, "VES") : formatCurrency(netProfitUsd, "USD")}
+                              </p>
+                            </div>
 
-                                <div className="space-y-1">
-                                  <p className="text-xs text-muted-foreground">Gastos Grupo</p>
-                                  <p className="text-sm font-bold text-red-600 font-mono">
-                                    -{formatCurrency(groupExpensesBs, "VES")}
-                                  </p>
-                                </div>
+                            <div className="space-y-1">
+                              <p className="text-xs text-muted-foreground">Gastos Grupo</p>
+                              <p className="text-sm font-bold text-red-600 font-mono">
+                                -{currency === "bs" ? formatCurrency(groupExpensesBs, "VES") : formatCurrency(groupExpensesBs / 36, "USD")}
+                              </p>
+                            </div>
 
-                                <div className="space-y-1 bg-purple-500/10 p-2 rounded-lg">
-                                  <p className="text-xs font-semibold text-purple-700">Final</p>
-                                  <p className="text-lg font-bold text-purple-700 font-mono">
-                                    {formatCurrency(finalProfitBs, "VES")}
-                                  </p>
-                                </div>
-                              </div>
+                            <div className="space-y-1 bg-purple-500/10 p-2 rounded-lg">
+                              <p className="text-xs font-semibold text-purple-700">Final</p>
+                              <p className="text-lg font-bold text-purple-700 font-mono">
+                                {currency === "bs" ? formatCurrency(finalProfitBs, "VES") : formatCurrency(finalProfitBs / 36, "USD")}
+                              </p>
+                            </div>
+                          </div>
 
-                              {expensesList.length > 0 && (
-                                <div className="pt-3 border-t">
-                                  <p className="text-xs font-semibold text-muted-foreground mb-2">
-                                    Gastos Específicos del Grupo:
-                                  </p>
-                                  <div className="flex flex-wrap gap-2">
-                                    {expensesList.map((expense, idx) => (
-                                      <div
-                                        key={idx}
-                                        className="flex items-center gap-2 px-3 py-1 bg-muted/50 rounded-full text-xs"
-                                      >
-                                        <span>{expense.description}</span>
-                                        <span className="font-bold font-mono">{formatCurrency(expense.amount, "VES")}</span>
-                                      </div>
-                                    ))}
+                          {expensesList.length > 0 && (
+                            <div className="pt-3 border-t">
+                              <p className="text-xs font-semibold text-muted-foreground mb-2">
+                                Gastos Específicos del Grupo:
+                              </p>
+                              <div className="flex flex-wrap gap-2">
+                                {expensesList.map((expense, idx) => (
+                                  <div
+                                    key={idx}
+                                    className="flex items-center gap-2 px-3 py-1 bg-muted/50 rounded-full text-xs"
+                                  >
+                                    <span>{expense.description}</span>
+                                    <span className="font-bold font-mono">
+                                      {currency === "bs" ? formatCurrency(expense.amount, "VES") : formatCurrency(expense.amount / 36, "USD")}
+                                    </span>
                                   </div>
-                                </div>
-                              )}
-                            </TabsContent>
-                            
-                            <TabsContent value="usd">
-                              <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
-                                <div className="space-y-1">
-                                  <p className="text-xs text-muted-foreground">Bruto</p>
-                                  <p className="text-sm font-bold text-green-600 font-mono">
-                                    {formatCurrency(grossProfitUsd, "USD")}
-                                  </p>
-                                </div>
-
-                                <div className="space-y-1">
-                                  <p className="text-xs text-muted-foreground">Gastos Globales</p>
-                                  <p className="text-sm font-bold text-amber-600 font-mono">
-                                    -{formatCurrency(allocatedGlobalExpenses / 36, "USD")}
-                                  </p>
-                                </div>
-
-                                <div className="space-y-1">
-                                  <p className="text-xs text-muted-foreground">Neto</p>
-                                  <p className="text-sm font-bold text-blue-600 font-mono">
-                                    {formatCurrency(netProfitUsd, "USD")}
-                                  </p>
-                                </div>
-
-                                <div className="space-y-1">
-                                  <p className="text-xs text-muted-foreground">Gastos Grupo</p>
-                                  <p className="text-sm font-bold text-red-600 font-mono">
-                                    -{formatCurrency(groupExpensesBs / 36, "USD")}
-                                  </p>
-                                </div>
-
-                                <div className="space-y-1 bg-purple-500/10 p-2 rounded-lg">
-                                  <p className="text-xs font-semibold text-purple-700">Final</p>
-                                  <p className="text-lg font-bold text-purple-700 font-mono">
-                                    {formatCurrency(finalProfitBs / 36, "USD")}
-                                  </p>
-                                </div>
+                                ))}
                               </div>
-
-                              {expensesList.length > 0 && (
-                                <div className="pt-3 border-t">
-                                  <p className="text-xs font-semibold text-muted-foreground mb-2">
-                                    Gastos Específicos del Grupo:
-                                  </p>
-                                  <div className="flex flex-wrap gap-2">
-                                    {expensesList.map((expense, idx) => (
-                                      <div
-                                        key={idx}
-                                        className="flex items-center gap-2 px-3 py-1 bg-muted/50 rounded-full text-xs"
-                                      >
-                                        <span>{expense.description}</span>
-                                        <span className="font-bold font-mono">{formatCurrency(expense.amount / 36, "USD")}</span>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                            </TabsContent>
-                          </Tabs>
+                            </div>
+                          )}
                         </CardContent>
                       </Card>
                     ),
