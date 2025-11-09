@@ -372,31 +372,71 @@ export function AdminGananciasView() {
                   
                   <CollapsibleContent>
                     <div className="mt-4 border-t border-purple-200 pt-4">
-                      <h4 className="text-sm font-medium text-muted-foreground mb-3">
+                      <h4 className="text-sm font-medium text-muted-foreground mb-4">
                         Distribución de Ganancias ({currency === "bs" ? "Bs" : "USD"})
                       </h4>
-                      <div className="space-y-2">
+                      <div className="space-y-3">
                         {["Denis", "Jonathan", "Byker", "Daniela", "Jorge"].map((person) => {
-                          const share = currency === "bs" ? finalProfitBs / 5 : totalNetProfitUsd / 5;
+                          const baseShare = currency === "bs" ? finalProfitBs / 5 : totalNetProfitUsd / 5;
+                          const restaPerdida = 0;
+                          const sumaGanancia = 0;
+                          const abonos = 0;
+                          const total = baseShare - restaPerdida + sumaGanancia - abonos;
+                          
                           return (
-                            <div
-                              key={person}
-                              className="flex items-center justify-between p-3 bg-purple-500/5 border border-purple-500/20 rounded-lg"
-                            >
-                              <span className="font-medium">{person}</span>
-                              <span className="font-bold font-mono text-purple-700">
-                                {currency === "bs" ? formatCurrency(share, "VES") : formatCurrency(share, "USD")}
-                              </span>
-                            </div>
+                            <Card key={person} className="bg-purple-500/5 border-purple-500/20">
+                              <CardContent className="p-4">
+                                <div className="flex items-center justify-between mb-3">
+                                  <h5 className="font-bold text-lg">{person}</h5>
+                                  <div className="text-right">
+                                    <p className="text-xs text-muted-foreground">Total</p>
+                                    <p className="text-xl font-bold text-purple-700 font-mono">
+                                      {currency === "bs" ? formatCurrency(total, "VES") : formatCurrency(total, "USD")}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                  <div>
+                                    <p className="text-xs text-muted-foreground mb-1">Monto Base</p>
+                                    <p className="text-sm font-semibold font-mono">
+                                      {currency === "bs" ? formatCurrency(baseShare, "VES") : formatCurrency(baseShare, "USD")}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs text-muted-foreground mb-1">Resta Pérdida</p>
+                                    <p className="text-sm font-semibold font-mono text-red-600">
+                                      -{currency === "bs" ? formatCurrency(restaPerdida, "VES") : formatCurrency(restaPerdida, "USD")}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs text-muted-foreground mb-1">Suma Ganancia</p>
+                                    <p className="text-sm font-semibold font-mono text-green-600">
+                                      +{currency === "bs" ? formatCurrency(sumaGanancia, "VES") : formatCurrency(sumaGanancia, "USD")}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs text-muted-foreground mb-1">Abonos</p>
+                                    <p className="text-sm font-semibold font-mono text-amber-600">
+                                      -{currency === "bs" ? formatCurrency(abonos, "VES") : formatCurrency(abonos, "USD")}
+                                    </p>
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
                           );
                         })}
-                        <div className="pt-2 border-t border-purple-200 mt-2">
-                          <div className="flex items-center justify-between p-3 bg-purple-500/10 rounded-lg">
-                            <span className="font-bold">Total:</span>
-                            <span className="font-bold font-mono text-purple-700 text-lg">
-                              {currency === "bs" ? formatCurrency(finalProfitBs, "VES") : formatCurrency(totalNetProfitUsd, "USD")}
-                            </span>
-                          </div>
+                        
+                        <div className="pt-2 mt-4 border-t-2 border-purple-300">
+                          <Card className="bg-purple-500/10 border-2 border-purple-500/30">
+                            <CardContent className="p-4">
+                              <div className="flex items-center justify-between">
+                                <span className="font-bold text-lg">Total General:</span>
+                                <span className="font-bold font-mono text-purple-700 text-2xl">
+                                  {currency === "bs" ? formatCurrency(finalProfitBs, "VES") : formatCurrency(totalNetProfitUsd, "USD")}
+                                </span>
+                              </div>
+                            </CardContent>
+                          </Card>
                         </div>
                       </div>
                     </div>
