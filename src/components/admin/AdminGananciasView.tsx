@@ -433,12 +433,12 @@ export function AdminGananciasView() {
             </Collapsible>
 
             {/* Desglose de Gastos Globales */}
-            {globalExpensesDetails.length > 0 && (
+            {globalExpensesDetails.length > 0 && currency === "bs" && (
               <Collapsible open={isGlobalExpensesOpen} onOpenChange={setIsGlobalExpensesOpen}>
                 <Card>
                   <CardHeader>
                     <CollapsibleTrigger asChild>
-                      <Button variant="ghost" className="w-full justify-between p-0 hover:bg-transparent">
+                      <Button variant="ghost" className="w-full justify-between p-0 hover:bg-transparent h-auto">
                         <CardTitle>Gastos Globales</CardTitle>
                         <ChevronDown
                           className={`h-5 w-5 transition-transform ${isGlobalExpensesOpen ? "rotate-180" : ""}`}
