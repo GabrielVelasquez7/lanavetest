@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useWeeklyCuadre, type WeekBoundaries } from "@/hooks/useWeeklyCuadre";
 import { useSystemCommissions } from "@/hooks/useSystemCommissions";
 import { formatCurrency } from "@/lib/utils";
-import { format, addDays, startOfWeek } from "date-fns";
+import { format, addDays, startOfWeek, endOfWeek } from "date-fns";
 import { es } from "date-fns/locale";
 
 interface WeeklyBankExpense {
@@ -31,24 +31,15 @@ export function AdminGananciasView() {
   const { commissions, loading: commissionsLoading } = useSystemCommissions();
 
   useEffect(() => {
-    const fetchCurrentWeek = async () => {
-      try {
-        const { data, error } = await supabase.rpc("get_current_week_boundaries");
-        if (error) throw error;
-        
-        if (data && data.length > 0) {
-          const weekData = data[0];
-          setCurrentWeek({
-            start: new Date(weekData.week_start),
-            end: new Date(weekData.week_end),
-          });
-        }
-      } catch (error) {
-        console.error("Error fetching current week:", error);
-      }
-    };
-
-    fetchCurrentWeek();
+    // Calculate current week starting on Monday
+    const today = new Date();
+    const weekStart = startOfWeek(today, { weekStartsOn: 1 }); // 1 = Monday
+    const weekEnd = endOfWeek(today, { weekStartsOn: 1 });
+    
+    setCurrentWeek({
+      start: weekStart,
+      end: weekEnd,
+    });
   }, []);
 
   useEffect(() => {
