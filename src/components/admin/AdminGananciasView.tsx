@@ -37,6 +37,7 @@ export function AdminGananciasView() {
   const [agencyGroups, setAgencyGroups] = useState<AgencyGroup[]>([]);
   const [agencies, setAgencies] = useState<Agency[]>([]);
   const [isGlobalExpensesOpen, setIsGlobalExpensesOpen] = useState(false);
+  const [isProfitDistributionOpen, setIsProfitDistributionOpen] = useState(false);
   const { summaries, loading: summariesLoading } = useWeeklyCuadre(currentWeek);
   const { commissions, loading: commissionsLoading } = useSystemCommissions();
 
@@ -344,18 +345,90 @@ export function AdminGananciasView() {
             </div>
 
             {/* Ganancia Final */}
-            <Card className="bg-gradient-to-br from-purple-500/10 via-purple-500/5 to-background border-2 border-purple-500/30">
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-xl font-bold text-purple-700 flex items-center gap-2">
-                    <DollarSign className="h-6 w-6" />
-                    Ganancia Final
-                  </h3>
-                </div>
-                <p className="text-sm text-muted-foreground mb-2"></p>
-                <p className="text-4xl font-bold text-purple-700 font-mono">{formatCurrency(finalProfitBs, "VES")}</p>
-              </CardContent>
-            </Card>
+            <Collapsible open={isProfitDistributionOpen} onOpenChange={setIsProfitDistributionOpen}>
+              <Card className="bg-gradient-to-br from-purple-500/10 via-purple-500/5 to-background border-2 border-purple-500/30">
+                <CardContent className="pt-6">
+                  <CollapsibleTrigger asChild>
+                    <Button variant="ghost" className="w-full justify-between p-0 hover:bg-transparent mb-4">
+                      <h3 className="text-xl font-bold text-purple-700 flex items-center gap-2">
+                        <DollarSign className="h-6 w-6" />
+                        Ganancia Final
+                      </h3>
+                      <ChevronDown
+                        className={`h-5 w-5 text-purple-700 transition-transform ${isProfitDistributionOpen ? "rotate-180" : ""}`}
+                      />
+                    </Button>
+                  </CollapsibleTrigger>
+                  <p className="text-4xl font-bold text-purple-700 font-mono mb-4">{formatCurrency(finalProfitBs, "VES")}</p>
+                  
+                  <CollapsibleContent>
+                    <div className="mt-4 border-t border-purple-200 pt-4">
+                      <h4 className="text-lg font-bold text-purple-600 mb-4 text-center">GANANCIAS POR VENTAS</h4>
+                      <div className="overflow-x-auto">
+                        <table className="w-full border-collapse">
+                          <thead>
+                            <tr className="bg-blue-600 text-white">
+                              <th className="border border-gray-300 px-4 py-2 text-center font-bold">NOMBRE</th>
+                              <th className="border border-gray-300 px-4 py-2 text-center font-bold">BS</th>
+                              <th className="border border-gray-300 px-4 py-2 text-center font-bold">RESTA PERDIDA</th>
+                              <th className="border border-gray-300 px-4 py-2 text-center font-bold">SUMA GANANCIA</th>
+                              <th className="border border-gray-300 px-4 py-2 text-center font-bold">ABONOS</th>
+                              <th className="border border-gray-300 px-4 py-2 text-center font-bold">TOTAL</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {[
+                              { name: "DENIS", bs: 52035.74, restaPerdida: 46042.42, sumaGanancia: 0, abonos: 8100, total: 37942.42 },
+                              { name: "JONATHAN", bs: 47191.25, restaPerdida: 37312.61, sumaGanancia: 0, abonos: 20000, total: 17312.61 },
+                              { name: "BYKER", bs: 29822.54, restaPerdida: 18355.03, sumaGanancia: 0, abonos: 0, total: 18355.03 },
+                              { name: "DANIELA", bs: 39649.01, restaPerdida: 0, sumaGanancia: 43370, abonos: 0, total: 43370 },
+                              { name: "JORGE", bs: 34804.52, restaPerdida: 34104.43, sumaGanancia: 0, abonos: 20000, total: 14104.43 },
+                            ].map((person, idx) => (
+                              <tr key={idx} className={idx % 2 === 0 ? "bg-gray-100" : "bg-white"}>
+                                <td className="border border-gray-300 px-4 py-2 font-bold">{person.name}</td>
+                                <td className="border border-gray-300 px-4 py-2 text-center font-mono">
+                                  {formatCurrency(person.bs, "VES")}
+                                </td>
+                                <td className="border border-gray-300 px-4 py-2 text-center font-mono">
+                                  {formatCurrency(person.restaPerdida, "VES")}
+                                </td>
+                                <td className="border border-gray-300 px-4 py-2 text-center font-mono">
+                                  {formatCurrency(person.sumaGanancia, "VES")}
+                                </td>
+                                <td className="border border-gray-300 px-4 py-2 text-center font-mono">
+                                  {formatCurrency(person.abonos, "VES")}
+                                </td>
+                                <td className="border border-gray-300 px-4 py-2 text-center font-mono font-bold">
+                                  {formatCurrency(person.total, "VES")}
+                                </td>
+                              </tr>
+                            ))}
+                            <tr className="bg-gray-800 text-white font-bold">
+                              <td className="border border-gray-300 px-4 py-2">TOTAL</td>
+                              <td className="border border-gray-300 px-4 py-2 text-center font-mono">
+                                {formatCurrency(203503.06, "VES")}
+                              </td>
+                              <td className="border border-gray-300 px-4 py-2 text-center font-mono">
+                                {formatCurrency(135814.48, "VES")}
+                              </td>
+                              <td className="border border-gray-300 px-4 py-2 text-center font-mono">
+                                {formatCurrency(43370, "VES")}
+                              </td>
+                              <td className="border border-gray-300 px-4 py-2 text-center font-mono">
+                                {formatCurrency(48100, "VES")}
+                              </td>
+                              <td className="border border-gray-300 px-4 py-2 text-center font-mono">
+                                {formatCurrency(131084.48, "VES")}
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </CollapsibleContent>
+                </CardContent>
+              </Card>
+            </Collapsible>
 
             {/* Desglose de Gastos Globales */}
             {globalExpensesDetails.length > 0 && (
