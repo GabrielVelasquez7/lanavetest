@@ -67,7 +67,7 @@ export function AdminAgencyWeeklyCard({ summary, commissions }: Props) {
       {hasActivity && (
         <CardContent className="pt-6 space-y-6">
           {/* Indicadores principales - Grid limpio */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {/* Total Cuadre */}
             <div className="relative p-5 rounded-xl bg-gradient-to-br from-blue-500/10 to-blue-500/5 border-2 border-blue-500/20">
               <div className="flex items-start justify-between mb-2">
@@ -104,26 +104,6 @@ export function AdminAgencyWeeklyCard({ summary, commissions }: Props) {
                 </p>
                 <p className="text-sm font-semibold text-yellow-600/70 font-mono">
                   {formatCurrency(totalCommissions.usd, "USD")}
-                </p>
-              </div>
-            </div>
-
-            {/* Cuadre con Comisiones */}
-            <div className="relative p-5 rounded-xl bg-gradient-to-br from-purple-500/10 to-purple-500/5 border-2 border-purple-500/20">
-              <div className="flex items-start justify-between mb-2">
-                <div className="p-2 bg-purple-500/10 rounded-lg">
-                  <TrendingUp className="h-5 w-5 text-purple-600" />
-                </div>
-              </div>
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
-                Cuadre con Comisiones
-              </p>
-              <div className="space-y-0.5">
-                <p className="text-xl font-bold text-purple-600 font-mono">
-                  {formatCurrency(totalWithCommissions.bs, "VES")}
-                </p>
-                <p className="text-sm font-semibold text-purple-600/70 font-mono">
-                  {formatCurrency(totalWithCommissions.usd, "USD")}
                 </p>
               </div>
             </div>
