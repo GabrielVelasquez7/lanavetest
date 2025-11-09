@@ -143,28 +143,31 @@ export function AdminGananciasView() {
     }, 0);
   }, [summaries, commissions]);
 
-  // Calculate total operational expenses from summaries
-  const totalOperationalExpensesBs = useMemo(() => {
-    return summaries.reduce((total, summary) => total + summary.total_gastos_bs, 0);
-  }, [summaries]);
-
-  const totalOperationalExpensesUsd = useMemo(() => {
-    return summaries.reduce((total, summary) => total + summary.total_gastos_usd, 0);
-  }, [summaries]);
-
-  // Calculate net profit (gross - operational expenses)
-  const totalNetProfitBs = totalGrossProfitBs - totalOperationalExpensesBs;
-  const totalNetProfitUsd = totalGrossProfitUsd - totalOperationalExpensesUsd;
-
-  // Calculate total fixed expenses (weekly bank expenses)
-  const totalFixedExpensesBs = useMemo(() => {
-    return bankExpenses.reduce((total, expense) => total + Number(expense.amount_bs || 0), 0);
+  // Separate fixed commissions (apply to all groups) from group-specific expenses
+  const { fixedCommissionsBs, groupSpecificExpenses } = useMemo(() => {
+    const fixedComm = bankExpenses.filter((e) => e.group_id === null);
+    const groupSpec = bankExpenses.filter((e) => e.group_id !== null);
+    
+    const totalFixed = fixedComm.reduce((sum, e) => sum + Number(e.amount_bs || 0), 0);
+    
+    return {
+      fixedCommissionsBs: totalFixed,
+      groupSpecificExpenses: groupSpec,
+      fixedCommissionsDetails: fixedComm,
+    };
   }, [bankExpenses]);
 
-  // Calculate final profit (net profit - fixed expenses)
-  const finalProfitBs = totalNetProfitBs - totalFixedExpensesBs;
+  // Calculate total net profit (gross profit - fixed commissions)
+  const totalNetProfitBs = totalGrossProfitBs - fixedCommissionsBs;
+  const totalNetProfitUsd = totalGrossProfitUsd;
 
-  // Calculate data by groups
+  // Calculate total group-specific expenses
+  const totalGroupExpensesBs = useMemo(() => {
+    return groupSpecificExpenses.reduce((total, expense) => total + Number(expense.amount_bs || 0), 0);
+  }, [groupSpecificExpenses]);
+
+  // Calculate final profit (net profit - group-specific expenses)
+  const finalProfitBs = totalNetProfitBs - totalGroupExpensesBs;
   const groupsData = useMemo(() => {
     return agencyGroups.map((group) => {
       // Get agencies in this group
@@ -197,24 +200,22 @@ export function AdminGananciasView() {
         return total + agencyCommissions;
       }, 0);
       
-      // Calculate operational expenses
-      const operationalExpensesBs = groupSummaries.reduce((total, summary) => total + summary.total_gastos_bs, 0);
-      const operationalExpensesUsd = groupSummaries.reduce((total, summary) => total + summary.total_gastos_usd, 0);
+      // Get group-specific expenses
+      const groupExpenses = groupSpecificExpenses.filter((e) => e.group_id === group.id);
+      const groupExpensesBs = groupExpenses.reduce((total, e) => total + Number(e.amount_bs || 0), 0);
       
-      // Calculate net profit
-      const netProfitBs = grossProfitBs - operationalExpensesBs;
-      const netProfitUsd = grossProfitUsd - operationalExpensesUsd;
+      // Net profit after fixed commissions (distributed proportionally based on gross profit)
+      const proportion = totalGrossProfitBs > 0 ? grossProfitBs / totalGrossProfitBs : 0;
+      const allocatedFixedCommissions = fixedCommissionsBs * proportion;
+      const netProfitBs = grossProfitBs - allocatedFixedCommissions;
+      const netProfitUsd = grossProfitUsd;
       
-      // Get fixed expenses for this group
-      const groupFixedExpenses = bankExpenses.filter((e) => e.group_id === group.id);
-      const fixedExpensesBs = groupFixedExpenses.reduce((total, e) => total + Number(e.amount_bs || 0), 0);
-      
-      // Calculate final profit
-      const finalProfitBs = netProfitBs - fixedExpensesBs;
+      // Calculate final profit (net - group-specific expenses)
+      const finalProfitBs = netProfitBs - groupExpensesBs;
       
       // Group expenses by category
       const expensesByCategory: Record<string, number> = {};
-      groupFixedExpenses.forEach((expense) => {
+      groupExpenses.forEach((expense) => {
         expensesByCategory[expense.category] = (expensesByCategory[expense.category] || 0) + Number(expense.amount_bs || 0);
       });
       
@@ -222,17 +223,16 @@ export function AdminGananciasView() {
         group,
         grossProfitBs,
         grossProfitUsd,
-        operationalExpensesBs,
-        operationalExpensesUsd,
+        allocatedFixedCommissions,
         netProfitBs,
         netProfitUsd,
-        fixedExpensesBs,
+        groupExpensesBs,
         finalProfitBs,
         expensesByCategory,
         agenciesCount: groupAgencies.length,
       };
     });
-  }, [agencyGroups, agencies, summaries, commissions, bankExpenses]);
+  }, [agencyGroups, agencies, summaries, commissions, groupSpecificExpenses, fixedCommissionsBs, totalGrossProfitBs]);
 
   const loading = summariesLoading || commissionsLoading;
 
@@ -299,17 +299,14 @@ export function AdminGananciasView() {
                 </CardContent>
               </Card>
 
-              <Card className="bg-gradient-to-br from-red-500/10 to-background border-2 border-red-500/30">
+              <Card className="bg-gradient-to-br from-orange-500/10 to-background border-2 border-orange-500/30">
                 <CardContent className="pt-6">
                   <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm font-medium text-muted-foreground">Gastos Operativos</p>
-                    <Receipt className="h-5 w-5 text-red-600" />
+                    <p className="text-sm font-medium text-muted-foreground">Comisiones Fijas</p>
+                    <Receipt className="h-5 w-5 text-orange-600" />
                   </div>
-                  <p className="text-2xl font-bold text-red-600 font-mono">
-                    -{formatCurrency(totalOperationalExpensesBs, "VES")}
-                  </p>
-                  <p className="text-sm text-red-600/70 font-mono mt-1">
-                    -{formatCurrency(totalOperationalExpensesUsd, "USD")}
+                  <p className="text-2xl font-bold text-orange-600 font-mono">
+                    -{formatCurrency(fixedCommissionsBs, "VES")}
                   </p>
                 </CardContent>
               </Card>
@@ -329,14 +326,14 @@ export function AdminGananciasView() {
                 </CardContent>
               </Card>
 
-              <Card className="bg-gradient-to-br from-orange-500/10 to-background border-2 border-orange-500/30">
+              <Card className="bg-gradient-to-br from-red-500/10 to-background border-2 border-red-500/30">
                 <CardContent className="pt-6">
                   <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm font-medium text-muted-foreground">Gastos Fijos</p>
-                    <Receipt className="h-5 w-5 text-orange-600" />
+                    <p className="text-sm font-medium text-muted-foreground">Gastos Grupos</p>
+                    <Receipt className="h-5 w-5 text-red-600" />
                   </div>
-                  <p className="text-2xl font-bold text-orange-600 font-mono">
-                    -{formatCurrency(totalFixedExpensesBs, "VES")}
+                  <p className="text-2xl font-bold text-red-600 font-mono">
+                    -{formatCurrency(totalGroupExpensesBs, "VES")}
                   </p>
                 </CardContent>
               </Card>
@@ -348,7 +345,7 @@ export function AdminGananciasView() {
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-xl font-bold text-purple-700 flex items-center gap-2">
                     <DollarSign className="h-6 w-6" />
-                    Ganancia Final (Total Neto - Gastos Fijos)
+                    Ganancia Final (Neto - Gastos Grupos)
                   </h3>
                 </div>
                 <p className="text-4xl font-bold text-purple-700 font-mono">
@@ -362,7 +359,7 @@ export function AdminGananciasView() {
               <div className="space-y-4">
                 <h2 className="text-xl font-bold text-foreground">Desglose por Grupos</h2>
                 <div className="grid grid-cols-1 gap-4">
-                  {groupsData.map(({ group, grossProfitBs, grossProfitUsd, operationalExpensesBs, operationalExpensesUsd, netProfitBs, netProfitUsd, fixedExpensesBs, finalProfitBs, expensesByCategory, agenciesCount }) => (
+                  {groupsData.map(({ group, grossProfitBs, grossProfitUsd, allocatedFixedCommissions, netProfitBs, netProfitUsd, groupExpensesBs, finalProfitBs, expensesByCategory, agenciesCount }) => (
                     <Card key={group.id} className="border-2">
                       <CardHeader className="pb-3">
                         <CardTitle className="flex items-center justify-between">
@@ -385,12 +382,9 @@ export function AdminGananciasView() {
                           </div>
                           
                           <div className="space-y-1">
-                            <p className="text-xs text-muted-foreground">Gastos Op.</p>
-                            <p className="text-sm font-bold text-red-600 font-mono">
-                              -{formatCurrency(operationalExpensesBs, "VES")}
-                            </p>
-                            <p className="text-xs text-red-600/70 font-mono">
-                              -{formatCurrency(operationalExpensesUsd, "USD")}
+                            <p className="text-xs text-muted-foreground">Com. Fijas</p>
+                            <p className="text-sm font-bold text-orange-600 font-mono">
+                              -{formatCurrency(allocatedFixedCommissions, "VES")}
                             </p>
                           </div>
                           
@@ -405,9 +399,9 @@ export function AdminGananciasView() {
                           </div>
                           
                           <div className="space-y-1">
-                            <p className="text-xs text-muted-foreground">Gastos Fijos</p>
-                            <p className="text-sm font-bold text-orange-600 font-mono">
-                              -{formatCurrency(fixedExpensesBs, "VES")}
+                            <p className="text-xs text-muted-foreground">Gastos Grupo</p>
+                            <p className="text-sm font-bold text-red-600 font-mono">
+                              -{formatCurrency(groupExpensesBs, "VES")}
                             </p>
                           </div>
                           
@@ -421,7 +415,7 @@ export function AdminGananciasView() {
                         
                         {Object.keys(expensesByCategory).length > 0 && (
                           <div className="pt-3 border-t">
-                            <p className="text-xs font-semibold text-muted-foreground mb-2">Gastos Fijos:</p>
+                            <p className="text-xs font-semibold text-muted-foreground mb-2">Gastos del Grupo:</p>
                             <div className="flex flex-wrap gap-2">
                               {Object.entries(expensesByCategory).map(([category, amount]) => (
                                 <div
