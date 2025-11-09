@@ -425,11 +425,6 @@ export function AdminGananciasView() {
                             </Card>
                           );
                         })}
-                        
-                       
-                            </CardContent>
-                          </Card>
-                        </div>
                       </div>
                     </div>
                   </CollapsibleContent>
