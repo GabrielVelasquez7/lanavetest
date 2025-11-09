@@ -2,10 +2,12 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Pencil, Save, X, Loader2 } from "lucide-react";
+import { Pencil, Save, X, Loader2, DollarSign, Percent, TrendingUp } from "lucide-react";
 
 interface LotterySystem {
   id: string;
@@ -207,158 +209,263 @@ export function SystemCommissionsCrud() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold">Comisiones de Sistemas</h2>
-        <p className="text-muted-foreground">
-          Configure los porcentajes de comisión para cada sistema de lotería
+        <h2 className="text-3xl font-bold flex items-center gap-2">
+          <Percent className="h-8 w-8 text-primary" />
+          Comisiones de Sistemas
+        </h2>
+        <p className="text-muted-foreground mt-2">
+          Configure los porcentajes de comisión y utilidad para cada sistema de lotería
         </p>
       </div>
 
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Sistema</TableHead>
-              <TableHead className="text-right">% Comisión Bs</TableHead>
-              <TableHead className="text-right">% Utilidad Bs</TableHead>
-              <TableHead className="text-right">% Comisión USD</TableHead>
-              <TableHead className="text-right">% Utilidad USD</TableHead>
-              <TableHead>Estado</TableHead>
-              <TableHead className="text-right">Acciones</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {systems.map((system) => {
-              const commission = commissions.get(system.id);
-              const isEditing = editingId === system.id;
+      <div className="grid gap-4">
+        {systems.map((system) => {
+          const commission = commissions.get(system.id);
+          const isEditing = editingId === system.id;
 
-              return (
-                <TableRow key={system.id}>
-                  <TableCell className="font-medium">{system.name}</TableCell>
-                  <TableCell className="text-right">
-                    {isEditing ? (
-                      <Input
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="0.01"
-                        value={editValues.commission}
-                        onChange={(e) =>
-                          setEditValues({ ...editValues, commission: e.target.value })
-                        }
-                        className="w-24 text-right"
-                      />
-                    ) : (
-                      <span className="font-mono">
-                        {commission?.commission_percentage.toFixed(2) || "0.00"}%
-                      </span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {isEditing ? (
-                      <Input
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="0.01"
-                        value={editValues.utility}
-                        onChange={(e) =>
-                          setEditValues({ ...editValues, utility: e.target.value })
-                        }
-                        className="w-24 text-right"
-                      />
-                    ) : (
-                      <span className="font-mono">
-                        {commission?.utility_percentage.toFixed(2) || "0.00"}%
-                      </span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {isEditing ? (
-                      <Input
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="0.01"
-                        value={editValues.commissionUsd}
-                        onChange={(e) =>
-                          setEditValues({ ...editValues, commissionUsd: e.target.value })
-                        }
-                        className="w-24 text-right"
-                      />
-                    ) : (
-                      <span className="font-mono">
-                        {commission?.commission_percentage_usd.toFixed(2) || "0.00"}%
-                      </span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {isEditing ? (
-                      <Input
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="0.01"
-                        value={editValues.utilityUsd}
-                        onChange={(e) =>
-                          setEditValues({ ...editValues, utilityUsd: e.target.value })
-                        }
-                        className="w-24 text-right"
-                      />
-                    ) : (
-                      <span className="font-mono">
-                        {commission?.utility_percentage_usd.toFixed(2) || "0.00"}%
-                      </span>
-                    )}
-                  </TableCell>
-                  <TableCell>
+          return (
+            <Card key={system.id} className="overflow-hidden border-2 hover:shadow-md transition-shadow">
+              <CardHeader className="bg-gradient-to-br from-background via-muted/30 to-background pb-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-xl font-bold">{system.name}</CardTitle>
+                    <CardDescription className="mt-1">
+                      Sistema de lotería
+                    </CardDescription>
+                  </div>
+                  <div className="flex items-center gap-2">
                     {commission ? (
-                      <Badge variant="default" className="bg-green-600">
-                        Configurado
+                      <Badge variant="default" className="bg-emerald-600">
+                        <span className="flex items-center gap-1">
+                          <TrendingUp className="h-3 w-3" />
+                          Configurado
+                        </span>
                       </Badge>
                     ) : (
                       <Badge variant="secondary">Sin configurar</Badge>
                     )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {isEditing ? (
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          size="sm"
-                          onClick={() => handleSave(system.id)}
-                          disabled={saving}
-                        >
-                          {saving ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Save className="h-4 w-4" />
-                          )}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={handleCancel}
-                          disabled={saving}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ) : (
+                    {!isEditing && (
                       <Button
                         size="sm"
                         variant="outline"
                         onClick={() => handleEdit(system.id)}
+                        className="gap-1"
                       >
                         <Pencil className="h-4 w-4" />
+                        Editar
                       </Button>
                     )}
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+                  </div>
+                </div>
+              </CardHeader>
+
+              <CardContent className="pt-6">
+                {isEditing ? (
+                  <div className="space-y-6">
+                    <Tabs defaultValue="bolivares" className="w-full">
+                      <TabsList className="grid w-full grid-cols-2">
+                        <TabsTrigger value="bolivares">Bolívares (Bs)</TabsTrigger>
+                        <TabsTrigger value="dolares">Dólares (USD)</TabsTrigger>
+                      </TabsList>
+
+                      <TabsContent value="bolivares" className="space-y-4 mt-4">
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <div className="space-y-2">
+                            <Label htmlFor={`commission-bs-${system.id}`} className="flex items-center gap-2 text-base">
+                              <Percent className="h-4 w-4 text-yellow-600" />
+                              Comisión Bs
+                            </Label>
+                            <div className="relative">
+                              <Input
+                                id={`commission-bs-${system.id}`}
+                                type="number"
+                                min="0"
+                                max="100"
+                                step="0.01"
+                                value={editValues.commission}
+                                onChange={(e) =>
+                                  setEditValues({ ...editValues, commission: e.target.value })
+                                }
+                                className="text-right pr-8 text-lg font-mono"
+                                placeholder="0.00"
+                              />
+                              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">%</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              Porcentaje sobre las ventas brutas
+                            </p>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor={`utility-bs-${system.id}`} className="flex items-center gap-2 text-base">
+                              <TrendingUp className="h-4 w-4 text-green-600" />
+                              Utilidad Bs
+                            </Label>
+                            <div className="relative">
+                              <Input
+                                id={`utility-bs-${system.id}`}
+                                type="number"
+                                min="0"
+                                max="100"
+                                step="0.01"
+                                value={editValues.utility}
+                                onChange={(e) =>
+                                  setEditValues({ ...editValues, utility: e.target.value })
+                                }
+                                className="text-right pr-8 text-lg font-mono"
+                                placeholder="0.00"
+                              />
+                              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">%</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              Porcentaje de ganancia esperada
+                            </p>
+                          </div>
+                        </div>
+                      </TabsContent>
+
+                      <TabsContent value="dolares" className="space-y-4 mt-4">
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <div className="space-y-2">
+                            <Label htmlFor={`commission-usd-${system.id}`} className="flex items-center gap-2 text-base">
+                              <DollarSign className="h-4 w-4 text-yellow-600" />
+                              Comisión USD
+                            </Label>
+                            <div className="relative">
+                              <Input
+                                id={`commission-usd-${system.id}`}
+                                type="number"
+                                min="0"
+                                max="100"
+                                step="0.01"
+                                value={editValues.commissionUsd}
+                                onChange={(e) =>
+                                  setEditValues({ ...editValues, commissionUsd: e.target.value })
+                                }
+                                className="text-right pr-8 text-lg font-mono"
+                                placeholder="0.00"
+                              />
+                              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">%</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              Porcentaje sobre las ventas brutas
+                            </p>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor={`utility-usd-${system.id}`} className="flex items-center gap-2 text-base">
+                              <TrendingUp className="h-4 w-4 text-green-600" />
+                              Utilidad USD
+                            </Label>
+                            <div className="relative">
+                              <Input
+                                id={`utility-usd-${system.id}`}
+                                type="number"
+                                min="0"
+                                max="100"
+                                step="0.01"
+                                value={editValues.utilityUsd}
+                                onChange={(e) =>
+                                  setEditValues({ ...editValues, utilityUsd: e.target.value })
+                                }
+                                className="text-right pr-8 text-lg font-mono"
+                                placeholder="0.00"
+                              />
+                              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">%</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              Porcentaje de ganancia esperada
+                            </p>
+                          </div>
+                        </div>
+                      </TabsContent>
+                    </Tabs>
+
+                    <div className="flex justify-end gap-2 pt-2 border-t">
+                      <Button
+                        variant="outline"
+                        onClick={handleCancel}
+                        disabled={saving}
+                        className="gap-2"
+                      >
+                        <X className="h-4 w-4" />
+                        Cancelar
+                      </Button>
+                      <Button
+                        onClick={() => handleSave(system.id)}
+                        disabled={saving}
+                        className="gap-2"
+                      >
+                        {saving ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Save className="h-4 w-4" />
+                        )}
+                        Guardar
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid gap-6 md:grid-cols-2">
+                    <div className="space-y-4">
+                      <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">
+                        Bolívares (Bs)
+                      </h4>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <p className="text-xs text-muted-foreground flex items-center gap-1">
+                            <Percent className="h-3 w-3" />
+                            Comisión
+                          </p>
+                          <p className="text-2xl font-bold font-mono text-yellow-600">
+                            {commission?.commission_percentage.toFixed(2) || "0.00"}%
+                          </p>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-xs text-muted-foreground flex items-center gap-1">
+                            <TrendingUp className="h-3 w-3" />
+                            Utilidad
+                          </p>
+                          <p className="text-2xl font-bold font-mono text-green-600">
+                            {commission?.utility_percentage.toFixed(2) || "0.00"}%
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">
+                        Dólares (USD)
+                      </h4>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <p className="text-xs text-muted-foreground flex items-center gap-1">
+                            <DollarSign className="h-3 w-3" />
+                            Comisión
+                          </p>
+                          <p className="text-2xl font-bold font-mono text-yellow-600">
+                            {commission?.commission_percentage_usd.toFixed(2) || "0.00"}%
+                          </p>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-xs text-muted-foreground flex items-center gap-1">
+                            <TrendingUp className="h-3 w-3" />
+                            Utilidad
+                          </p>
+                          <p className="text-2xl font-bold font-mono text-green-600">
+                            {commission?.utility_percentage_usd.toFixed(2) || "0.00"}%
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
     </div>
   );
