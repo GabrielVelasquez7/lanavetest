@@ -144,7 +144,7 @@ export function AdminGananciasView() {
   }, [summaries, commissions]);
 
   // Separate fixed commissions (apply to all groups) from group-specific expenses
-  const { fixedCommissionsBs, groupSpecificExpenses } = useMemo(() => {
+  const { fixedCommissionsBs, groupSpecificExpenses, fixedCommissionsDetails } = useMemo(() => {
     const fixedComm = bankExpenses.filter((e) => e.group_id === null);
     const groupSpec = bankExpenses.filter((e) => e.group_id !== null);
     
@@ -354,6 +354,43 @@ export function AdminGananciasView() {
               </CardContent>
             </Card>
 
+            {/* Desglose de Comisiones Fijas (Globales) */}
+            {fixedCommissionsDetails.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Comisiones Fijas (Aplicadas a todos los grupos)</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {fixedCommissionsDetails.map((expense) => (
+                      <div
+                        key={expense.id}
+                        className="flex items-center justify-between p-3 bg-orange-500/5 border border-orange-500/20 rounded-lg"
+                      >
+                        <div>
+                          <p className="font-medium">{expense.description}</p>
+                          <p className="text-xs text-muted-foreground capitalize">
+                            {expense.category.replace(/_/g, " ")}
+                          </p>
+                        </div>
+                        <span className="font-bold font-mono text-orange-600">
+                          {formatCurrency(Number(expense.amount_bs), "VES")}
+                        </span>
+                      </div>
+                    ))}
+                    <div className="pt-2 border-t mt-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold">Total Comisiones Fijas:</span>
+                        <span className="font-bold font-mono text-orange-600 text-lg">
+                          {formatCurrency(fixedCommissionsBs, "VES")}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Desglose por Grupos */}
             {groupsData.length > 0 && (
               <div className="space-y-4">
@@ -382,9 +419,12 @@ export function AdminGananciasView() {
                           </div>
                           
                           <div className="space-y-1">
-                            <p className="text-xs text-muted-foreground">Com. Fijas</p>
+                            <p className="text-xs text-muted-foreground">Com. Fijas (Prop.)</p>
                             <p className="text-sm font-bold text-orange-600 font-mono">
                               -{formatCurrency(allocatedFixedCommissions, "VES")}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {((allocatedFixedCommissions / fixedCommissionsBs) * 100).toFixed(1)}%
                             </p>
                           </div>
                           
@@ -415,7 +455,7 @@ export function AdminGananciasView() {
                         
                         {Object.keys(expensesByCategory).length > 0 && (
                           <div className="pt-3 border-t">
-                            <p className="text-xs font-semibold text-muted-foreground mb-2">Gastos del Grupo:</p>
+                            <p className="text-xs font-semibold text-muted-foreground mb-2">Gastos Específicos del Grupo:</p>
                             <div className="flex flex-wrap gap-2">
                               {Object.entries(expensesByCategory).map(([category, amount]) => (
                                 <div
