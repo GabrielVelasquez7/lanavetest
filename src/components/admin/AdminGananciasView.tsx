@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, TrendingUp, DollarSign, Receipt, Calculator } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ChevronLeft, ChevronRight, TrendingUp, DollarSign, Receipt, Calculator, ChevronDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useWeeklyCuadre, type WeekBoundaries } from "@/hooks/useWeeklyCuadre";
 import { useSystemCommissions } from "@/hooks/useSystemCommissions";
@@ -35,6 +36,7 @@ export function AdminGananciasView() {
   const [bankExpenses, setBankExpenses] = useState<WeeklyBankExpense[]>([]);
   const [agencyGroups, setAgencyGroups] = useState<AgencyGroup[]>([]);
   const [agencies, setAgencies] = useState<Agency[]>([]);
+  const [isFixedCommissionsOpen, setIsFixedCommissionsOpen] = useState(false);
   const { summaries, loading: summariesLoading } = useWeeklyCuadre(currentWeek);
   const { commissions, loading: commissionsLoading } = useSystemCommissions();
 
@@ -143,17 +145,33 @@ export function AdminGananciasView() {
     }, 0);
   }, [summaries, commissions]);
 
-  // Separate fixed commissions (apply to all groups) from group-specific expenses
-  const { fixedCommissionsBs, groupSpecificExpenses, fixedCommissionsDetails } = useMemo(() => {
-    const fixedComm = bankExpenses.filter((e) => e.group_id === null);
+  // Separate into three categories: fixed commissions, global expenses, and group-specific expenses
+  const { fixedCommissionsBs, globalExpensesBs, groupSpecificExpenses, fixedCommissionsDetails, globalExpensesDetails } = useMemo(() => {
+    // Global expenses are those with group_id = null
+    const globalExpenses = bankExpenses.filter((e) => e.group_id === null);
+    
+    // Fixed commissions are global expenses with category "comision_bancaria" or "comision_fija"
+    const fixedComm = globalExpenses.filter((e) => 
+      e.category === "comision_bancaria" || e.category === "comision_fija"
+    );
+    
+    // Other global expenses (like cafe, error gato, etc.) are not distributed
+    const otherGlobal = globalExpenses.filter((e) => 
+      e.category !== "comision_bancaria" && e.category !== "comision_fija"
+    );
+    
+    // Group-specific expenses
     const groupSpec = bankExpenses.filter((e) => e.group_id !== null);
     
-    const totalFixed = fixedComm.reduce((sum, e) => sum + Number(e.amount_bs || 0), 0);
+    const totalFixedComm = fixedComm.reduce((sum, e) => sum + Number(e.amount_bs || 0), 0);
+    const totalGlobalExp = otherGlobal.reduce((sum, e) => sum + Number(e.amount_bs || 0), 0);
     
     return {
-      fixedCommissionsBs: totalFixed,
+      fixedCommissionsBs: totalFixedComm,
+      globalExpensesBs: totalGlobalExp,
       groupSpecificExpenses: groupSpec,
       fixedCommissionsDetails: fixedComm,
+      globalExpensesDetails: otherGlobal,
     };
   }, [bankExpenses]);
 
@@ -166,8 +184,8 @@ export function AdminGananciasView() {
     return groupSpecificExpenses.reduce((total, expense) => total + Number(expense.amount_bs || 0), 0);
   }, [groupSpecificExpenses]);
 
-  // Calculate final profit (net profit - group-specific expenses)
-  const finalProfitBs = totalNetProfitBs - totalGroupExpensesBs;
+  // Calculate final profit (net profit - global expenses - group-specific expenses)
+  const finalProfitBs = totalNetProfitBs - globalExpensesBs - totalGroupExpensesBs;
   const groupsData = useMemo(() => {
     return agencyGroups.map((group) => {
       // Get agencies in this group
@@ -283,7 +301,7 @@ export function AdminGananciasView() {
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Resumen Principal */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
               <Card className="bg-gradient-to-br from-green-500/10 to-background border-2 border-green-500/30">
                 <CardContent className="pt-6">
                   <div className="flex items-center justify-between mb-2">
@@ -326,6 +344,18 @@ export function AdminGananciasView() {
                 </CardContent>
               </Card>
 
+              <Card className="bg-gradient-to-br from-amber-500/10 to-background border-2 border-amber-500/30">
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm font-medium text-muted-foreground">Gastos Globales</p>
+                    <Receipt className="h-5 w-5 text-amber-600" />
+                  </div>
+                  <p className="text-2xl font-bold text-amber-600 font-mono">
+                    -{formatCurrency(globalExpensesBs, "VES")}
+                  </p>
+                </CardContent>
+              </Card>
+
               <Card className="bg-gradient-to-br from-red-500/10 to-background border-2 border-red-500/30">
                 <CardContent className="pt-6">
                   <div className="flex items-center justify-between mb-2">
@@ -345,27 +375,76 @@ export function AdminGananciasView() {
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-xl font-bold text-purple-700 flex items-center gap-2">
                     <DollarSign className="h-6 w-6" />
-                    Ganancia Final (Neto - Gastos Grupos)
+                    Ganancia Final
                   </h3>
                 </div>
+                <p className="text-sm text-muted-foreground mb-2">
+                  Bruto - Comisiones Fijas - Gastos Globales - Gastos Grupos
+                </p>
                 <p className="text-4xl font-bold text-purple-700 font-mono">
                   {formatCurrency(finalProfitBs, "VES")}
                 </p>
               </CardContent>
             </Card>
 
-            {/* Desglose de Comisiones Fijas (Globales) */}
+            {/* Desglose de Comisiones Fijas */}
             {fixedCommissionsDetails.length > 0 && (
+              <Collapsible open={isFixedCommissionsOpen} onOpenChange={setIsFixedCommissionsOpen}>
+                <Card>
+                  <CardHeader>
+                    <CollapsibleTrigger asChild>
+                      <Button variant="ghost" className="w-full justify-between p-0 hover:bg-transparent">
+                        <CardTitle>Comisiones Fijas (Distribuidas proporcionalmente)</CardTitle>
+                        <ChevronDown className={`h-5 w-5 transition-transform ${isFixedCommissionsOpen ? 'rotate-180' : ''}`} />
+                      </Button>
+                    </CollapsibleTrigger>
+                  </CardHeader>
+                  <CollapsibleContent>
+                    <CardContent>
+                      <div className="space-y-2">
+                        {fixedCommissionsDetails.map((expense) => (
+                          <div
+                            key={expense.id}
+                            className="flex items-center justify-between p-3 bg-orange-500/5 border border-orange-500/20 rounded-lg"
+                          >
+                            <div>
+                              <p className="font-medium">{expense.description}</p>
+                              <p className="text-xs text-muted-foreground">
+                                Comisión
+                              </p>
+                            </div>
+                            <span className="font-bold font-mono text-orange-600">
+                              {formatCurrency(Number(expense.amount_bs), "VES")}
+                            </span>
+                          </div>
+                        ))}
+                        <div className="pt-2 border-t mt-2">
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold">Total Comisiones Fijas:</span>
+                            <span className="font-bold font-mono text-orange-600 text-lg">
+                              {formatCurrency(fixedCommissionsBs, "VES")}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </CollapsibleContent>
+                </Card>
+              </Collapsible>
+            )}
+
+            {/* Desglose de Gastos Globales */}
+            {globalExpensesDetails.length > 0 && (
               <Card>
                 <CardHeader>
-                  <CardTitle>Comisiones Fijas (Aplicadas a todos los grupos)</CardTitle>
+                  <CardTitle>Gastos Globales (Afectan ganancia final, no se distribuyen)</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
-                    {fixedCommissionsDetails.map((expense) => (
+                    {globalExpensesDetails.map((expense) => (
                       <div
                         key={expense.id}
-                        className="flex items-center justify-between p-3 bg-orange-500/5 border border-orange-500/20 rounded-lg"
+                        className="flex items-center justify-between p-3 bg-amber-500/5 border border-amber-500/20 rounded-lg"
                       >
                         <div>
                           <p className="font-medium">{expense.description}</p>
@@ -373,16 +452,16 @@ export function AdminGananciasView() {
                             {expense.category.replace(/_/g, " ")}
                           </p>
                         </div>
-                        <span className="font-bold font-mono text-orange-600">
+                        <span className="font-bold font-mono text-amber-600">
                           {formatCurrency(Number(expense.amount_bs), "VES")}
                         </span>
                       </div>
                     ))}
                     <div className="pt-2 border-t mt-2">
                       <div className="flex items-center justify-between">
-                        <span className="font-bold">Total Comisiones Fijas:</span>
-                        <span className="font-bold font-mono text-orange-600 text-lg">
-                          {formatCurrency(fixedCommissionsBs, "VES")}
+                        <span className="font-bold">Total Gastos Globales:</span>
+                        <span className="font-bold font-mono text-amber-600 text-lg">
+                          {formatCurrency(globalExpensesBs, "VES")}
                         </span>
                       </div>
                     </div>
