@@ -517,70 +517,128 @@ export function AdminGananciasView() {
                           </CardTitle>
                         </CardHeader>
                         <CardContent>
-                          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
-                            <div className="space-y-1">
-                              <p className="text-xs text-muted-foreground">Bruto</p>
-                              <p className="text-sm font-bold text-green-600 font-mono">
-                                {formatCurrency(grossProfitBs, "VES")}
-                              </p>
-                              <p className="text-xs text-green-600/70 font-mono">
-                                {formatCurrency(grossProfitUsd, "USD")}
-                              </p>
-                            </div>
+                          <Tabs defaultValue="bs" className="w-full">
+                            <TabsList className="grid w-full grid-cols-2 mb-4">
+                              <TabsTrigger value="bs">Bolívares</TabsTrigger>
+                              <TabsTrigger value="usd">Dólares</TabsTrigger>
+                            </TabsList>
+                            
+                            <TabsContent value="bs">
+                              <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
+                                <div className="space-y-1">
+                                  <p className="text-xs text-muted-foreground">Bruto</p>
+                                  <p className="text-sm font-bold text-green-600 font-mono">
+                                    {formatCurrency(grossProfitBs, "VES")}
+                                  </p>
+                                </div>
 
-                            <div className="space-y-1">
-                              <p className="text-xs text-muted-foreground">Gastos Globales</p>
-                              <p className="text-sm font-bold text-amber-600 font-mono">
-                                -{formatCurrency(allocatedGlobalExpenses, "VES")}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {agenciesCount} {agenciesCount === 1 ? "agencia" : "agencias"}
-                              </p>
-                            </div>
+                                <div className="space-y-1">
+                                  <p className="text-xs text-muted-foreground">Gastos Globales</p>
+                                  <p className="text-sm font-bold text-amber-600 font-mono">
+                                    -{formatCurrency(allocatedGlobalExpenses, "VES")}
+                                  </p>
+                                </div>
 
-                            <div className="space-y-1">
-                              <p className="text-xs text-muted-foreground">Neto</p>
-                              <p className="text-sm font-bold text-blue-600 font-mono">
-                                {formatCurrency(netProfitBs, "VES")}
-                              </p>
-                              <p className="text-xs text-blue-600/70 font-mono">
-                                {formatCurrency(netProfitUsd, "USD")}
-                              </p>
-                            </div>
+                                <div className="space-y-1">
+                                  <p className="text-xs text-muted-foreground">Neto</p>
+                                  <p className="text-sm font-bold text-blue-600 font-mono">
+                                    {formatCurrency(netProfitBs, "VES")}
+                                  </p>
+                                </div>
 
-                            <div className="space-y-1">
-                              <p className="text-xs text-muted-foreground">Gastos Grupo</p>
-                              <p className="text-sm font-bold text-red-600 font-mono">
-                                -{formatCurrency(groupExpensesBs, "VES")}
-                              </p>
-                            </div>
+                                <div className="space-y-1">
+                                  <p className="text-xs text-muted-foreground">Gastos Grupo</p>
+                                  <p className="text-sm font-bold text-red-600 font-mono">
+                                    -{formatCurrency(groupExpensesBs, "VES")}
+                                  </p>
+                                </div>
 
-                            <div className="space-y-1 bg-purple-500/10 p-2 rounded-lg">
-                              <p className="text-xs font-semibold text-purple-700">Final</p>
-                              <p className="text-lg font-bold text-purple-700 font-mono">
-                                {formatCurrency(finalProfitBs, "VES")}
-                              </p>
-                            </div>
-                          </div>
-
-                          {expensesList.length > 0 && (
-                            <div className="pt-3 border-t">
-                              <p className="text-xs font-semibold text-muted-foreground mb-2">
-                                Gastos Específicos del Grupo:
-                              </p>
-                              <div className="flex flex-wrap gap-2">
-                                {expensesList.map((expense, idx) => (
-                                  <div
-                                    key={idx}
-                                    className="flex items-center gap-2 px-3 py-1 bg-muted/50 rounded-full text-xs"
-                                  >
-                                    <span>{expense.description}</span>
-                                    <span className="font-bold font-mono">{formatCurrency(expense.amount, "VES")}</span>
-                                  </div>
-                                ))}
+                                <div className="space-y-1 bg-purple-500/10 p-2 rounded-lg">
+                                  <p className="text-xs font-semibold text-purple-700">Final</p>
+                                  <p className="text-lg font-bold text-purple-700 font-mono">
+                                    {formatCurrency(finalProfitBs, "VES")}
+                                  </p>
+                                </div>
                               </div>
-                            </div>
-                          )}
+
+                              {expensesList.length > 0 && (
+                                <div className="pt-3 border-t">
+                                  <p className="text-xs font-semibold text-muted-foreground mb-2">
+                                    Gastos Específicos del Grupo:
+                                  </p>
+                                  <div className="flex flex-wrap gap-2">
+                                    {expensesList.map((expense, idx) => (
+                                      <div
+                                        key={idx}
+                                        className="flex items-center gap-2 px-3 py-1 bg-muted/50 rounded-full text-xs"
+                                      >
+                                        <span>{expense.description}</span>
+                                        <span className="font-bold font-mono">{formatCurrency(expense.amount, "VES")}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </TabsContent>
+                            
+                            <TabsContent value="usd">
+                              <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
+                                <div className="space-y-1">
+                                  <p className="text-xs text-muted-foreground">Bruto</p>
+                                  <p className="text-sm font-bold text-green-600 font-mono">
+                                    {formatCurrency(grossProfitUsd, "USD")}
+                                  </p>
+                                </div>
+
+                                <div className="space-y-1">
+                                  <p className="text-xs text-muted-foreground">Gastos Globales</p>
+                                  <p className="text-sm font-bold text-amber-600 font-mono">
+                                    -{formatCurrency(allocatedGlobalExpenses / 36, "USD")}
+                                  </p>
+                                </div>
+
+                                <div className="space-y-1">
+                                  <p className="text-xs text-muted-foreground">Neto</p>
+                                  <p className="text-sm font-bold text-blue-600 font-mono">
+                                    {formatCurrency(netProfitUsd, "USD")}
+                                  </p>
+                                </div>
+
+                                <div className="space-y-1">
+                                  <p className="text-xs text-muted-foreground">Gastos Grupo</p>
+                                  <p className="text-sm font-bold text-red-600 font-mono">
+                                    -{formatCurrency(groupExpensesBs / 36, "USD")}
+                                  </p>
+                                </div>
+
+                                <div className="space-y-1 bg-purple-500/10 p-2 rounded-lg">
+                                  <p className="text-xs font-semibold text-purple-700">Final</p>
+                                  <p className="text-lg font-bold text-purple-700 font-mono">
+                                    {formatCurrency(finalProfitBs / 36, "USD")}
+                                  </p>
+                                </div>
+                              </div>
+
+                              {expensesList.length > 0 && (
+                                <div className="pt-3 border-t">
+                                  <p className="text-xs font-semibold text-muted-foreground mb-2">
+                                    Gastos Específicos del Grupo:
+                                  </p>
+                                  <div className="flex flex-wrap gap-2">
+                                    {expensesList.map((expense, idx) => (
+                                      <div
+                                        key={idx}
+                                        className="flex items-center gap-2 px-3 py-1 bg-muted/50 rounded-full text-xs"
+                                      >
+                                        <span>{expense.description}</span>
+                                        <span className="font-bold font-mono">{formatCurrency(expense.amount / 36, "USD")}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </TabsContent>
+                          </Tabs>
                         </CardContent>
                       </Card>
                     ),
