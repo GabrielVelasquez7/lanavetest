@@ -304,7 +304,7 @@ export function AdminGananciasView() {
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Resumen Principal */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 justify-items-center">
               <Card className="bg-gradient-to-br from-blue-500/10 to-background border-2 border-blue-500/30">
                 <CardContent className="pt-6">
                   <div className="flex items-center justify-between mb-2">
