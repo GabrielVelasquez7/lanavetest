@@ -238,12 +238,11 @@ export function AdminGananciasView() {
       // Calculate final profit (net - group-specific expenses)
       const finalProfitBs = netProfitBs - groupExpensesBs;
 
-      // Group expenses by category
-      const expensesByCategory: Record<string, number> = {};
-      groupExpenses.forEach((expense) => {
-        expensesByCategory[expense.category] =
-          (expensesByCategory[expense.category] || 0) + Number(expense.amount_bs || 0);
-      });
+      // Group expenses by description (concepto)
+      const expensesList: Array<{ description: string; amount: number }> = groupExpenses.map((expense) => ({
+        description: expense.description,
+        amount: Number(expense.amount_bs || 0),
+      }));
 
       return {
         group,
@@ -254,7 +253,7 @@ export function AdminGananciasView() {
         netProfitUsd,
         groupExpensesBs,
         finalProfitBs,
-        expensesByCategory,
+        expensesList,
         agenciesCount: groupAgenciesCount,
       };
     });
@@ -503,7 +502,7 @@ export function AdminGananciasView() {
                       netProfitUsd,
                       groupExpensesBs,
                       finalProfitBs,
-                      expensesByCategory,
+                      expensesList,
                       agenciesCount,
                     }) => (
                       <Card key={group.id} className="border-2">
@@ -562,19 +561,19 @@ export function AdminGananciasView() {
                             </div>
                           </div>
 
-                          {Object.keys(expensesByCategory).length > 0 && (
+                          {expensesList.length > 0 && (
                             <div className="pt-3 border-t">
                               <p className="text-xs font-semibold text-muted-foreground mb-2">
                                 Gastos Específicos del Grupo:
                               </p>
                               <div className="flex flex-wrap gap-2">
-                                {Object.entries(expensesByCategory).map(([category, amount]) => (
+                                {expensesList.map((expense, idx) => (
                                   <div
-                                    key={category}
+                                    key={idx}
                                     className="flex items-center gap-2 px-3 py-1 bg-muted/50 rounded-full text-xs"
                                   >
-                                    <span className="capitalize">{category.replace(/_/g, " ")}</span>
-                                    <span className="font-bold font-mono">{formatCurrency(amount, "VES")}</span>
+                                    <span>{expense.description}</span>
+                                    <span className="font-bold font-mono">{formatCurrency(expense.amount, "VES")}</span>
                                   </div>
                                 ))}
                               </div>
