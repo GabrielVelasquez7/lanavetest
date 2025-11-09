@@ -2,12 +2,11 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Pencil, Save, X, Loader2, DollarSign, Percent, TrendingUp } from "lucide-react";
+import { Pencil, Save, X, Loader2 } from "lucide-react";
 
 interface LotterySystem {
   id: string;
@@ -211,246 +210,234 @@ export function SystemCommissionsCrud() {
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-2xl font-bold flex items-center gap-2">
-          <Percent className="h-6 w-6 text-primary" />
-          Comisiones de Sistemas
-        </h2>
-        <p className="text-sm text-muted-foreground mt-1">
+        <h2 className="text-2xl font-bold">Comisiones de Sistemas</h2>
+        <p className="text-sm text-muted-foreground">
           Configure los porcentajes de comisión y utilidad para cada sistema de lotería
         </p>
       </div>
 
-      <div className="grid gap-3">
-        {systems.map((system) => {
-          const commission = commissions.get(system.id);
-          const isEditing = editingId === system.id;
+      <Tabs defaultValue="bolivares" className="w-full">
+        <TabsList>
+          <TabsTrigger value="bolivares">Bolívares</TabsTrigger>
+          <TabsTrigger value="dolares">Dólares</TabsTrigger>
+        </TabsList>
 
-          return (
-            <Card key={system.id} className="overflow-hidden">
-              <CardHeader className="pb-3 pt-4 px-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="text-base font-bold">{system.name}</CardTitle>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {commission ? (
-                      <Badge variant="default" className="bg-emerald-600 text-xs h-5">
-                        Configurado
-                      </Badge>
-                    ) : (
-                      <Badge variant="secondary" className="text-xs h-5">Sin configurar</Badge>
-                    )}
-                    {!isEditing && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleEdit(system.id)}
-                        className="gap-1 h-7 text-xs"
-                      >
-                        <Pencil className="h-3 w-3" />
-                        Editar
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </CardHeader>
+        <TabsContent value="bolivares" className="mt-4">
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Sistema</TableHead>
+                  <TableHead className="text-right">% Comisión</TableHead>
+                  <TableHead className="text-right">% Utilidad</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead className="text-right">Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {systems.map((system) => {
+                  const commission = commissions.get(system.id);
+                  const isEditing = editingId === system.id;
 
-              <CardContent className="px-4 pb-4">
-                {isEditing ? (
-                  <div className="space-y-3">
-                    <Tabs defaultValue="bolivares" className="w-full">
-                      <TabsList className="grid w-full grid-cols-2 h-8">
-                        <TabsTrigger value="bolivares" className="text-xs">Bolívares</TabsTrigger>
-                        <TabsTrigger value="dolares" className="text-xs">Dólares</TabsTrigger>
-                      </TabsList>
-
-                      <TabsContent value="bolivares" className="space-y-2 mt-2">
-                        <div className="grid gap-2 grid-cols-2">
-                          <div className="space-y-1.5">
-                            <Label htmlFor={`commission-bs-${system.id}`} className="flex items-center gap-1 text-xs">
-                              <Percent className="h-3 w-3 text-yellow-600" />
-                              Comisión Bs
-                            </Label>
-                            <div className="relative">
-                              <Input
-                                id={`commission-bs-${system.id}`}
-                                type="number"
-                                min="0"
-                                max="100"
-                                step="0.01"
-                                value={editValues.commission}
-                                onChange={(e) =>
-                                  setEditValues({ ...editValues, commission: e.target.value })
-                                }
-                                className="text-right pr-6 h-8 text-sm font-mono"
-                                placeholder="0.00"
-                              />
-                              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
-                            </div>
-                          </div>
-
-                          <div className="space-y-1.5">
-                            <Label htmlFor={`utility-bs-${system.id}`} className="flex items-center gap-1 text-xs">
-                              <TrendingUp className="h-3 w-3 text-green-600" />
-                              Utilidad Bs
-                            </Label>
-                            <div className="relative">
-                              <Input
-                                id={`utility-bs-${system.id}`}
-                                type="number"
-                                min="0"
-                                max="100"
-                                step="0.01"
-                                value={editValues.utility}
-                                onChange={(e) =>
-                                  setEditValues({ ...editValues, utility: e.target.value })
-                                }
-                                className="text-right pr-6 h-8 text-sm font-mono"
-                                placeholder="0.00"
-                              />
-                              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
-                            </div>
-                          </div>
-                        </div>
-                      </TabsContent>
-
-                      <TabsContent value="dolares" className="space-y-2 mt-2">
-                        <div className="grid gap-2 grid-cols-2">
-                          <div className="space-y-1.5">
-                            <Label htmlFor={`commission-usd-${system.id}`} className="flex items-center gap-1 text-xs">
-                              <DollarSign className="h-3 w-3 text-yellow-600" />
-                              Comisión USD
-                            </Label>
-                            <div className="relative">
-                              <Input
-                                id={`commission-usd-${system.id}`}
-                                type="number"
-                                min="0"
-                                max="100"
-                                step="0.01"
-                                value={editValues.commissionUsd}
-                                onChange={(e) =>
-                                  setEditValues({ ...editValues, commissionUsd: e.target.value })
-                                }
-                                className="text-right pr-6 h-8 text-sm font-mono"
-                                placeholder="0.00"
-                              />
-                              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
-                            </div>
-                          </div>
-
-                          <div className="space-y-1.5">
-                            <Label htmlFor={`utility-usd-${system.id}`} className="flex items-center gap-1 text-xs">
-                              <TrendingUp className="h-3 w-3 text-green-600" />
-                              Utilidad USD
-                            </Label>
-                            <div className="relative">
-                              <Input
-                                id={`utility-usd-${system.id}`}
-                                type="number"
-                                min="0"
-                                max="100"
-                                step="0.01"
-                                value={editValues.utilityUsd}
-                                onChange={(e) =>
-                                  setEditValues({ ...editValues, utilityUsd: e.target.value })
-                                }
-                                className="text-right pr-6 h-8 text-sm font-mono"
-                                placeholder="0.00"
-                              />
-                              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
-                            </div>
-                          </div>
-                        </div>
-                      </TabsContent>
-                    </Tabs>
-
-                    <div className="flex justify-end gap-2 pt-2 border-t">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={handleCancel}
-                        disabled={saving}
-                        className="gap-1 h-7 text-xs"
-                      >
-                        <X className="h-3 w-3" />
-                        Cancelar
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={() => handleSave(system.id)}
-                        disabled={saving}
-                        className="gap-1 h-7 text-xs"
-                      >
-                        {saving ? (
-                          <Loader2 className="h-3 w-3 animate-spin" />
+                  return (
+                    <TableRow key={system.id}>
+                      <TableCell className="font-medium">{system.name}</TableCell>
+                      <TableCell className="text-right">
+                        {isEditing ? (
+                          <Input
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.01"
+                            value={editValues.commission}
+                            onChange={(e) =>
+                              setEditValues({ ...editValues, commission: e.target.value })
+                            }
+                            className="w-28 text-right"
+                          />
                         ) : (
-                          <Save className="h-3 w-3" />
-                        )}
-                        Guardar
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="grid gap-3 grid-cols-2">
-                    <div className="space-y-2">
-                      <h4 className="font-semibold text-xs text-muted-foreground uppercase tracking-wider">
-                        Bolívares
-                      </h4>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="space-y-0.5">
-                          <p className="text-[10px] text-muted-foreground flex items-center gap-0.5">
-                            <Percent className="h-2.5 w-2.5" />
-                            Comisión
-                          </p>
-                          <p className="text-lg font-bold font-mono text-yellow-600">
+                          <span className="font-mono">
                             {commission?.commission_percentage.toFixed(2) || "0.00"}%
-                          </p>
-                        </div>
-                        <div className="space-y-0.5">
-                          <p className="text-[10px] text-muted-foreground flex items-center gap-0.5">
-                            <TrendingUp className="h-2.5 w-2.5" />
-                            Utilidad
-                          </p>
-                          <p className="text-lg font-bold font-mono text-green-600">
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {isEditing ? (
+                          <Input
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.01"
+                            value={editValues.utility}
+                            onChange={(e) =>
+                              setEditValues({ ...editValues, utility: e.target.value })
+                            }
+                            className="w-28 text-right"
+                          />
+                        ) : (
+                          <span className="font-mono">
                             {commission?.utility_percentage.toFixed(2) || "0.00"}%
-                          </p>
-                        </div>
-                      </div>
-                    </div>
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {commission ? (
+                          <Badge variant="default" className="bg-emerald-600">
+                            Configurado
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary">Sin configurar</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {isEditing ? (
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              size="sm"
+                              onClick={() => handleSave(system.id)}
+                              disabled={saving}
+                            >
+                              {saving ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Save className="h-4 w-4" />
+                              )}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={handleCancel}
+                              disabled={saving}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleEdit(system.id)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        </TabsContent>
 
-                    <div className="space-y-2">
-                      <h4 className="font-semibold text-xs text-muted-foreground uppercase tracking-wider">
-                        Dólares
-                      </h4>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="space-y-0.5">
-                          <p className="text-[10px] text-muted-foreground flex items-center gap-0.5">
-                            <DollarSign className="h-2.5 w-2.5" />
-                            Comisión
-                          </p>
-                          <p className="text-lg font-bold font-mono text-yellow-600">
+        <TabsContent value="dolares" className="mt-4">
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Sistema</TableHead>
+                  <TableHead className="text-right">% Comisión</TableHead>
+                  <TableHead className="text-right">% Utilidad</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead className="text-right">Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {systems.map((system) => {
+                  const commission = commissions.get(system.id);
+                  const isEditing = editingId === system.id;
+
+                  return (
+                    <TableRow key={system.id}>
+                      <TableCell className="font-medium">{system.name}</TableCell>
+                      <TableCell className="text-right">
+                        {isEditing ? (
+                          <Input
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.01"
+                            value={editValues.commissionUsd}
+                            onChange={(e) =>
+                              setEditValues({ ...editValues, commissionUsd: e.target.value })
+                            }
+                            className="w-28 text-right"
+                          />
+                        ) : (
+                          <span className="font-mono">
                             {commission?.commission_percentage_usd.toFixed(2) || "0.00"}%
-                          </p>
-                        </div>
-                        <div className="space-y-0.5">
-                          <p className="text-[10px] text-muted-foreground flex items-center gap-0.5">
-                            <TrendingUp className="h-2.5 w-2.5" />
-                            Utilidad
-                          </p>
-                          <p className="text-lg font-bold font-mono text-green-600">
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {isEditing ? (
+                          <Input
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.01"
+                            value={editValues.utilityUsd}
+                            onChange={(e) =>
+                              setEditValues({ ...editValues, utilityUsd: e.target.value })
+                            }
+                            className="w-28 text-right"
+                          />
+                        ) : (
+                          <span className="font-mono">
                             {commission?.utility_percentage_usd.toFixed(2) || "0.00"}%
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {commission ? (
+                          <Badge variant="default" className="bg-emerald-600">
+                            Configurado
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary">Sin configurar</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {isEditing ? (
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              size="sm"
+                              onClick={() => handleSave(system.id)}
+                              disabled={saving}
+                            >
+                              {saving ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Save className="h-4 w-4" />
+                              )}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={handleCancel}
+                              disabled={saving}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleEdit(system.id)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
