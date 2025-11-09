@@ -187,6 +187,9 @@ export function AdminGananciasView() {
   // Calculate final profit (net profit - global expenses - group-specific expenses)
   const finalProfitBs = totalNetProfitBs - globalExpensesBs - totalGroupExpensesBs;
   const groupsData = useMemo(() => {
+    // Total de gastos globales (comisiones fijas + otros gastos globales)
+    const totalGlobalExpenses = fixedCommissionsBs + globalExpensesBs;
+    
     return agencyGroups.map((group) => {
       // Get agencies in this group
       const groupAgencies = agencies.filter((a) => a.group_id === group.id);
@@ -222,10 +225,10 @@ export function AdminGananciasView() {
       const groupExpenses = groupSpecificExpenses.filter((e) => e.group_id === group.id);
       const groupExpensesBs = groupExpenses.reduce((total, e) => total + Number(e.amount_bs || 0), 0);
       
-      // Net profit after fixed commissions (distributed proportionally based on gross profit)
+      // Net profit after all global expenses (distributed proportionally based on gross profit)
       const proportion = totalGrossProfitBs > 0 ? grossProfitBs / totalGrossProfitBs : 0;
-      const allocatedFixedCommissions = fixedCommissionsBs * proportion;
-      const netProfitBs = grossProfitBs - allocatedFixedCommissions;
+      const allocatedGlobalExpenses = totalGlobalExpenses * proportion;
+      const netProfitBs = grossProfitBs - allocatedGlobalExpenses;
       const netProfitUsd = grossProfitUsd;
       
       // Calculate final profit (net - group-specific expenses)
@@ -241,7 +244,7 @@ export function AdminGananciasView() {
         group,
         grossProfitBs,
         grossProfitUsd,
-        allocatedFixedCommissions,
+        allocatedGlobalExpenses,
         netProfitBs,
         netProfitUsd,
         groupExpensesBs,
@@ -250,7 +253,7 @@ export function AdminGananciasView() {
         agenciesCount: groupAgencies.length,
       };
     });
-  }, [agencyGroups, agencies, summaries, commissions, groupSpecificExpenses, fixedCommissionsBs, totalGrossProfitBs]);
+  }, [agencyGroups, agencies, summaries, commissions, groupSpecificExpenses, fixedCommissionsBs, globalExpensesBs, totalGrossProfitBs]);
 
   const loading = summariesLoading || commissionsLoading;
 
@@ -475,7 +478,7 @@ export function AdminGananciasView() {
               <div className="space-y-4">
                 <h2 className="text-xl font-bold text-foreground">Desglose por Grupos</h2>
                 <div className="grid grid-cols-1 gap-4">
-                  {groupsData.map(({ group, grossProfitBs, grossProfitUsd, allocatedFixedCommissions, netProfitBs, netProfitUsd, groupExpensesBs, finalProfitBs, expensesByCategory, agenciesCount }) => (
+                  {groupsData.map(({ group, grossProfitBs, grossProfitUsd, allocatedGlobalExpenses, netProfitBs, netProfitUsd, groupExpensesBs, finalProfitBs, expensesByCategory, agenciesCount }) => (
                     <Card key={group.id} className="border-2">
                       <CardHeader className="pb-3">
                         <CardTitle className="flex items-center justify-between">
@@ -498,12 +501,12 @@ export function AdminGananciasView() {
                           </div>
                           
                           <div className="space-y-1">
-                            <p className="text-xs text-muted-foreground">Com. Fijas (Prop.)</p>
-                            <p className="text-sm font-bold text-orange-600 font-mono">
-                              -{formatCurrency(allocatedFixedCommissions, "VES")}
+                            <p className="text-xs text-muted-foreground">Gastos Globales (Prop.)</p>
+                            <p className="text-sm font-bold text-amber-600 font-mono">
+                              -{formatCurrency(allocatedGlobalExpenses, "VES")}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              {((allocatedFixedCommissions / fixedCommissionsBs) * 100).toFixed(1)}%
+                              {((allocatedGlobalExpenses / (fixedCommissionsBs + globalExpensesBs)) * 100).toFixed(1)}%
                             </p>
                           </div>
                           
