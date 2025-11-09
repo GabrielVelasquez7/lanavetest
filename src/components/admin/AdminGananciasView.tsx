@@ -304,22 +304,7 @@ export function AdminGananciasView() {
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Resumen Principal */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-              <Card className="bg-gradient-to-br from-green-500/10 to-background border-2 border-green-500/30">
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm font-medium text-muted-foreground">Total Bruto</p>
-                    <TrendingUp className="h-5 w-5 text-green-600" />
-                  </div>
-                  <p className="text-2xl font-bold text-green-600 font-mono">
-                    {formatCurrency(totalGrossProfitBs, "VES")}
-                  </p>
-                  <p className="text-sm text-green-600/70 font-mono mt-1">
-                    {formatCurrency(totalGrossProfitUsd, "USD")}
-                  </p>
-                </CardContent>
-              </Card>
-
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <Card className="bg-gradient-to-br from-blue-500/10 to-background border-2 border-blue-500/30">
                 <CardContent className="pt-6">
                   <div className="flex items-center justify-between mb-2">
