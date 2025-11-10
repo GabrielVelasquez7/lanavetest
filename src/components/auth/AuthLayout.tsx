@@ -15,7 +15,7 @@ const FloatingIcon = ({ icon: Icon, delay, duration, startX, startY }: {
   startY: string;
 }) => (
   <div
-    className="absolute opacity-10 animate-float"
+    className="absolute opacity-30 animate-float"
     style={{
       left: startX,
       top: startY,
@@ -23,7 +23,7 @@ const FloatingIcon = ({ icon: Icon, delay, duration, startX, startY }: {
       animationDuration: `${duration}s`,
     }}
   >
-    <Icon className="w-12 h-12 text-primary" />
+    <Icon className="w-16 h-16 text-primary" />
   </div>
 );
 
@@ -68,6 +68,12 @@ export const AuthLayout = () => {
     { icon: Coins, delay: 5, duration: 16, startX: '25%', startY: '50%' },
     { icon: CreditCard, delay: 2.5, duration: 21, startX: '65%', startY: '80%' },
     { icon: Wallet, delay: 4.5, duration: 18, startX: '90%', startY: '50%' },
+    { icon: DollarSign, delay: 1.5, duration: 19, startX: '5%', startY: '85%' },
+    { icon: TrendingUp, delay: 3.5, duration: 17, startX: '92%', startY: '15%' },
+    { icon: Coins, delay: 6, duration: 20, startX: '40%', startY: '90%' },
+    { icon: Receipt, delay: 0.5, duration: 18, startX: '85%', startY: '70%' },
+    { icon: Calculator, delay: 5.5, duration: 16, startX: '30%', startY: '5%' },
+    { icon: Wallet, delay: 2, duration: 22, startX: '60%', startY: '40%' },
   ];
 
   return (
