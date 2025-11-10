@@ -5,10 +5,10 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { DollarSign, TrendingUp, Receipt, Calculator, Banknote, Coins, CreditCard, Wallet, LucideIcon } from 'lucide-react';
+import { DollarSign, TrendingUp, Receipt, Calculator, Banknote, Coins, CreditCard, Wallet } from 'lucide-react';
 
 const FloatingIcon = ({ icon: Icon, delay, duration, startX, startY }: { 
-  icon: LucideIcon; 
+  icon: any; 
   delay: number; 
   duration: number;
   startX: string;
