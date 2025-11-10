@@ -7,13 +7,11 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 
 export const AuthLayout = () => {
-  const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
   
-  const { signIn, signUp } = useAuth();
+  const { signIn } = useAuth();
   const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -21,29 +19,13 @@ export const AuthLayout = () => {
     setLoading(true);
 
     try {
-      if (isSignUp) {
-        const { error } = await signUp(email, password, fullName);
-        if (error) {
-          toast({
-            title: "Error al registrarse",
-            description: error.message,
-            variant: "destructive",
-          });
-        } else {
-          toast({
-            title: "Registro exitoso",
-            description: "Revisa tu email para confirmar la cuenta",
-          });
-        }
-      } else {
-        const { error } = await signIn(email, password);
-        if (error) {
-          toast({
-            title: "Error al iniciar sesión",
-            description: error.message,
-            variant: "destructive",
-          });
-        }
+      const { error } = await signIn(email, password);
+      if (error) {
+        toast({
+          title: "Error al iniciar sesión",
+          description: error.message,
+          variant: "destructive",
+        });
       }
     } catch (error) {
       toast({
@@ -57,29 +39,26 @@ export const AuthLayout = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4 relative overflow-hidden">
+      {/* Animated Money Background */}
+      <div className="absolute inset-0 pointer-events-none">
+        <MoneyIcon icon="DollarSign" delay={0} />
+        <MoneyIcon icon="Coins" delay={2} />
+        <MoneyIcon icon="Banknote" delay={4} />
+        <MoneyIcon icon="Wallet" delay={1} />
+        <MoneyIcon icon="CreditCard" delay={3} />
+        <MoneyIcon icon="CircleDollarSign" delay={5} />
+      </div>
+
+      <Card className="w-full max-w-md relative z-10">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl text-center">Sistema de Loterías</CardTitle>
           <CardDescription className="text-center">
-            {isSignUp ? 'Crear nueva cuenta' : 'Iniciar sesión'}
+            Iniciar sesión
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
-            {isSignUp && (
-              <div className="space-y-2">
-                <Label htmlFor="fullName">Nombre completo</Label>
-                <Input
-                  id="fullName"
-                  type="text"
-                  placeholder="Tu nombre completo"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  required
-                />
-              </div>
-            )}
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -104,19 +83,37 @@ export const AuthLayout = () => {
           </CardContent>
           <CardFooter className="flex flex-col space-y-4">
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Cargando...' : (isSignUp ? 'Registrarse' : 'Iniciar sesión')}
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              className="w-full"
-              onClick={() => setIsSignUp(!isSignUp)}
-            >
-              {isSignUp ? '¿Ya tienes cuenta? Inicia sesión' : '¿No tienes cuenta? Regístrate'}
+              {loading ? 'Cargando...' : 'Iniciar sesión'}
             </Button>
           </CardFooter>
         </form>
       </Card>
+    </div>
+  );
+};
+
+// Floating money icon component
+const MoneyIcon = ({ icon, delay }: { icon: string; delay: number }) => {
+  const icons = {
+    DollarSign: '💵',
+    Coins: '🪙',
+    Banknote: '💸',
+    Wallet: '💰',
+    CreditCard: '💳',
+    CircleDollarSign: '💲',
+  };
+
+  const randomPosition = {
+    left: `${Math.random() * 100}%`,
+    animationDelay: `${delay}s`,
+  };
+
+  return (
+    <div
+      className="absolute text-4xl opacity-20 animate-float"
+      style={randomPosition}
+    >
+      {icons[icon as keyof typeof icons]}
     </div>
   );
 };
