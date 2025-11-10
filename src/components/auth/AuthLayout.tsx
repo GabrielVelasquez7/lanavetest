@@ -7,11 +7,13 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 
 export const AuthLayout = () => {
+  const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
   
-  const { signIn } = useAuth();
+  const { signIn, signUp } = useAuth();
   const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -19,13 +21,29 @@ export const AuthLayout = () => {
     setLoading(true);
 
     try {
-      const { error } = await signIn(email, password);
-      if (error) {
-        toast({
-          title: "Error al iniciar sesión",
-          description: error.message,
-          variant: "destructive",
-        });
+      if (isSignUp) {
+        const { error } = await signUp(email, password, fullName);
+        if (error) {
+          toast({
+            title: "Error al registrarse",
+            description: error.message,
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Registro exitoso",
+            description: "Revisa tu email para confirmar la cuenta",
+          });
+        }
+      } else {
+        const { error } = await signIn(email, password);
+        if (error) {
+          toast({
+            title: "Error al iniciar sesión",
+            description: error.message,
+            variant: "destructive",
+          });
+        }
       }
     } catch (error) {
       toast({
@@ -44,11 +62,24 @@ export const AuthLayout = () => {
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl text-center">Sistema de Loterías</CardTitle>
           <CardDescription className="text-center">
-            Iniciar sesión
+            {isSignUp ? 'Crear nueva cuenta' : 'Iniciar sesión'}
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
+            {isSignUp && (
+              <div className="space-y-2">
+                <Label htmlFor="fullName">Nombre completo</Label>
+                <Input
+                  id="fullName"
+                  type="text"
+                  placeholder="Tu nombre completo"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  required
+                />
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -71,9 +102,17 @@ export const AuthLayout = () => {
               />
             </div>
           </CardContent>
-          <CardFooter>
+          <CardFooter className="flex flex-col space-y-4">
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Cargando...' : 'Iniciar sesión'}
+              {loading ? 'Cargando...' : (isSignUp ? 'Registrarse' : 'Iniciar sesión')}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              className="w-full"
+              onClick={() => setIsSignUp(!isSignUp)}
+            >
+              {isSignUp ? '¿Ya tienes cuenta? Inicia sesión' : '¿No tienes cuenta? Regístrate'}
             </Button>
           </CardFooter>
         </form>

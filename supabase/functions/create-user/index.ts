@@ -1,29 +1,12 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.54.0'
 
-// Lista de orígenes permitidos para CORS
-const ALLOWED_ORIGINS = [
-  'https://bdd3ec42-db8e-4092-9bdf-a0870d4f520c.lovableproject.com',
-  'https://localhost:8080',
-  'http://localhost:8080',
-  'http://localhost:5173', // Vite dev server alternativo
-]
-
-// Función para obtener headers CORS seguros
-function getCorsHeaders(origin: string | null) {
-  const isAllowed = origin && ALLOWED_ORIGINS.includes(origin)
-  return {
-    'Access-Control-Allow-Origin': isAllowed ? origin : ALLOWED_ORIGINS[0],
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Credentials': 'true',
-  }
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
 serve(async (req) => {
-  const origin = req.headers.get('origin')
-  const corsHeaders = getCorsHeaders(origin)
-
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
@@ -32,28 +15,10 @@ serve(async (req) => {
   try {
     console.log('=== CREATE USER FUNCTION START ===')
     
-    // Validar que las variables de entorno estén configuradas
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-    
-    if (!supabaseUrl || !serviceRoleKey) {
-      console.error('Missing required environment variables')
-      return new Response(
-        JSON.stringify({ 
-          error: 'Error de configuración del servidor',
-          details: 'Variables de entorno no configuradas correctamente'
-        }),
-        { 
-          status: 500, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      )
-    }
-    
     // Create Supabase client with service role key for admin operations
     const supabaseAdmin = createClient(
-      supabaseUrl,
-      serviceRoleKey,
+      'https://pmmjomdrkcnmdakytlen.supabase.co',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBtbWpvbWRya2NubWRha3l0bGVuIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NDkzODE1MywiZXhwIjoyMDcwNTE0MTUzfQ.2kmJ7evdUjnD8NGCzEqMdbMAsAMRr6nyn7g1XgAdVVU',
       {
         auth: {
           autoRefreshToken: false,
@@ -80,7 +45,7 @@ serve(async (req) => {
         JSON.stringify({ error: 'Email, password, full_name, and role are required' }),
         { 
           status: 400, 
-          headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' } 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
         }
       )
     }
@@ -93,7 +58,7 @@ serve(async (req) => {
         JSON.stringify({ error: 'Invalid role. Must be taquillero, encargado, administrador, or encargada' }),
         { 
           status: 400, 
-          headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' } 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
         }
       )
     }
@@ -134,7 +99,7 @@ serve(async (req) => {
         JSON.stringify({ error: errorMessage }),
         { 
           status: 400, 
-          headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' } 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
         }
       )
     }
@@ -152,7 +117,7 @@ serve(async (req) => {
         }
       }),
       { 
-        headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' } 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
       }
     )
 
@@ -165,7 +130,7 @@ serve(async (req) => {
       }),
       { 
         status: 500, 
-        headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' } 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
       }
     )
   }
