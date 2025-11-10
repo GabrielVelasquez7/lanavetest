@@ -1,10 +1,24 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+// Lista de orígenes permitidos para CORS
+const ALLOWED_ORIGINS = [
+  'https://bdd3ec42-db8e-4092-9bdf-a0870d4f520c.lovableproject.com',
+  'https://localhost:8080',
+  'http://localhost:8080',
+  'http://localhost:5173', // Vite dev server alternativo
+];
+
+// Función para obtener headers CORS seguros
+function getCorsHeaders(origin: string | null) {
+  const isAllowed = origin && ALLOWED_ORIGINS.includes(origin);
+  return {
+    'Access-Control-Allow-Origin': isAllowed ? origin : ALLOWED_ORIGINS[0],
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Credentials': 'true',
+  };
+}
 
 // Agency mapping: Internal ID -> SOURCES API details
 const AGENCY_MAPPING: Record<string, { sourcesName: string, grupoId: string }> = {
@@ -42,6 +56,9 @@ interface SourcesComercio {
 }
 
 serve(async (req) => {
+  const origin = req.headers.get('origin');
+  const corsHeaders = getCorsHeaders(origin);
+
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -52,9 +69,26 @@ serve(async (req) => {
     const { target_date }: SyncRequest = await req.json();
     console.log('Target date received:', target_date);
 
+    // Validar que las variables de entorno estén configuradas
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    
+    if (!supabaseUrl || !supabaseKey) {
+      console.error('Missing required environment variables');
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Error de configuración del servidor',
+          details: 'Variables de entorno no configuradas correctamente'
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 500
+        }
+      );
+    }
+
     // Initialize Supabase client
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Step 1: Authenticate with SOURCES API
