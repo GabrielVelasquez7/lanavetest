@@ -32,10 +32,5 @@ export default defineConfig(({ mode }) => {
         "@": path.resolve(__dirname, "./src"),
       },
     },
-    // Configuración para Vercel
-    build: {
-      outDir: 'dist',
-      sourcemap: false,
-    },
   };
 });

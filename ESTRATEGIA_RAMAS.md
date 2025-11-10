@@ -3,42 +3,35 @@
 ## 🎯 Situación Actual
 
 Tienes dos plataformas conectadas al mismo repositorio:
-- **Lovable** - Usa la rama `main`
-- **Vercel** - Usa la rama `vercel` (ahora también puede usar `main`)
+- **Lovable** - Usa la rama `main` (sin configuración de Vercel)
+- **Vercel** - Usa la rama `vercel` (con configuración específica de Vercel)
 
 ## ✅ Solución Aplicada
 
-Se hizo merge de `vercel` → `main` para unificar:
-- ✅ Correcciones de seguridad
-- ✅ Configuración de Vercel
-- ✅ Mejoras de build
-- ✅ Metadatos actualizados
+Se separaron las configuraciones para evitar conflictos:
+
+### Rama `main` (Para Lovable)
+- ✅ Correcciones de seguridad aplicadas
+- ✅ Sin binarios nativos de Linux
+- ✅ Sin `vercel.json`
+- ✅ Sin `.npmrc` específico de Vercel
+- ✅ Compatible con el entorno de Lovable
+
+### Rama `vercel` (Para Vercel)
+- ✅ Todas las correcciones de seguridad
+- ✅ Binarios nativos de Linux (`@rollup/rollup-linux-x64-gnu`, `@esbuild/linux-x64`, `@swc/core-linux-x64-gnu`)
+- ✅ `vercel.json` con configuración de build
+- ✅ `.npmrc` con `legacy-peer-deps`
+- ✅ `.vercelignore` para optimizar despliegues
 
 ---
 
-## 🔄 Estrategias Recomendadas
+## 🔄 Flujo de Trabajo Recomendado
 
-### Opción 1: Usar Solo `main` (Recomendado)
+### Desarrollo Normal (En Lovable)
 
-**Ventajas:**
-- ✅ Una sola fuente de verdad
-- ✅ Sin conflictos de versiones
-- ✅ Lovable y Vercel sincronizados
-- ✅ Más simple de mantener
-
-**Configuración:**
-1. **Vercel Dashboard:**
-   - Settings > Git
-   - Cambiar rama de producción a `main`
-   - O dejar que use `main` por defecto
-
-2. **Lovable:**
-   - Ya usa `main` por defecto
-   - No necesita cambios
-
-**Flujo de trabajo:**
 ```bash
-# Trabajar en main directamente
+# Trabajar en main
 git checkout main
 git pull origin main
 
@@ -50,188 +43,161 @@ git add .
 git commit -m "feat: Nueva funcionalidad"
 git push origin main
 
-# ✅ Lovable y Vercel se actualizan automáticamente
+# ✅ Lovable se actualiza automáticamente
 ```
 
----
+### Cuando Necesites Usar Vercel
 
-### Opción 2: Mantener Ramas Separadas (Avanzado)
-
-**Cuándo usar:**
-- Si quieres probar cambios en Vercel antes de aplicarlos a Lovable
-- Si Lovable y Vercel necesitan configuraciones diferentes
-
-**Configuración:**
-- **Lovable:** Usa `main`
-- **Vercel:** Usa `vercel` (o `staging`)
-
-**Flujo de trabajo:**
 ```bash
-# Desarrollo en main
+# 1. Asegúrate de tener los últimos cambios de main
 git checkout main
-# ... hacer cambios ...
-git commit -m "feat: Nueva funcionalidad"
-git push origin main
-# ✅ Lovable se actualiza
+git pull origin main
 
-# Cuando esté listo para Vercel
+# 2. Cambiar a rama vercel
+git checkout vercel
+
+# 3. Traer cambios de main a vercel
+git merge main
+
+# 4. Push a vercel
+git push origin vercel
+
+# ✅ Vercel se actualiza automáticamente
+```
+
+### Sincronizar Correcciones de Seguridad
+
+Si aplicas correcciones de seguridad en `main`, también debes aplicarlas en `vercel`:
+
+```bash
+# Desde main
+git checkout main
+# ... aplicar correcciones ...
+git commit -m "fix: Corrección de seguridad"
+git push origin main
+
+# Aplicar en vercel también
 git checkout vercel
 git merge main
 git push origin vercel
-# ✅ Vercel se actualiza
 ```
 
-**Desventajas:**
-- ⚠️ Más complejo de mantener
-- ⚠️ Puede haber desincronización
-- ⚠️ Más trabajo manual
-
 ---
 
-## 🎯 Recomendación: Opción 1 (Una Sola Rama)
-
-**Recomiendo usar solo `main` porque:**
-
-1. **Simplicidad:** Un solo flujo de trabajo
-2. **Sincronización:** Lovable y Vercel siempre en la misma versión
-3. **Menos errores:** No hay riesgo de desincronización
-4. **Más rápido:** Un solo push actualiza todo
-
-### Pasos para Implementar
-
-1. **Configurar Vercel para usar `main`:**
-   - Ve a Vercel Dashboard > Settings > Git
-   - Cambia la rama de producción a `main`
-   - O simplemente elimina la configuración de rama (usará `main` por defecto)
-
-2. **Opcional: Eliminar rama `vercel`:**
-   ```bash
-   # Si ya no la necesitas
-   git branch -d vercel
-   git push origin --delete vercel
-   ```
-
-3. **Trabajar siempre en `main`:**
-   ```bash
-   git checkout main
-   # ... hacer cambios ...
-   git push origin main
-   ```
-
----
-
-## 📋 Checklist Post-Merge
-
-Después del merge que acabamos de hacer:
-
-- [x] Merge de `vercel` → `main` completado
-- [ ] Configurar Vercel para usar `main` (si no lo hace ya)
-- [ ] Verificar que Lovable sigue funcionando
-- [ ] Verificar que Vercel sigue funcionando
-- [ ] Opcional: Eliminar rama `vercel` si ya no se necesita
-
----
-
-## 🔍 Verificar Configuración Actual
+## 📋 Configuración de Vercel
 
 ### En Vercel Dashboard:
-1. Settings > Git
-2. Ver qué rama está configurada para producción
-3. Si es `vercel`, cambiarla a `main`
 
-### En Lovable:
-- Lovable usa `main` por defecto
-- No necesita configuración adicional
+1. Ve a **Settings** > **Git**
+2. Verifica que la rama de producción esté configurada como `vercel`
+3. Si no, cámbiala a `vercel`
+
+**Importante:** Vercel debe usar la rama `vercel`, no `main`, porque `main` no tiene los binarios nativos de Linux ni la configuración necesaria.
+
+---
+
+## 🚨 Resolver Conflictos
+
+Si hay conflictos al hacer merge de `main` → `vercel`:
+
+```bash
+git checkout vercel
+git merge main
+
+# Si hay conflictos, resolverlos manualmente
+# Los archivos que pueden tener conflictos:
+# - package.json (binarios de Linux solo en vercel)
+# - vercel.json (solo existe en vercel)
+# - .npmrc (solo existe en vercel)
+
+# Después de resolver:
+git add .
+git commit -m "merge: Integrar cambios de main"
+git push origin vercel
+```
+
+---
+
+## 📝 Archivos Específicos por Rama
+
+### Solo en `vercel`:
+- `vercel.json` - Configuración de Vercel
+- `.npmrc` - Configuración npm para Vercel
+- `.vercelignore` - Archivos a ignorar en Vercel
+- Binarios nativos de Linux en `package.json`:
+  - `@rollup/rollup-linux-x64-gnu`
+  - `@esbuild/linux-x64`
+  - `@swc/core-linux-x64-gnu`
+
+### En ambas ramas:
+- Correcciones de seguridad en `supabase/functions/`
+- Código fuente de la aplicación
+- Configuración de Vite (sin build específico de Vercel en `main`)
+
+---
+
+## ✅ Ventajas de Esta Estrategia
+
+1. **Lovable funciona correctamente** - Sin binarios de Linux que causan problemas
+2. **Vercel funciona correctamente** - Con todos los binarios y configuraciones necesarias
+3. **Sin conflictos** - Cada plataforma usa su rama específica
+4. **Flexibilidad** - Puedes trabajar en Lovable normalmente y usar Vercel cuando lo necesites
 
 ---
 
 ## 💡 Mejores Prácticas
 
-### Para Desarrollo Normal
+### Para Desarrollo Diario
+- ✅ Trabaja siempre en `main`
+- ✅ Usa Lovable para desarrollo normal
+- ✅ Solo cambia a `vercel` cuando necesites desplegar en Vercel
 
-```bash
-# Siempre trabajar en main
-git checkout main
-git pull origin main
+### Para Despliegues en Vercel
+- ✅ Sincroniza `main` → `vercel` antes de desplegar
+- ✅ Verifica que el build funcione en Vercel
+- ✅ No edites directamente en `vercel` (mejor editar en `main` y luego merge)
 
-# Hacer cambios
-npm run dev  # Probar localmente
-
-# Commit y push
-git add .
-git commit -m "feat: Descripción del cambio"
-git push origin main
-
-# ✅ Lovable y Vercel se actualizan automáticamente
-```
-
-### Para Cambios Experimentales
-
-Si quieres probar algo sin afectar producción:
-
-```bash
-# Crear rama temporal
-git checkout -b feature/nueva-funcionalidad
-
-# Hacer cambios
-# ... editar ...
-
-# Probar localmente
-npm run dev
-
-# Si funciona, merge a main
-git checkout main
-git merge feature/nueva-funcionalidad
-git push origin main
-
-# Eliminar rama temporal
-git branch -d feature/nueva-funcionalidad
-```
+### Para Correcciones de Seguridad
+- ✅ Aplica en `main` primero
+- ✅ Luego merge a `vercel`
+- ✅ Mantén ambas ramas sincronizadas en seguridad
 
 ---
 
-## 🚨 Resolver Conflictos Futuros
+## 🔍 Verificar Estado
 
-Si en el futuro hay conflictos entre Lovable y tus cambios:
-
-### Opción A: Pull y Merge
+### Ver qué rama estás usando:
 ```bash
-git checkout main
-git pull origin main  # Trae cambios de Lovable
-# Resolver conflictos si los hay
-git push origin main
+git branch
 ```
 
-### Opción B: Rebase
+### Ver diferencias entre ramas:
 ```bash
-git checkout main
-git pull --rebase origin main
-# Resolver conflictos si los hay
-git push origin main
+# Ver qué tiene vercel que main no tiene
+git diff main..vercel
+
+# Ver qué tiene main que vercel no tiene
+git diff vercel..main
+```
+
+### Ver commits únicos de cada rama:
+```bash
+# Commits en vercel que no están en main
+git log main..vercel
+
+# Commits en main que no están en vercel
+git log vercel..main
 ```
 
 ---
 
-## ✅ Estado Actual
+## 📌 Resumen
 
-Después del merge:
-- ✅ `main` tiene todas las mejoras de seguridad
-- ✅ `main` tiene configuración de Vercel
-- ✅ `main` tiene metadatos actualizados
-- ✅ Lovable y Vercel pueden usar la misma rama
-
-**Próximo paso:** Configurar Vercel para usar `main` (si no lo hace ya)
+- **`main`**: Para Lovable, sin configuración de Vercel
+- **`vercel`**: Para Vercel, con toda la configuración necesaria
+- **Flujo**: Desarrolla en `main`, cuando necesites Vercel, merge `main` → `vercel`
+- **Seguridad**: Mantén ambas ramas sincronizadas en correcciones de seguridad
 
 ---
 
-## 📝 Notas
-
-- **Lovable** siempre sincroniza con `main`
-- **Vercel** puede usar cualquier rama, pero es mejor usar `main`
-- Los cambios en `main` se reflejan en ambas plataformas
-- No hay necesidad de mantener ramas separadas a menos que tengas un caso específico
-
----
-
-**Recomendación final:** Usa solo `main` para simplicidad y evitar conflictos.
-
+**Esta estrategia te permite usar Lovable normalmente y tener Vercel como respaldo cuando lo necesites, sin conflictos entre plataformas.**
