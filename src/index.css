@@ -108,23 +108,4 @@ All colors MUST be HSL.
   body {
     @apply bg-background text-foreground;
   }
-
-  @keyframes float {
-    0%, 100% {
-      transform: translateY(0) translateX(0);
-    }
-    25% {
-      transform: translateY(-30px) translateX(10px);
-    }
-    50% {
-      transform: translateY(-60px) translateX(-10px);
-    }
-    75% {
-      transform: translateY(-30px) translateX(5px);
-    }
-  }
-
-  .animate-float {
-    animation: float 8s ease-in-out infinite;
-  }
 }
