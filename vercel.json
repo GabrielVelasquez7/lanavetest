@@ -2,7 +2,7 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "devCommand": "npm run dev",
-  "installCommand": "npm install --legacy-peer-deps --no-audit && npm install @rollup/rollup-linux-x64-gnu @esbuild/linux-x64 --save-dev --legacy-peer-deps || true",
+  "installCommand": "npm install --legacy-peer-deps --no-audit && npm install @rollup/rollup-linux-x64-gnu @esbuild/linux-x64 @swc/core-linux-x64-gnu --save-dev --legacy-peer-deps || true",
   "framework": "vite",
   "rewrites": [
     {
