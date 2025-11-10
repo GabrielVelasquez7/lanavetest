@@ -376,8 +376,25 @@ export function AdminGananciasView() {
                         Distribución de Ganancias ({currency === "bs" ? "Bs" : "USD"})
                       </h4>
                       <div className="space-y-3">
-                        {["Denis", "Jonathan", "Byker", "Daniela", "Jorge"].map((person) => {
-                          const baseShare = currency === "bs" ? finalProfitBs / 5 : totalNetProfitUsd / 5;
+                        {["Denis", "Jonathan", "Byjer", "Daniela", "Jorge"].map((person) => {
+                          // Get the final profit for each group
+                          const grupo1 = groupsData[0] ? (currency === "bs" ? groupsData[0].finalProfitBs : groupsData[0].netProfitUsd) : 0;
+                          const grupo2 = groupsData[1] ? (currency === "bs" ? groupsData[1].finalProfitBs : groupsData[1].netProfitUsd) : 0;
+                          const grupo3 = groupsData[2] ? (currency === "bs" ? groupsData[2].finalProfitBs : groupsData[2].netProfitUsd) : 0;
+                          
+                          // Calculate base share according to each person's formula
+                          let baseShare = 0;
+                          if (person === "Denis" || person === "Jonathan") {
+                            // (Grupo1/5) + (Grupo2/4) + (Grupo3/3)
+                            baseShare = (grupo1 / 5) + (grupo2 / 4) + (grupo3 / 3);
+                          } else if (person === "Byjer") {
+                            // (Grupo1/5) + (Grupo3/3)
+                            baseShare = (grupo1 / 5) + (grupo3 / 3);
+                          } else if (person === "Daniela" || person === "Jorge") {
+                            // (Grupo1/5) + (Grupo2/4)
+                            baseShare = (grupo1 / 5) + (grupo2 / 4);
+                          }
+                          
                           const restaPerdida = 0;
                           const sumaGanancia = 0;
                           const abonos = 0;
