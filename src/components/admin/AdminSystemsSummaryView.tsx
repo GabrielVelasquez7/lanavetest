@@ -84,12 +84,10 @@ export function AdminSystemsSummaryView() {
     });
 
     // Calculate totals with commission applied
+    // El porcentaje se aplica sobre las ventas, no sobre (ventas - premios)
     systemsMap.forEach((system) => {
-      const netBs = system.sales_bs - system.prizes_bs;
-      const netUsd = system.sales_usd - system.prizes_usd;
-      
-      system.total_bs = netBs * (system.commission_percentage_bs / 100);
-      system.total_usd = netUsd * (system.commission_percentage_usd / 100);
+      system.total_bs = system.sales_bs * (system.commission_percentage_bs / 100);
+      system.total_usd = system.sales_usd * (system.commission_percentage_usd / 100);
     });
 
     return Array.from(systemsMap.values()).sort((a, b) => a.system_name.localeCompare(b.system_name));
