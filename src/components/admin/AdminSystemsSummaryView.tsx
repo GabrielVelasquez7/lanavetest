@@ -101,11 +101,13 @@ export function AdminSystemsSummaryView() {
         acc.sales_usd += sys.sales_usd;
         acc.prizes_bs += sys.prizes_bs;
         acc.prizes_usd += sys.prizes_usd;
-        acc.total_bs += sys.total_bs;
-        acc.total_usd += sys.total_usd;
+        acc.commission_bs += sys.total_bs; // total_bs es la comisión
+        acc.commission_usd += sys.total_usd; // total_usd es la comisión
+        acc.total_bs += (sys.sales_bs - sys.prizes_bs - sys.total_bs);
+        acc.total_usd += (sys.sales_usd - sys.prizes_usd - sys.total_usd);
         return acc;
       },
-      { sales_bs: 0, sales_usd: 0, prizes_bs: 0, prizes_usd: 0, total_bs: 0, total_usd: 0 }
+      { sales_bs: 0, sales_usd: 0, prizes_bs: 0, prizes_usd: 0, commission_bs: 0, commission_usd: 0, total_bs: 0, total_usd: 0 }
     );
   }, [systemsData]);
 
@@ -163,7 +165,8 @@ export function AdminSystemsSummaryView() {
                     <TableHead className="text-right font-bold">Ventas</TableHead>
                     <TableHead className="text-right font-bold">Premios</TableHead>
                     <TableHead className="text-right font-bold">Ventas - Premios</TableHead>
-                    <TableHead className="text-right font-bold">% BS</TableHead>
+                    <TableHead className="text-right font-bold">% Comisión</TableHead>
+                    <TableHead className="text-right font-bold bg-yellow-500/20">Comisión</TableHead>
                     <TableHead className="text-right font-bold bg-blue-50 dark:bg-blue-950">
                       Total
                     </TableHead>
@@ -174,7 +177,8 @@ export function AdminSystemsSummaryView() {
                     const sales = currency === "bs" ? sys.sales_bs : sys.sales_usd;
                     const prizes = currency === "bs" ? sys.prizes_bs : sys.prizes_usd;
                     const net = sales - prizes;
-                    const total = currency === "bs" ? sys.total_bs : sys.total_usd;
+                    const commission = currency === "bs" ? sys.total_bs : sys.total_usd;
+                    const total = net - commission;
                     const percentage = currency === "bs" ? sys.commission_percentage_bs : sys.commission_percentage_usd;
 
                     return (
@@ -191,6 +195,9 @@ export function AdminSystemsSummaryView() {
                         </TableCell>
                         <TableCell className="text-right font-mono text-muted-foreground">
                           {percentage.toFixed(2)}%
+                        </TableCell>
+                        <TableCell className="text-right font-mono font-bold bg-yellow-500/20">
+                          {currency === "bs" ? formatCurrency(commission, "VES") : formatCurrency(commission, "USD")}
                         </TableCell>
                         <TableCell className="text-right font-mono font-bold text-blue-600 bg-blue-50 dark:bg-blue-950">
                           {currency === "bs" ? formatCurrency(total, "VES") : formatCurrency(total, "USD")}
@@ -214,6 +221,9 @@ export function AdminSystemsSummaryView() {
                         : formatCurrency(grandTotals.sales_usd - grandTotals.prizes_usd, "USD")}
                     </TableCell>
                     <TableCell className="text-right">-</TableCell>
+                    <TableCell className="text-right font-mono font-bold bg-yellow-500/20">
+                      {currency === "bs" ? formatCurrency(grandTotals.commission_bs, "VES") : formatCurrency(grandTotals.commission_usd, "USD")}
+                    </TableCell>
                     <TableCell className="text-right font-mono font-bold text-blue-600 bg-blue-100 dark:bg-blue-900 text-lg">
                       {currency === "bs" ? formatCurrency(grandTotals.total_bs, "VES") : formatCurrency(grandTotals.total_usd, "USD")}
                     </TableCell>
