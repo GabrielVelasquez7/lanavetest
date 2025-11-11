@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ChevronLeft, ChevronRight, Calculator, ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronLeft, ChevronRight, Calculator, ChevronDown, ChevronUp, DollarSign, TrendingUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useWeeklyCuadre, type WeekBoundaries } from "@/hooks/useWeeklyCuadre";
 import { useSystemCommissions } from "@/hooks/useSystemCommissions";
@@ -266,30 +266,90 @@ export function AdminSystemsSummaryView() {
       </div>
 
       {currentWeek && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <Button variant="outline" size="sm" onClick={() => navigateWeek("prev")}>
-                <ChevronLeft className="h-4 w-4 mr-1" />
-                Anterior
-              </Button>
-              <CardTitle className="text-center">
-                {format(currentWeek.start, "d 'de' MMMM", { locale: es })} -{" "}
-                {format(currentWeek.end, "d 'de' MMMM, yyyy", { locale: es })}
-              </CardTitle>
-              <Button variant="outline" size="sm" onClick={() => navigateWeek("next")}>
-                Siguiente
-                <ChevronRight className="h-4 w-4 ml-1" />
-              </Button>
-            </div>
-            <Tabs value={currency} onValueChange={(value) => setCurrency(value as "bs" | "usd")} className="w-full mt-4">
-              <TabsList className="grid w-full max-w-md mx-auto grid-cols-2">
-                <TabsTrigger value="bs">Bolívares</TabsTrigger>
-                <TabsTrigger value="usd">Dólares</TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </CardHeader>
-          <CardContent>
+        <>
+          {/* Cuadros de resumen de utilidades */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Ganancia por Utilidad en Bolívares */}
+            <Card className="border-2 border-purple-500/20 bg-gradient-to-br from-purple-500/10 to-purple-500/5">
+              <CardContent className="pt-6">
+                <div className="flex items-start justify-between mb-2">
+                  <div className="p-2 bg-purple-500/10 rounded-lg">
+                    <DollarSign className="h-5 w-5 text-purple-600" />
+                  </div>
+                </div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                  Ganancia por Utilidad (Bs)
+                </p>
+                <p className="text-2xl font-bold text-purple-600 font-mono">
+                  {formatCurrency(grandTotals.participation_bs, "VES")}
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Ganancia por Utilidad en Dólares */}
+            <Card className="border-2 border-blue-500/20 bg-gradient-to-br from-blue-500/10 to-blue-500/5">
+              <CardContent className="pt-6">
+                <div className="flex items-start justify-between mb-2">
+                  <div className="p-2 bg-blue-500/10 rounded-lg">
+                    <DollarSign className="h-5 w-5 text-blue-600" />
+                  </div>
+                </div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                  Ganancia por Utilidad (USD)
+                </p>
+                <p className="text-2xl font-bold text-blue-600 font-mono">
+                  {formatCurrency(grandTotals.participation_usd, "USD")}
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Total de Utilidades */}
+            <Card className="border-2 border-emerald-500/20 bg-gradient-to-br from-emerald-500/10 to-emerald-500/5">
+              <CardContent className="pt-6">
+                <div className="flex items-start justify-between mb-2">
+                  <div className="p-2 bg-emerald-500/10 rounded-lg">
+                    <TrendingUp className="h-5 w-5 text-emerald-600" />
+                  </div>
+                </div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                  Total Utilidades
+                </p>
+                <div className="space-y-0.5">
+                  <p className="text-xl font-bold text-emerald-600 font-mono">
+                    {formatCurrency(grandTotals.participation_bs, "VES")}
+                  </p>
+                  <p className="text-sm font-semibold text-emerald-600/70 font-mono">
+                    {formatCurrency(grandTotals.participation_usd, "USD")}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <Button variant="outline" size="sm" onClick={() => navigateWeek("prev")}>
+                  <ChevronLeft className="h-4 w-4 mr-1" />
+                  Anterior
+                </Button>
+                <CardTitle className="text-center">
+                  {format(currentWeek.start, "d 'de' MMMM", { locale: es })} -{" "}
+                  {format(currentWeek.end, "d 'de' MMMM, yyyy", { locale: es })}
+                </CardTitle>
+                <Button variant="outline" size="sm" onClick={() => navigateWeek("next")}>
+                  Siguiente
+                  <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              </div>
+              <Tabs value={currency} onValueChange={(value) => setCurrency(value as "bs" | "usd")} className="w-full mt-4">
+                <TabsList className="grid w-full max-w-md mx-auto grid-cols-2">
+                  <TabsTrigger value="bs">Bolívares</TabsTrigger>
+                  <TabsTrigger value="usd">Dólares</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </CardHeader>
+            <CardContent>
             <div className="rounded-md border overflow-x-auto">
               <Table>
                 <TableHeader>
@@ -487,6 +547,7 @@ export function AdminSystemsSummaryView() {
             )}
           </CardContent>
         </Card>
+        </>
       )}
     </div>
   );
