@@ -229,7 +229,7 @@ export function SystemCommissionsCrud() {
                 <TableRow>
                   <TableHead>Sistema</TableHead>
                   <TableHead className="text-right">% Comisión</TableHead>
-                  <TableHead className="text-right">% Utilidad</TableHead>
+                  <TableHead className="text-right">% Participación</TableHead>
                   <TableHead>Estado</TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
@@ -337,7 +337,7 @@ export function SystemCommissionsCrud() {
                 <TableRow>
                   <TableHead>Sistema</TableHead>
                   <TableHead className="text-right">% Comisión</TableHead>
-                  <TableHead className="text-right">% Utilidad</TableHead>
+                  <TableHead className="text-right">% Participación</TableHead>
                   <TableHead>Estado</TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
