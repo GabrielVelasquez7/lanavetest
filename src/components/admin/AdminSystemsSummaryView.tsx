@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ChevronLeft, ChevronRight, Calculator } from "lucide-react";
+import { ChevronLeft, ChevronRight, Calculator, ChevronDown, ChevronUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useWeeklyCuadre, type WeekBoundaries } from "@/hooks/useWeeklyCuadre";
 import { useSystemCommissions } from "@/hooks/useSystemCommissions";
@@ -24,13 +24,35 @@ interface SystemSummary {
   utility_percentage_usd: number;
   total_bs: number;
   total_usd: number;
+  hasSubcategories: boolean;
+  subcategories?: SystemSummary[]; // Subcategorías individuales
+}
+
+interface LotterySystem {
+  id: string;
+  name: string;
+  parent_system_id: string | null;
+  has_subcategories: boolean | null;
 }
 
 export function AdminSystemsSummaryView() {
   const [currentWeek, setCurrentWeek] = useState<WeekBoundaries | null>(null);
   const [currency, setCurrency] = useState<"bs" | "usd">("bs");
+  const [showParticipation, setShowParticipation] = useState(false);
+  const [expandedSystems, setExpandedSystems] = useState<Set<string>>(new Set());
+  const [lotterySystems, setLotterySystems] = useState<LotterySystem[]>([]);
   const { summaries, loading: summariesLoading } = useWeeklyCuadre(currentWeek);
   const { commissions, loading: commissionsLoading } = useSystemCommissions();
+
+  const toggleSystem = (systemId: string) => {
+    const newExpanded = new Set(expandedSystems);
+    if (newExpanded.has(systemId)) {
+      newExpanded.delete(systemId);
+    } else {
+      newExpanded.add(systemId);
+    }
+    setExpandedSystems(newExpanded);
+  };
 
   useEffect(() => {
     // Calculate current week starting on Monday
@@ -42,6 +64,22 @@ export function AdminSystemsSummaryView() {
       start: weekStart,
       end: weekEnd,
     });
+
+    // Fetch lottery systems to filter subcategories
+    const fetchLotterySystems = async () => {
+      const { data, error } = await supabase
+        .from("lottery_systems")
+        .select("id, name, parent_system_id, has_subcategories")
+        .eq("is_active", true);
+
+      if (error) {
+        console.error("Error fetching lottery systems:", error);
+      } else {
+        setLotterySystems(data || []);
+      }
+    };
+
+    fetchLotterySystems();
   }, []);
 
   const navigateWeek = (direction: "prev" | "next") => {
@@ -54,48 +92,122 @@ export function AdminSystemsSummaryView() {
     setCurrentWeek({ start: newStart, end: newEnd });
   };
 
-  // Aggregate data by system across all agencies
+  // Aggregate data by system across all agencies, keeping parent and subcategory data separate
   const systemsData = useMemo(() => {
-    const systemsMap = new Map<string, SystemSummary>();
+    const parentSystemsMap = new Map<string, SystemSummary>();
+    const subcategoriesMap = new Map<string, SystemSummary[]>(); // parent_id -> subcategories
+    const systemIdToParentMap = new Map<string, string>();
 
+    // Build mapping: subcategory -> parent and get parent systems
+    lotterySystems.forEach((sys) => {
+      if (sys.parent_system_id) {
+        systemIdToParentMap.set(sys.id, sys.parent_system_id);
+      }
+    });
+
+    // Initialize parent systems
+    lotterySystems.forEach((sys) => {
+      if (!sys.parent_system_id) {
+        const commission = commissions.get(sys.id);
+        parentSystemsMap.set(sys.id, {
+          system_id: sys.id,
+          system_name: sys.name,
+          sales_bs: 0,
+          sales_usd: 0,
+          prizes_bs: 0,
+          prizes_usd: 0,
+          commission_percentage_bs: commission?.commission_percentage || 0,
+          commission_percentage_usd: commission?.commission_percentage_usd || 0,
+          utility_percentage_bs: commission?.utility_percentage || 0,
+          utility_percentage_usd: commission?.utility_percentage_usd || 0,
+          total_bs: 0,
+          total_usd: 0,
+          hasSubcategories: sys.has_subcategories || false,
+          subcategories: [],
+        });
+      }
+    });
+
+    // Process summaries data
     summaries.forEach((summary) => {
       summary.per_system.forEach((sys) => {
-        const commission = commissions.get(sys.system_id);
+        const parentId = systemIdToParentMap.get(sys.system_id);
         
-        if (!systemsMap.has(sys.system_id)) {
-          systemsMap.set(sys.system_id, {
-            system_id: sys.system_id,
-            system_name: sys.system_name,
-            sales_bs: 0,
-            sales_usd: 0,
-            prizes_bs: 0,
-            prizes_usd: 0,
-            commission_percentage_bs: commission?.commission_percentage || 0,
-            commission_percentage_usd: commission?.commission_percentage_usd || 0,
-            utility_percentage_bs: commission?.utility_percentage || 0,
-            utility_percentage_usd: commission?.utility_percentage_usd || 0,
-            total_bs: 0,
-            total_usd: 0,
-          });
-        }
+        if (parentId) {
+          // This is a subcategory - add to parent and to subcategories list
+          const parent = parentSystemsMap.get(parentId);
+          if (parent) {
+            // Add to parent totals
+            parent.sales_bs += sys.sales_bs;
+            parent.sales_usd += sys.sales_usd;
+            parent.prizes_bs += sys.prizes_bs;
+            parent.prizes_usd += sys.prizes_usd;
 
-        const systemData = systemsMap.get(sys.system_id)!;
-        systemData.sales_bs += sys.sales_bs;
-        systemData.sales_usd += sys.sales_usd;
-        systemData.prizes_bs += sys.prizes_bs;
-        systemData.prizes_usd += sys.prizes_usd;
+            // Add to subcategories list
+            if (!subcategoriesMap.has(parentId)) {
+              subcategoriesMap.set(parentId, []);
+            }
+            
+            const subcategoryList = subcategoriesMap.get(parentId)!;
+            let subcategory = subcategoryList.find(s => s.system_id === sys.system_id);
+            
+            if (!subcategory) {
+              // Get commission for the subcategory (individual commission)
+              const subCommission = commissions.get(sys.system_id);
+              subcategory = {
+                system_id: sys.system_id,
+                system_name: sys.system_name,
+                sales_bs: 0,
+                sales_usd: 0,
+                prizes_bs: 0,
+                prizes_usd: 0,
+                commission_percentage_bs: subCommission?.commission_percentage || 0,
+                commission_percentage_usd: subCommission?.commission_percentage_usd || 0,
+                utility_percentage_bs: 0, // Subcategories don't have participation
+                utility_percentage_usd: 0,
+                total_bs: 0,
+                total_usd: 0,
+                hasSubcategories: false,
+              };
+              subcategoryList.push(subcategory);
+            }
+            
+            subcategory.sales_bs += sys.sales_bs;
+            subcategory.sales_usd += sys.sales_usd;
+            subcategory.prizes_bs += sys.prizes_bs;
+            subcategory.prizes_usd += sys.prizes_usd;
+          }
+        } else {
+          // This is a parent system or system without subcategories
+          const parent = parentSystemsMap.get(sys.system_id);
+          if (parent) {
+            parent.sales_bs += sys.sales_bs;
+            parent.sales_usd += sys.sales_usd;
+            parent.prizes_bs += sys.prizes_bs;
+            parent.prizes_usd += sys.prizes_usd;
+          }
+        }
       });
     });
 
     // Calculate totals with commission applied
-    // El porcentaje se aplica sobre las ventas, no sobre (ventas - premios)
-    systemsMap.forEach((system) => {
+    parentSystemsMap.forEach((system) => {
       system.total_bs = system.sales_bs * (system.commission_percentage_bs / 100);
       system.total_usd = system.sales_usd * (system.commission_percentage_usd / 100);
+      
+      // Add subcategories to parent
+      if (system.hasSubcategories) {
+        const subcats = subcategoriesMap.get(system.system_id) || [];
+        subcats.forEach((sub) => {
+          sub.total_bs = sub.sales_bs * (sub.commission_percentage_bs / 100);
+          sub.total_usd = sub.sales_usd * (sub.commission_percentage_usd / 100);
+        });
+        system.subcategories = subcats.sort((a, b) => a.system_name.localeCompare(b.system_name));
+      }
     });
 
-    return Array.from(systemsMap.values()).sort((a, b) => a.system_name.localeCompare(b.system_name));
-  }, [summaries, commissions]);
+    return Array.from(parentSystemsMap.values()).sort((a, b) => a.system_name.localeCompare(b.system_name));
+  }, [summaries, commissions, lotterySystems]);
 
   // Calculate grand totals
   const grandTotals = useMemo(() => {
@@ -189,8 +301,35 @@ export function AdminSystemsSummaryView() {
                     <TableHead className="text-right font-bold">% Comisión</TableHead>
                     <TableHead className="text-right font-bold bg-yellow-500/20">{currency === "bs" ? "Comisión Bs" : "Comisión USD"}</TableHead>
                     <TableHead className="text-right font-bold font-semibold">{currency === "bs" ? "SUB TOTAL Bs" : "SUB TOTAL USD"}</TableHead>
-                    <TableHead className="text-right font-bold">% Participación</TableHead>
-                    <TableHead className="text-right font-bold bg-blue-50 dark:bg-blue-950">{currency === "bs" ? "Total Bs" : "Total USD"}</TableHead>
+                    {showParticipation && (
+                      <>
+                        <TableHead className="text-right font-bold">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setShowParticipation(false)}
+                            className="h-6 px-2 -mr-2"
+                          >
+                            <span className="mr-1">% Participación</span>
+                            <ChevronUp className="h-4 w-4" />
+                          </Button>
+                        </TableHead>
+                        <TableHead className="text-right font-bold bg-blue-50 dark:bg-blue-950">{currency === "bs" ? "Total Bs" : "Total USD"}</TableHead>
+                      </>
+                    )}
+                    {!showParticipation && (
+                      <TableHead className="text-right font-bold">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setShowParticipation(true)}
+                          className="h-6 px-2 -mr-2"
+                        >
+                          <span className="mr-1">% Participación</span>
+                          <ChevronDown className="h-4 w-4" />
+                        </Button>
+                      </TableHead>
+                    )}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -204,35 +343,105 @@ export function AdminSystemsSummaryView() {
                     const utilityPercentage = currency === "bs" ? sys.utility_percentage_bs : sys.utility_percentage_usd;
                     const participation = subtotal * (utilityPercentage / 100);
                     const finalTotal = subtotal - participation;
+                    const isExpanded = expandedSystems.has(sys.system_id);
+                    const hasSubs = sys.hasSubcategories && sys.subcategories && sys.subcategories.length > 0;
 
                     return (
-                      <TableRow key={sys.system_id}>
-                        <TableCell className="font-medium">{sys.system_name}</TableCell>
-                        <TableCell className="text-right font-mono text-green-600">
-                          {currency === "bs" ? formatCurrency(sales, "VES") : formatCurrency(sales, "USD")}
-                        </TableCell>
-                        <TableCell className="text-right font-mono text-red-600">
-                          {currency === "bs" ? formatCurrency(prizes, "VES") : formatCurrency(prizes, "USD")}
-                        </TableCell>
-                        <TableCell className="text-right font-mono font-semibold">
-                          {currency === "bs" ? formatCurrency(net, "VES") : formatCurrency(net, "USD")}
-                        </TableCell>
-                        <TableCell className="text-right font-mono text-muted-foreground">
-                          {commissionPercentage.toFixed(2)}%
-                        </TableCell>
-                        <TableCell className="text-right font-mono font-bold bg-yellow-500/20">
-                          {currency === "bs" ? formatCurrency(commission, "VES") : formatCurrency(commission, "USD")}
-                        </TableCell>
-                        <TableCell className="text-right font-mono font-semibold text-primary">
-                          {currency === "bs" ? formatCurrency(subtotal, "VES") : formatCurrency(subtotal, "USD")}
-                        </TableCell>
-                        <TableCell className="text-right font-mono text-muted-foreground">
-                          {utilityPercentage.toFixed(2)}%
-                        </TableCell>
-                        <TableCell className="text-right font-mono font-bold text-blue-600 bg-blue-50 dark:bg-blue-950">
-                          {currency === "bs" ? formatCurrency(finalTotal, "VES") : formatCurrency(finalTotal, "USD")}
-                        </TableCell>
-                      </TableRow>
+                      <>
+                        <TableRow key={sys.system_id} className={hasSubs ? "cursor-pointer hover:bg-muted/50" : ""}>
+                          <TableCell className="font-medium">
+                            <div className="flex items-center gap-2">
+                              {hasSubs && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => toggleSystem(sys.system_id)}
+                                  className="h-6 w-6 p-0"
+                                >
+                                  {isExpanded ? (
+                                    <ChevronDown className="h-4 w-4" />
+                                  ) : (
+                                    <ChevronRight className="h-4 w-4" />
+                                  )}
+                                </Button>
+                              )}
+                              {!hasSubs && <span className="w-6" />}
+                              <span>{sys.system_name}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right font-mono text-green-600">
+                            {currency === "bs" ? formatCurrency(sales, "VES") : formatCurrency(sales, "USD")}
+                          </TableCell>
+                          <TableCell className="text-right font-mono text-red-600">
+                            {currency === "bs" ? formatCurrency(prizes, "VES") : formatCurrency(prizes, "USD")}
+                          </TableCell>
+                          <TableCell className="text-right font-mono font-semibold">
+                            {currency === "bs" ? formatCurrency(net, "VES") : formatCurrency(net, "USD")}
+                          </TableCell>
+                          <TableCell className="text-right font-mono text-muted-foreground">
+                            {commissionPercentage.toFixed(2)}%
+                          </TableCell>
+                          <TableCell className="text-right font-mono font-bold bg-yellow-500/20">
+                            {currency === "bs" ? formatCurrency(commission, "VES") : formatCurrency(commission, "USD")}
+                          </TableCell>
+                          <TableCell className="text-right font-mono font-semibold text-primary">
+                            {currency === "bs" ? formatCurrency(subtotal, "VES") : formatCurrency(subtotal, "USD")}
+                          </TableCell>
+                          {showParticipation && (
+                            <>
+                              <TableCell className="text-right font-mono text-muted-foreground">
+                                {utilityPercentage.toFixed(2)}%
+                              </TableCell>
+                              <TableCell className="text-right font-mono font-bold text-blue-600 bg-blue-50 dark:bg-blue-950">
+                                {currency === "bs" ? formatCurrency(finalTotal, "VES") : formatCurrency(finalTotal, "USD")}
+                              </TableCell>
+                            </>
+                          )}
+                          {!showParticipation && <TableCell></TableCell>}
+                        </TableRow>
+                        {/* Subcategorías */}
+                        {hasSubs && isExpanded && sys.subcategories?.map((sub) => {
+                          const subSales = currency === "bs" ? sub.sales_bs : sub.sales_usd;
+                          const subPrizes = currency === "bs" ? sub.prizes_bs : sub.prizes_usd;
+                          const subNet = subSales - subPrizes;
+                          const subCommission = currency === "bs" ? sub.total_bs : sub.total_usd;
+                          const subSubtotal = subNet - subCommission;
+                          const subCommissionPercentage = currency === "bs" ? sub.commission_percentage_bs : sub.commission_percentage_usd;
+
+                          return (
+                            <TableRow key={sub.system_id} className="bg-muted/30">
+                              <TableCell className="font-medium pl-12 text-sm text-muted-foreground">
+                                {sub.system_name}
+                              </TableCell>
+                              <TableCell className="text-right font-mono text-green-600 text-sm">
+                                {currency === "bs" ? formatCurrency(subSales, "VES") : formatCurrency(subSales, "USD")}
+                              </TableCell>
+                              <TableCell className="text-right font-mono text-red-600 text-sm">
+                                {currency === "bs" ? formatCurrency(subPrizes, "VES") : formatCurrency(subPrizes, "USD")}
+                              </TableCell>
+                              <TableCell className="text-right font-mono font-semibold text-sm">
+                                {currency === "bs" ? formatCurrency(subNet, "VES") : formatCurrency(subNet, "USD")}
+                              </TableCell>
+                              <TableCell className="text-right font-mono text-muted-foreground text-sm">
+                                {subCommissionPercentage.toFixed(2)}%
+                              </TableCell>
+                              <TableCell className="text-right font-mono font-bold bg-yellow-500/20 text-sm">
+                                {currency === "bs" ? formatCurrency(subCommission, "VES") : formatCurrency(subCommission, "USD")}
+                              </TableCell>
+                              <TableCell className="text-right font-mono font-semibold text-primary text-sm">
+                                {currency === "bs" ? formatCurrency(subSubtotal, "VES") : formatCurrency(subSubtotal, "USD")}
+                              </TableCell>
+                              {showParticipation && (
+                                <>
+                                  <TableCell className="text-right text-sm">-</TableCell>
+                                  <TableCell className="text-right text-sm">-</TableCell>
+                                </>
+                              )}
+                              {!showParticipation && <TableCell></TableCell>}
+                            </TableRow>
+                          );
+                        })}
+                      </>
                     );
                   })}
 
@@ -257,10 +466,15 @@ export function AdminSystemsSummaryView() {
                     <TableCell className="text-right font-mono font-semibold text-primary">
                       {currency === "bs" ? formatCurrency(grandTotals.subtotal_bs, "VES") : formatCurrency(grandTotals.subtotal_usd, "USD")}
                     </TableCell>
-                    <TableCell className="text-right">-</TableCell>
-                    <TableCell className="text-right font-mono font-bold text-blue-600 bg-blue-100 dark:bg-blue-900 text-lg">
-                      {currency === "bs" ? formatCurrency(grandTotals.final_total_bs, "VES") : formatCurrency(grandTotals.final_total_usd, "USD")}
-                    </TableCell>
+                    {showParticipation && (
+                      <>
+                        <TableCell className="text-right">-</TableCell>
+                        <TableCell className="text-right font-mono font-bold text-blue-600 bg-blue-100 dark:bg-blue-900 text-lg">
+                          {currency === "bs" ? formatCurrency(grandTotals.final_total_bs, "VES") : formatCurrency(grandTotals.final_total_usd, "USD")}
+                        </TableCell>
+                      </>
+                    )}
+                    {!showParticipation && <TableCell></TableCell>}
                   </TableRow>
                 </TableBody>
               </Table>
