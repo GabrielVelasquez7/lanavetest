@@ -266,6 +266,57 @@ export function AdminGananciasView() {
     return groupsData.reduce((total, groupData) => total + groupData.finalProfitBs, 0);
   }, [groupsData]);
 
+  // Calculate participation profit
+  const participationData = useMemo(() => {
+    const results: Array<{
+      agencyName: string;
+      systemName: string;
+      sales: number;
+      prizes: number;
+      subtotal: number;
+      participationCommission: number;
+      result: number;
+    }> = [];
+
+    summaries.forEach((summary) => {
+      const agency = agencies.find((a) => a.id === summary.agency_id);
+      
+      summary.per_system.forEach((sys) => {
+        const commission = commissions.get(sys.system_id);
+        
+        if (commission) {
+          // For BS currency
+          const salesBs = sys.sales_bs;
+          const prizesBs = sys.prizes_bs;
+          const subtotalBs = (salesBs - prizesBs) * (commission.commission_percentage / 100);
+          const participationCommissionBs = subtotalBs * 0.30;
+          const resultBs = subtotalBs - participationCommissionBs;
+
+          // For USD currency
+          const salesUsd = sys.sales_usd;
+          const prizesUsd = sys.prizes_usd;
+          const subtotalUsd = (salesUsd - prizesUsd) * (commission.commission_percentage_usd / 100);
+          const participationCommissionUsd = subtotalUsd * 0.30;
+          const resultUsd = subtotalUsd - participationCommissionUsd;
+
+          results.push({
+            agencyName: agency?.name || "Desconocida",
+            systemName: sys.system_name,
+            sales: currency === "bs" ? salesBs : salesUsd,
+            prizes: currency === "bs" ? prizesBs : prizesUsd,
+            subtotal: currency === "bs" ? subtotalBs : subtotalUsd,
+            participationCommission: currency === "bs" ? participationCommissionBs : participationCommissionUsd,
+            result: currency === "bs" ? resultBs : resultUsd,
+          });
+        }
+      });
+    });
+
+    const totalResult = results.reduce((sum, item) => sum + item.result, 0);
+    
+    return { results, totalResult };
+  }, [summaries, agencies, commissions, currency]);
+
   const loading = summariesLoading || commissionsLoading;
 
   if (loading) {
@@ -372,77 +423,158 @@ export function AdminGananciasView() {
                   
                   <CollapsibleContent>
                     <div className="mt-4 border-t border-purple-200 pt-4">
-                      <h4 className="text-sm font-medium text-muted-foreground mb-4">
-                        Distribución de Ganancias ({currency === "bs" ? "Bs" : "USD"})
-                      </h4>
-                      <div className="space-y-3">
-                        {["Denis", "Jonathan", "Byjer", "Daniela", "Jorge"].map((person) => {
-                          // Get the final profit for each group
-                          const grupo1 = groupsData[0] ? (currency === "bs" ? groupsData[0].finalProfitBs : groupsData[0].netProfitUsd) : 0;
-                          const grupo2 = groupsData[1] ? (currency === "bs" ? groupsData[1].finalProfitBs : groupsData[1].netProfitUsd) : 0;
-                          const grupo3 = groupsData[2] ? (currency === "bs" ? groupsData[2].finalProfitBs : groupsData[2].netProfitUsd) : 0;
-                          
-                          // Calculate base share according to each person's formula
-                          let baseShare = 0;
-                          if (person === "Denis" || person === "Jonathan") {
-                            // (Grupo1/5) + (Grupo2/4) + (Grupo3/3)
-                            baseShare = (grupo1 / 5) + (grupo2 / 4) + (grupo3 / 3);
-                          } else if (person === "Byjer") {
-                            // (Grupo1/5) + (Grupo3/3)
-                            baseShare = (grupo1 / 5) + (grupo3 / 3);
-                          } else if (person === "Daniela" || person === "Jorge") {
-                            // (Grupo1/5) + (Grupo2/4)
-                            baseShare = (grupo1 / 5) + (grupo2 / 4);
-                          }
-                          
-                          const restaPerdida = 0;
-                          const sumaGanancia = 0;
-                          const abonos = 0;
-                          const total = baseShare - restaPerdida + sumaGanancia - abonos;
-                          
-                          return (
-                            <Card key={person} className="bg-purple-500/5 border-purple-500/20">
-                              <CardContent className="p-4">
-                                <div className="flex items-center justify-between mb-3">
-                                  <h5 className="font-bold text-lg">{person}</h5>
-                                  <div className="text-right">
-                                    <p className="text-xs text-muted-foreground">Total</p>
-                                    <p className="text-xl font-bold text-purple-700 font-mono">
-                                      {currency === "bs" ? formatCurrency(total, "VES") : formatCurrency(total, "USD")}
-                                    </p>
-                                  </div>
-                                </div>
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                  <div>
-                                    <p className="text-xs text-muted-foreground mb-1">Monto Base</p>
-                                    <p className="text-sm font-semibold font-mono">
-                                      {currency === "bs" ? formatCurrency(baseShare, "VES") : formatCurrency(baseShare, "USD")}
-                                    </p>
-                                  </div>
-                                  <div>
-                                    <p className="text-xs text-muted-foreground mb-1">Resta Pérdida</p>
-                                    <p className="text-sm font-semibold font-mono text-red-600">
-                                      -{currency === "bs" ? formatCurrency(restaPerdida, "VES") : formatCurrency(restaPerdida, "USD")}
-                                    </p>
-                                  </div>
-                                  <div>
-                                    <p className="text-xs text-muted-foreground mb-1">Suma Ganancia</p>
-                                    <p className="text-sm font-semibold font-mono text-green-600">
-                                      +{currency === "bs" ? formatCurrency(sumaGanancia, "VES") : formatCurrency(sumaGanancia, "USD")}
-                                    </p>
-                                  </div>
-                                  <div>
-                                    <p className="text-xs text-muted-foreground mb-1">Abonos</p>
-                                    <p className="text-sm font-semibold font-mono text-amber-600">
-                                      -{currency === "bs" ? formatCurrency(abonos, "VES") : formatCurrency(abonos, "USD")}
-                                    </p>
-                                  </div>
-                                </div>
-                              </CardContent>
-                            </Card>
-                          );
-                        })}
-                      </div>
+                      <Tabs defaultValue="venta" className="w-full">
+                        <TabsList className="grid w-full grid-cols-3">
+                          <TabsTrigger value="venta">Ganancia por Venta</TabsTrigger>
+                          <TabsTrigger value="participacion">Ganancia por Participación</TabsTrigger>
+                          <TabsTrigger value="banqueo">Ganancia por Banqueo</TabsTrigger>
+                        </TabsList>
+
+                        <TabsContent value="venta" className="space-y-4 mt-4">
+                          <h4 className="text-sm font-medium text-muted-foreground">
+                            Distribución de Ganancias por Venta ({currency === "bs" ? "Bs" : "USD"})
+                          </h4>
+                          <div className="space-y-3">
+                            {["Denis", "Jonathan", "Byjer", "Daniela", "Jorge"].map((person) => {
+                              // Get the final profit for each group
+                              const grupo1 = groupsData[0] ? (currency === "bs" ? groupsData[0].finalProfitBs : groupsData[0].netProfitUsd) : 0;
+                              const grupo2 = groupsData[1] ? (currency === "bs" ? groupsData[1].finalProfitBs : groupsData[1].netProfitUsd) : 0;
+                              const grupo3 = groupsData[2] ? (currency === "bs" ? groupsData[2].finalProfitBs : groupsData[2].netProfitUsd) : 0;
+                              
+                              // Calculate base share according to each person's formula
+                              let baseShare = 0;
+                              if (person === "Denis" || person === "Jonathan") {
+                                // (Grupo1/5) + (Grupo2/4) + (Grupo3/3)
+                                baseShare = (grupo1 / 5) + (grupo2 / 4) + (grupo3 / 3);
+                              } else if (person === "Byjer") {
+                                // (Grupo1/5) + (Grupo3/3)
+                                baseShare = (grupo1 / 5) + (grupo3 / 3);
+                              } else if (person === "Daniela" || person === "Jorge") {
+                                // (Grupo1/5) + (Grupo2/4)
+                                baseShare = (grupo1 / 5) + (grupo2 / 4);
+                              }
+                              
+                              const restaPerdida = 0;
+                              const sumaGanancia = 0;
+                              const abonos = 0;
+                              const total = baseShare - restaPerdida + sumaGanancia - abonos;
+                              
+                              return (
+                                <Card key={person} className="bg-purple-500/5 border-purple-500/20">
+                                  <CardContent className="p-4">
+                                    <div className="flex items-center justify-between mb-3">
+                                      <h5 className="font-bold text-lg">{person}</h5>
+                                      <div className="text-right">
+                                        <p className="text-xs text-muted-foreground">Total</p>
+                                        <p className="text-xl font-bold text-purple-700 font-mono">
+                                          {currency === "bs" ? formatCurrency(total, "VES") : formatCurrency(total, "USD")}
+                                        </p>
+                                      </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                      <div>
+                                        <p className="text-xs text-muted-foreground mb-1">Monto Base</p>
+                                        <p className="text-sm font-semibold font-mono">
+                                          {currency === "bs" ? formatCurrency(baseShare, "VES") : formatCurrency(baseShare, "USD")}
+                                        </p>
+                                      </div>
+                                      <div>
+                                        <p className="text-xs text-muted-foreground mb-1">Resta Pérdida</p>
+                                        <p className="text-sm font-semibold font-mono text-red-600">
+                                          -{currency === "bs" ? formatCurrency(restaPerdida, "VES") : formatCurrency(restaPerdida, "USD")}
+                                        </p>
+                                      </div>
+                                      <div>
+                                        <p className="text-xs text-muted-foreground mb-1">Suma Ganancia</p>
+                                        <p className="text-sm font-semibold font-mono text-green-600">
+                                          +{currency === "bs" ? formatCurrency(sumaGanancia, "VES") : formatCurrency(sumaGanancia, "USD")}
+                                        </p>
+                                      </div>
+                                      <div>
+                                        <p className="text-xs text-muted-foreground mb-1">Abonos</p>
+                                        <p className="text-sm font-semibold font-mono text-amber-600">
+                                          -{currency === "bs" ? formatCurrency(abonos, "VES") : formatCurrency(abonos, "USD")}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </CardContent>
+                                </Card>
+                              );
+                            })}
+                          </div>
+                        </TabsContent>
+
+                        <TabsContent value="participacion" className="space-y-4 mt-4">
+                          <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                              <h4 className="text-sm font-medium text-muted-foreground">
+                                Cálculo de Ganancia por Participación ({currency === "bs" ? "Bs" : "USD"})
+                              </h4>
+                              <div className="text-right">
+                                <p className="text-xs text-muted-foreground">Total Ganancia</p>
+                                <p className="text-2xl font-bold text-green-600 font-mono">
+                                  {currency === "bs" ? formatCurrency(participationData.totalResult, "VES") : formatCurrency(participationData.totalResult, "USD")}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-sm">
+                                <thead>
+                                  <tr className="border-b">
+                                    <th className="text-left py-2 px-2 font-semibold">Agencia</th>
+                                    <th className="text-left py-2 px-2 font-semibold">Sistema</th>
+                                    <th className="text-right py-2 px-2 font-semibold">Ventas</th>
+                                    <th className="text-right py-2 px-2 font-semibold">Premios</th>
+                                    <th className="text-right py-2 px-2 font-semibold">Subtotal</th>
+                                    <th className="text-right py-2 px-2 font-semibold">Com. 30%</th>
+                                    <th className="text-right py-2 px-2 font-semibold bg-green-50">Resultado</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {participationData.results.map((item, idx) => (
+                                    <tr key={idx} className="border-b hover:bg-muted/30">
+                                      <td className="py-2 px-2">{item.agencyName}</td>
+                                      <td className="py-2 px-2 font-medium">{item.systemName}</td>
+                                      <td className="py-2 px-2 text-right font-mono text-xs">
+                                        {currency === "bs" ? formatCurrency(item.sales, "VES") : formatCurrency(item.sales, "USD")}
+                                      </td>
+                                      <td className="py-2 px-2 text-right font-mono text-xs">
+                                        {currency === "bs" ? formatCurrency(item.prizes, "VES") : formatCurrency(item.prizes, "USD")}
+                                      </td>
+                                      <td className="py-2 px-2 text-right font-mono text-xs text-blue-600">
+                                        {currency === "bs" ? formatCurrency(item.subtotal, "VES") : formatCurrency(item.subtotal, "USD")}
+                                      </td>
+                                      <td className="py-2 px-2 text-right font-mono text-xs text-amber-600">
+                                        {currency === "bs" ? formatCurrency(item.participationCommission, "VES") : formatCurrency(item.participationCommission, "USD")}
+                                      </td>
+                                      <td className="py-2 px-2 text-right font-mono text-xs font-semibold text-green-600 bg-green-50">
+                                        {currency === "bs" ? formatCurrency(item.result, "VES") : formatCurrency(item.result, "USD")}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                                <tfoot>
+                                  <tr className="border-t-2 font-bold">
+                                    <td colSpan={6} className="py-3 px-2 text-right">Total:</td>
+                                    <td className="py-3 px-2 text-right font-mono text-lg text-green-600 bg-green-50">
+                                      {currency === "bs" ? formatCurrency(participationData.totalResult, "VES") : formatCurrency(participationData.totalResult, "USD")}
+                                    </td>
+                                  </tr>
+                                </tfoot>
+                              </table>
+                            </div>
+                          </div>
+                        </TabsContent>
+
+                        <TabsContent value="banqueo" className="space-y-4 mt-4">
+                          <div className="text-center py-12 text-muted-foreground">
+                            <Calculator className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                            <p className="text-lg font-medium">Ganancia por Banqueo</p>
+                            <p className="text-sm mt-2">Contenido próximamente</p>
+                          </div>
+                        </TabsContent>
+                      </Tabs>
                     </div>
                   </CollapsibleContent>
                 </CardContent>

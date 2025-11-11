@@ -1,4 +1,4 @@
-import { Building2, Users, Settings, Home, Calculator, Percent, FileSpreadsheet, TrendingUp } from "lucide-react";
+import { Building2, Users, Settings, Home, Calculator, Percent, FileSpreadsheet, TrendingUp, Grid3x3 } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -11,7 +11,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 
-type AdminView = 'agencies' | 'users' | 'systems' | 'cuadres' | 'system-commissions' | 'weekly-cuadre-complete' | 'ganancias' | 'dashboard';
+type AdminView = 'agencies' | 'users' | 'systems' | 'cuadres' | 'system-commissions' | 'weekly-cuadre-complete' | 'ganancias' | 'systems-summary' | 'dashboard';
 
 const menuItems = [
   {
@@ -32,6 +32,7 @@ const menuItems = [
   {
     group: "Reportes",
     items: [
+      { id: "systems-summary", label: "Resumen por Sistemas", icon: Grid3x3 },
       { id: "cuadres", label: "Cuadres", icon: Calculator },
       { id: "weekly-cuadre-complete", label: "Cuadre Semanal", icon: FileSpreadsheet },
       { id: "ganancias", label: "Ganancias", icon: TrendingUp },
