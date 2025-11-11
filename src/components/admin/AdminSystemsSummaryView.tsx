@@ -20,6 +20,8 @@ interface SystemSummary {
   prizes_usd: number;
   commission_percentage_bs: number;
   commission_percentage_usd: number;
+  utility_percentage_bs: number;
+  utility_percentage_usd: number;
   total_bs: number;
   total_usd: number;
 }
@@ -70,6 +72,8 @@ export function AdminSystemsSummaryView() {
             prizes_usd: 0,
             commission_percentage_bs: commission?.commission_percentage || 0,
             commission_percentage_usd: commission?.commission_percentage_usd || 0,
+            utility_percentage_bs: commission?.utility_percentage || 0,
+            utility_percentage_usd: commission?.utility_percentage_usd || 0,
             total_bs: 0,
             total_usd: 0,
           });
@@ -97,17 +101,34 @@ export function AdminSystemsSummaryView() {
   const grandTotals = useMemo(() => {
     return systemsData.reduce(
       (acc, sys) => {
+        const subtotal_bs = sys.sales_bs - sys.prizes_bs - sys.total_bs;
+        const subtotal_usd = sys.sales_usd - sys.prizes_usd - sys.total_usd;
+        const participation_bs = subtotal_bs * (sys.utility_percentage_bs / 100);
+        const participation_usd = subtotal_usd * (sys.utility_percentage_usd / 100);
+        const final_total_bs = subtotal_bs - participation_bs;
+        const final_total_usd = subtotal_usd - participation_usd;
+
         acc.sales_bs += sys.sales_bs;
         acc.sales_usd += sys.sales_usd;
         acc.prizes_bs += sys.prizes_bs;
         acc.prizes_usd += sys.prizes_usd;
         acc.commission_bs += sys.total_bs; // total_bs es la comisión
         acc.commission_usd += sys.total_usd; // total_usd es la comisión
-        acc.total_bs += (sys.sales_bs - sys.prizes_bs - sys.total_bs);
-        acc.total_usd += (sys.sales_usd - sys.prizes_usd - sys.total_usd);
+        acc.subtotal_bs += subtotal_bs;
+        acc.subtotal_usd += subtotal_usd;
+        acc.participation_bs += participation_bs;
+        acc.participation_usd += participation_usd;
+        acc.final_total_bs += final_total_bs;
+        acc.final_total_usd += final_total_usd;
         return acc;
       },
-      { sales_bs: 0, sales_usd: 0, prizes_bs: 0, prizes_usd: 0, commission_bs: 0, commission_usd: 0, total_bs: 0, total_usd: 0 }
+      { 
+        sales_bs: 0, sales_usd: 0, prizes_bs: 0, prizes_usd: 0, 
+        commission_bs: 0, commission_usd: 0, 
+        subtotal_bs: 0, subtotal_usd: 0,
+        participation_bs: 0, participation_usd: 0,
+        final_total_bs: 0, final_total_usd: 0
+      }
     );
   }, [systemsData]);
 
@@ -168,6 +189,8 @@ export function AdminSystemsSummaryView() {
                     <TableHead className="text-right font-bold">% Comisión</TableHead>
                     <TableHead className="text-right font-bold bg-yellow-500/20">{currency === "bs" ? "Comisión Bs" : "Comisión USD"}</TableHead>
                     <TableHead className="text-right font-bold font-semibold">{currency === "bs" ? "SUB TOTAL Bs" : "SUB TOTAL USD"}</TableHead>
+                    <TableHead className="text-right font-bold">% Participación</TableHead>
+                    <TableHead className="text-right font-bold bg-blue-50 dark:bg-blue-950">{currency === "bs" ? "Total Bs" : "Total USD"}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -176,8 +199,11 @@ export function AdminSystemsSummaryView() {
                     const prizes = currency === "bs" ? sys.prizes_bs : sys.prizes_usd;
                     const net = sales - prizes;
                     const commission = currency === "bs" ? sys.total_bs : sys.total_usd;
-                    const total = net - commission;
-                    const percentage = currency === "bs" ? sys.commission_percentage_bs : sys.commission_percentage_usd;
+                    const subtotal = net - commission;
+                    const commissionPercentage = currency === "bs" ? sys.commission_percentage_bs : sys.commission_percentage_usd;
+                    const utilityPercentage = currency === "bs" ? sys.utility_percentage_bs : sys.utility_percentage_usd;
+                    const participation = subtotal * (utilityPercentage / 100);
+                    const finalTotal = subtotal - participation;
 
                     return (
                       <TableRow key={sys.system_id}>
@@ -192,13 +218,19 @@ export function AdminSystemsSummaryView() {
                           {currency === "bs" ? formatCurrency(net, "VES") : formatCurrency(net, "USD")}
                         </TableCell>
                         <TableCell className="text-right font-mono text-muted-foreground">
-                          {percentage.toFixed(2)}%
+                          {commissionPercentage.toFixed(2)}%
                         </TableCell>
                         <TableCell className="text-right font-mono font-bold bg-yellow-500/20">
                           {currency === "bs" ? formatCurrency(commission, "VES") : formatCurrency(commission, "USD")}
                         </TableCell>
                         <TableCell className="text-right font-mono font-semibold text-primary">
-                          {currency === "bs" ? formatCurrency(total, "VES") : formatCurrency(total, "USD")}
+                          {currency === "bs" ? formatCurrency(subtotal, "VES") : formatCurrency(subtotal, "USD")}
+                        </TableCell>
+                        <TableCell className="text-right font-mono text-muted-foreground">
+                          {utilityPercentage.toFixed(2)}%
+                        </TableCell>
+                        <TableCell className="text-right font-mono font-bold text-blue-600 bg-blue-50 dark:bg-blue-950">
+                          {currency === "bs" ? formatCurrency(finalTotal, "VES") : formatCurrency(finalTotal, "USD")}
                         </TableCell>
                       </TableRow>
                     );
@@ -223,7 +255,11 @@ export function AdminSystemsSummaryView() {
                       {currency === "bs" ? formatCurrency(grandTotals.commission_bs, "VES") : formatCurrency(grandTotals.commission_usd, "USD")}
                     </TableCell>
                     <TableCell className="text-right font-mono font-semibold text-primary">
-                      {currency === "bs" ? formatCurrency(grandTotals.total_bs, "VES") : formatCurrency(grandTotals.total_usd, "USD")}
+                      {currency === "bs" ? formatCurrency(grandTotals.subtotal_bs, "VES") : formatCurrency(grandTotals.subtotal_usd, "USD")}
+                    </TableCell>
+                    <TableCell className="text-right">-</TableCell>
+                    <TableCell className="text-right font-mono font-bold text-blue-600 bg-blue-100 dark:bg-blue-900 text-lg">
+                      {currency === "bs" ? formatCurrency(grandTotals.final_total_bs, "VES") : formatCurrency(grandTotals.final_total_usd, "USD")}
                     </TableCell>
                   </TableRow>
                 </TableBody>
