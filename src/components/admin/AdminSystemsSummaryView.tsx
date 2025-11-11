@@ -162,14 +162,12 @@ export function AdminSystemsSummaryView() {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="font-bold">Sistema</TableHead>
-                    <TableHead className="text-right font-bold">Ventas</TableHead>
-                    <TableHead className="text-right font-bold">Premios</TableHead>
-                    <TableHead className="text-right font-bold">Ventas - Premios</TableHead>
+                    <TableHead className="text-right font-bold">{currency === "bs" ? "Ventas Bs" : "Ventas USD"}</TableHead>
+                    <TableHead className="text-right font-bold">{currency === "bs" ? "Premios Bs" : "Premios USD"}</TableHead>
+                    <TableHead className="text-right font-bold">{currency === "bs" ? "Cuadre Bs" : "Cuadre USD"}</TableHead>
                     <TableHead className="text-right font-bold">% Comisión</TableHead>
-                    <TableHead className="text-right font-bold bg-yellow-500/20">Comisión</TableHead>
-                    <TableHead className="text-right font-bold bg-blue-50 dark:bg-blue-950">
-                      Total
-                    </TableHead>
+                    <TableHead className="text-right font-bold bg-yellow-500/20">{currency === "bs" ? "Comisión Bs" : "Comisión USD"}</TableHead>
+                    <TableHead className="text-right font-bold font-semibold">{currency === "bs" ? "SUB TOTAL Bs" : "SUB TOTAL USD"}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -199,7 +197,7 @@ export function AdminSystemsSummaryView() {
                         <TableCell className="text-right font-mono font-bold bg-yellow-500/20">
                           {currency === "bs" ? formatCurrency(commission, "VES") : formatCurrency(commission, "USD")}
                         </TableCell>
-                        <TableCell className="text-right font-mono font-bold text-blue-600 bg-blue-50 dark:bg-blue-950">
+                        <TableCell className="text-right font-mono font-semibold text-primary">
                           {currency === "bs" ? formatCurrency(total, "VES") : formatCurrency(total, "USD")}
                         </TableCell>
                       </TableRow>
@@ -224,7 +222,7 @@ export function AdminSystemsSummaryView() {
                     <TableCell className="text-right font-mono font-bold bg-yellow-500/20">
                       {currency === "bs" ? formatCurrency(grandTotals.commission_bs, "VES") : formatCurrency(grandTotals.commission_usd, "USD")}
                     </TableCell>
-                    <TableCell className="text-right font-mono font-bold text-blue-600 bg-blue-100 dark:bg-blue-900 text-lg">
+                    <TableCell className="text-right font-mono font-semibold text-primary">
                       {currency === "bs" ? formatCurrency(grandTotals.total_bs, "VES") : formatCurrency(grandTotals.total_usd, "USD")}
                     </TableCell>
                   </TableRow>
