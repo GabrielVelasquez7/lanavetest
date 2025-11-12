@@ -33,17 +33,17 @@ export const GroupsCrud = () => {
   const [editingGroup, setEditingGroup] = useState<Group | null>(null);
   const [selectedAgencies, setSelectedAgencies] = useState<string[]>([]);
   const [formData, setFormData] = useState({
-    name: '',
-    description: ''
+    name: "",
+    description: "",
   });
   const { toast } = useToast();
 
   const fetchGroups = async () => {
     try {
       const { data, error } = await supabase
-        .from('agency_groups')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .from("agency_groups")
+        .select("*")
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
       setGroups(data || []);
@@ -60,10 +60,7 @@ export const GroupsCrud = () => {
 
   const fetchAgencies = async () => {
     try {
-      const { data, error } = await supabase
-        .from('agencies')
-        .select('id, name, group_id')
-        .order('name');
+      const { data, error } = await supabase.from("agencies").select("id, name, group_id").order("name");
 
       if (error) throw error;
       setAgencies(data || []);
@@ -83,54 +80,41 @@ export const GroupsCrud = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     try {
       let groupId: string;
-      
+
       if (editingGroup) {
-        const { error } = await supabase
-          .from('agency_groups')
-          .update(formData)
-          .eq('id', editingGroup.id);
-        
+        const { error } = await supabase.from("agency_groups").update(formData).eq("id", editingGroup.id);
+
         if (error) throw error;
         groupId = editingGroup.id;
-        
+
         toast({
           title: "Éxito",
           description: "Grupo actualizado correctamente",
         });
       } else {
-        const { data, error } = await supabase
-          .from('agency_groups')
-          .insert(formData)
-          .select()
-          .single();
-        
+        const { data, error } = await supabase.from("agency_groups").insert(formData).select().single();
+
         if (error) throw error;
         groupId = data.id;
-        
+
         toast({
           title: "Éxito",
           description: "Grupo creado correctamente",
         });
       }
-      
+
       // Update agencies' group_id
       // First, remove all agencies from this group
-      await supabase
-        .from('agencies')
-        .update({ group_id: null })
-        .eq('group_id', groupId);
-      
+      await supabase.from("agencies").update({ group_id: null }).eq("group_id", groupId);
+
       // Then, assign selected agencies to this group
       if (selectedAgencies.length > 0) {
-        await supabase
-          .from('agencies')
-          .update({ group_id: groupId })
-          .in('id', selectedAgencies);
+        await supabase.from("agencies").update({ group_id: groupId }).in("id", selectedAgencies);
       }
-      
+
       fetchGroups();
       fetchAgencies();
       resetForm();
@@ -147,32 +131,27 @@ export const GroupsCrud = () => {
     setEditingGroup(group);
     setFormData({
       name: group.name,
-      description: group.description || ''
+      description: group.description || "",
     });
     // Get agencies in this group
-    const groupAgencies = agencies
-      .filter(a => a.group_id === group.id)
-      .map(a => a.id);
+    const groupAgencies = agencies.filter((a) => a.group_id === group.id).map((a) => a.id);
     setSelectedAgencies(groupAgencies);
     setIsDialogOpen(true);
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('¿Estás seguro de que quieres eliminar este grupo?')) return;
-    
+    if (!confirm("¿Estás seguro de que quieres eliminar este grupo?")) return;
+
     try {
-      const { error } = await supabase
-        .from('agency_groups')
-        .delete()
-        .eq('id', id);
-      
+      const { error } = await supabase.from("agency_groups").delete().eq("id", id);
+
       if (error) throw error;
-      
+
       toast({
         title: "Éxito",
         description: "Grupo eliminado correctamente",
       });
-      
+
       fetchGroups();
     } catch (error) {
       toast({
@@ -185,8 +164,8 @@ export const GroupsCrud = () => {
 
   const resetForm = () => {
     setFormData({
-      name: '',
-      description: ''
+      name: "",
+      description: "",
     });
     setSelectedAgencies([]);
     setEditingGroup(null);
@@ -194,15 +173,13 @@ export const GroupsCrud = () => {
   };
 
   const toggleAgencySelection = (agencyId: string) => {
-    setSelectedAgencies(prev => 
-      prev.includes(agencyId)
-        ? prev.filter(id => id !== agencyId)
-        : [...prev, agencyId]
+    setSelectedAgencies((prev) =>
+      prev.includes(agencyId) ? prev.filter((id) => id !== agencyId) : [...prev, agencyId],
     );
   };
 
   const getAgenciesInGroup = (groupId: string) => {
-    return agencies.filter(a => a.group_id === groupId);
+    return agencies.filter((a) => a.group_id === groupId);
   };
 
   if (loading) {
@@ -222,9 +199,7 @@ export const GroupsCrud = () => {
           </DialogTrigger>
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
-              <DialogTitle>
-                {editingGroup ? 'Editar Grupo' : 'Nuevo Grupo'}
-              </DialogTitle>
+              <DialogTitle>{editingGroup ? "Editar Grupo" : "Nuevo Grupo"}</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
@@ -236,15 +211,7 @@ export const GroupsCrud = () => {
                   required
                 />
               </div>
-              <div>
-                <Label htmlFor="description">Descripción</Label>
-                <Textarea
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  rows={3}
-                />
-              </div>
+
               <div className="space-y-2">
                 <Label>Agencias en este grupo</Label>
                 <ScrollArea className="h-[200px] w-full border rounded-md p-4">
@@ -266,17 +233,13 @@ export const GroupsCrud = () => {
                     ))}
                   </div>
                 </ScrollArea>
-                <p className="text-xs text-muted-foreground">
-                  {selectedAgencies.length} agencia(s) seleccionada(s)
-                </p>
+                <p className="text-xs text-muted-foreground">{selectedAgencies.length} agencia(s) seleccionada(s)</p>
               </div>
               <div className="flex justify-end space-x-2">
                 <Button type="button" variant="outline" onClick={resetForm}>
                   Cancelar
                 </Button>
-                <Button type="submit">
-                  {editingGroup ? 'Actualizar' : 'Crear'}
-                </Button>
+                <Button type="submit">{editingGroup ? "Actualizar" : "Crear"}</Button>
               </div>
             </form>
           </DialogContent>
@@ -306,31 +269,21 @@ export const GroupsCrud = () => {
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Building2 className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm">
-                          {groupAgencies.length} agencia(s)
-                        </span>
+                        <span className="text-sm">{groupAgencies.length} agencia(s)</span>
                       </div>
                       {groupAgencies.length > 0 && (
                         <div className="text-xs text-muted-foreground mt-1">
-                          {groupAgencies.map(a => a.name).join(', ')}
+                          {groupAgencies.map((a) => a.name).join(", ")}
                         </div>
                       )}
                     </TableCell>
-                    <TableCell>{group.description || '-'}</TableCell>
+                    <TableCell>{group.description || "-"}</TableCell>
                     <TableCell>
                       <div className="flex space-x-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleEdit(group)}
-                        >
+                        <Button variant="outline" size="sm" onClick={() => handleEdit(group)}>
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDelete(group.id)}
-                        >
+                        <Button variant="outline" size="sm" onClick={() => handleDelete(group.id)}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
