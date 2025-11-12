@@ -3,66 +3,37 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Plus, Edit, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
-interface Agency {
-  id: string;
-  name: string;
-  group_id: string | null;
-  is_active: boolean;
-  created_at: string;
-}
-
 interface Group {
   id: string;
   name: string;
+  description: string | null;
+  created_at: string;
 }
 
-export const AgenciesCrud = () => {
-  const [agencies, setAgencies] = useState<Agency[]>([]);
+export const GroupsCrud = () => {
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingAgency, setEditingAgency] = useState<Agency | null>(null);
+  const [editingGroup, setEditingGroup] = useState<Group | null>(null);
   const [formData, setFormData] = useState({
     name: '',
-    group_id: '',
-    is_active: true
+    description: ''
   });
   const { toast } = useToast();
-
-  const fetchAgencies = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('agencies')
-        .select('*, agency_groups(name)')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setAgencies(data || []);
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "No se pudieron cargar las agencias",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const fetchGroups = async () => {
     try {
       const { data, error } = await supabase
         .from('agency_groups')
-        .select('id, name')
-        .order('name');
+        .select('*')
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
       setGroups(data || []);
@@ -72,11 +43,12 @@ export const AgenciesCrud = () => {
         description: "No se pudieron cargar los grupos",
         variant: "destructive",
       });
+    } finally {
+      setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchAgencies();
     fetchGroups();
   }, []);
 
@@ -84,58 +56,57 @@ export const AgenciesCrud = () => {
     e.preventDefault();
     
     try {
-      if (editingAgency) {
+      if (editingGroup) {
         const { error } = await supabase
-          .from('agencies')
+          .from('agency_groups')
           .update(formData)
-          .eq('id', editingAgency.id);
+          .eq('id', editingGroup.id);
         
         if (error) throw error;
         
         toast({
           title: "Éxito",
-          description: "Agencia actualizada correctamente",
+          description: "Grupo actualizado correctamente",
         });
       } else {
         const { error } = await supabase
-          .from('agencies')
+          .from('agency_groups')
           .insert(formData);
         
         if (error) throw error;
         
         toast({
           title: "Éxito",
-          description: "Agencia creada correctamente",
+          description: "Grupo creado correctamente",
         });
       }
       
-      fetchAgencies();
+      fetchGroups();
       resetForm();
     } catch (error) {
       toast({
         title: "Error",
-        description: "No se pudo guardar la agencia",
+        description: "No se pudo guardar el grupo",
         variant: "destructive",
       });
     }
   };
 
-  const handleEdit = (agency: Agency) => {
-    setEditingAgency(agency);
+  const handleEdit = (group: Group) => {
+    setEditingGroup(group);
     setFormData({
-      name: agency.name,
-      group_id: agency.group_id || '',
-      is_active: agency.is_active
+      name: group.name,
+      description: group.description || ''
     });
     setIsDialogOpen(true);
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('¿Estás seguro de que quieres eliminar esta agencia?')) return;
+    if (!confirm('¿Estás seguro de que quieres eliminar este grupo?')) return;
     
     try {
       const { error } = await supabase
-        .from('agencies')
+        .from('agency_groups')
         .delete()
         .eq('id', id);
       
@@ -143,14 +114,14 @@ export const AgenciesCrud = () => {
       
       toast({
         title: "Éxito",
-        description: "Agencia eliminada correctamente",
+        description: "Grupo eliminado correctamente",
       });
       
-      fetchAgencies();
+      fetchGroups();
     } catch (error) {
       toast({
         title: "Error",
-        description: "No se pudo eliminar la agencia",
+        description: "No se pudo eliminar el grupo",
         variant: "destructive",
       });
     }
@@ -159,10 +130,9 @@ export const AgenciesCrud = () => {
   const resetForm = () => {
     setFormData({
       name: '',
-      group_id: '',
-      is_active: true
+      description: ''
     });
-    setEditingAgency(null);
+    setEditingGroup(null);
     setIsDialogOpen(false);
   };
 
@@ -173,18 +143,18 @@ export const AgenciesCrud = () => {
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-foreground">Gestión de Agencias</h1>
+        <h1 className="text-3xl font-bold text-foreground">Gestión de Grupos</h1>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button onClick={() => resetForm()}>
               <Plus className="mr-2 h-4 w-4" />
-              Nueva Agencia
+              Nuevo Grupo
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
               <DialogTitle>
-                {editingAgency ? 'Editar Agencia' : 'Nueva Agencia'}
+                {editingGroup ? 'Editar Grupo' : 'Nuevo Grupo'}
               </DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -198,38 +168,20 @@ export const AgenciesCrud = () => {
                 />
               </div>
               <div>
-                <Label htmlFor="group">Grupo</Label>
-                <Select
-                  value={formData.group_id}
-                  onValueChange={(value) => setFormData({ ...formData, group_id: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar grupo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">Sin grupo</SelectItem>
-                    {groups.map((group) => (
-                      <SelectItem key={group.id} value={group.id}>
-                        {group.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="is_active"
-                  checked={formData.is_active}
-                  onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
+                <Label htmlFor="description">Descripción</Label>
+                <Textarea
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  rows={3}
                 />
-                <Label htmlFor="is_active">Activa</Label>
               </div>
               <div className="flex justify-end space-x-2">
                 <Button type="button" variant="outline" onClick={resetForm}>
                   Cancelar
                 </Button>
                 <Button type="submit">
-                  {editingAgency ? 'Actualizar' : 'Crear'}
+                  {editingGroup ? 'Actualizar' : 'Crear'}
                 </Button>
               </div>
             </form>
@@ -239,45 +191,35 @@ export const AgenciesCrud = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle>Lista de Agencias</CardTitle>
+          <CardTitle>Lista de Grupos</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Nombre</TableHead>
-                <TableHead>Grupo</TableHead>
-                <TableHead>Estado</TableHead>
+                <TableHead>Descripción</TableHead>
                 <TableHead>Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {agencies.map((agency: any) => (
-                <TableRow key={agency.id}>
-                  <TableCell className="font-medium">{agency.name}</TableCell>
-                  <TableCell>{agency.agency_groups?.name || 'Sin grupo'}</TableCell>
-                  <TableCell>
-                    <span className={`px-2 py-1 rounded-full text-xs ${
-                      agency.is_active 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-red-100 text-red-800'
-                    }`}>
-                      {agency.is_active ? 'Activa' : 'Inactiva'}
-                    </span>
-                  </TableCell>
+              {groups.map((group) => (
+                <TableRow key={group.id}>
+                  <TableCell className="font-medium">{group.name}</TableCell>
+                  <TableCell>{group.description || '-'}</TableCell>
                   <TableCell>
                     <div className="flex space-x-2">
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleEdit(agency)}
+                        onClick={() => handleEdit(group)}
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleDelete(agency.id)}
+                        onClick={() => handleDelete(group.id)}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>

@@ -1,6 +1,7 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AdminSidebar } from "./AdminSidebar";
 import { AgenciesCrud } from "./AgenciesCrud";
+import { GroupsCrud } from "./GroupsCrud";
 import { UsersCrud } from "./UsersCrud";
 import { SystemsCrud } from "./SystemsCrud";
 import { AdminCuadresView } from "./AdminCuadresView";
@@ -16,7 +17,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 
-type AdminView = 'agencies' | 'users' | 'systems' | 'cuadres' | 'system-commissions' | 'weekly-cuadre-complete' | 'ganancias' | 'systems-summary' | 'dashboard';
+type AdminView = 'agencies' | 'groups' | 'users' | 'systems' | 'cuadres' | 'system-commissions' | 'weekly-cuadre-complete' | 'ganancias' | 'systems-summary' | 'dashboard';
 
 export const AdminDashboard = () => {
   const [currentView, setCurrentView] = useState<AdminView>('dashboard');
@@ -60,6 +61,8 @@ export const AdminDashboard = () => {
     switch (currentView) {
       case 'agencies':
         return <AgenciesCrud />;
+      case 'groups':
+        return <GroupsCrud />;
       case 'users':
         return <UsersCrud />;
       case 'systems':
