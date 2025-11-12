@@ -6,7 +6,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Edit, Trash2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Plus, Edit, Trash2, Building2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -17,11 +19,19 @@ interface Group {
   created_at: string;
 }
 
+interface Agency {
+  id: string;
+  name: string;
+  group_id: string | null;
+}
+
 export const GroupsCrud = () => {
   const [groups, setGroups] = useState<Group[]>([]);
+  const [agencies, setAgencies] = useState<Agency[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingGroup, setEditingGroup] = useState<Group | null>(null);
+  const [selectedAgencies, setSelectedAgencies] = useState<string[]>([]);
   const [formData, setFormData] = useState({
     name: '',
     description: ''
@@ -48,14 +58,35 @@ export const GroupsCrud = () => {
     }
   };
 
+  const fetchAgencies = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('agencies')
+        .select('id, name, group_id')
+        .order('name');
+
+      if (error) throw error;
+      setAgencies(data || []);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar las agencias",
+        variant: "destructive",
+      });
+    }
+  };
+
   useEffect(() => {
     fetchGroups();
+    fetchAgencies();
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     try {
+      let groupId: string;
+      
       if (editingGroup) {
         const { error } = await supabase
           .from('agency_groups')
@@ -63,17 +94,21 @@ export const GroupsCrud = () => {
           .eq('id', editingGroup.id);
         
         if (error) throw error;
+        groupId = editingGroup.id;
         
         toast({
           title: "Éxito",
           description: "Grupo actualizado correctamente",
         });
       } else {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('agency_groups')
-          .insert(formData);
+          .insert(formData)
+          .select()
+          .single();
         
         if (error) throw error;
+        groupId = data.id;
         
         toast({
           title: "Éxito",
@@ -81,7 +116,23 @@ export const GroupsCrud = () => {
         });
       }
       
+      // Update agencies' group_id
+      // First, remove all agencies from this group
+      await supabase
+        .from('agencies')
+        .update({ group_id: null })
+        .eq('group_id', groupId);
+      
+      // Then, assign selected agencies to this group
+      if (selectedAgencies.length > 0) {
+        await supabase
+          .from('agencies')
+          .update({ group_id: groupId })
+          .in('id', selectedAgencies);
+      }
+      
       fetchGroups();
+      fetchAgencies();
       resetForm();
     } catch (error) {
       toast({
@@ -98,6 +149,11 @@ export const GroupsCrud = () => {
       name: group.name,
       description: group.description || ''
     });
+    // Get agencies in this group
+    const groupAgencies = agencies
+      .filter(a => a.group_id === group.id)
+      .map(a => a.id);
+    setSelectedAgencies(groupAgencies);
     setIsDialogOpen(true);
   };
 
@@ -132,8 +188,21 @@ export const GroupsCrud = () => {
       name: '',
       description: ''
     });
+    setSelectedAgencies([]);
     setEditingGroup(null);
     setIsDialogOpen(false);
+  };
+
+  const toggleAgencySelection = (agencyId: string) => {
+    setSelectedAgencies(prev => 
+      prev.includes(agencyId)
+        ? prev.filter(id => id !== agencyId)
+        : [...prev, agencyId]
+    );
+  };
+
+  const getAgenciesInGroup = (groupId: string) => {
+    return agencies.filter(a => a.group_id === groupId);
   };
 
   if (loading) {
@@ -176,6 +245,31 @@ export const GroupsCrud = () => {
                   rows={3}
                 />
               </div>
+              <div className="space-y-2">
+                <Label>Agencias en este grupo</Label>
+                <ScrollArea className="h-[200px] w-full border rounded-md p-4">
+                  <div className="space-y-2">
+                    {agencies.map((agency) => (
+                      <div key={agency.id} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`agency-${agency.id}`}
+                          checked={selectedAgencies.includes(agency.id)}
+                          onCheckedChange={() => toggleAgencySelection(agency.id)}
+                        />
+                        <label
+                          htmlFor={`agency-${agency.id}`}
+                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                        >
+                          {agency.name}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+                <p className="text-xs text-muted-foreground">
+                  {selectedAgencies.length} agencia(s) seleccionada(s)
+                </p>
+              </div>
               <div className="flex justify-end space-x-2">
                 <Button type="button" variant="outline" onClick={resetForm}>
                   Cancelar
@@ -198,35 +292,52 @@ export const GroupsCrud = () => {
             <TableHeader>
               <TableRow>
                 <TableHead>Nombre</TableHead>
+                <TableHead>Agencias</TableHead>
                 <TableHead>Descripción</TableHead>
                 <TableHead>Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {groups.map((group) => (
-                <TableRow key={group.id}>
-                  <TableCell className="font-medium">{group.name}</TableCell>
-                  <TableCell>{group.description || '-'}</TableCell>
-                  <TableCell>
-                    <div className="flex space-x-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEdit(group)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDelete(group.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {groups.map((group) => {
+                const groupAgencies = getAgenciesInGroup(group.id);
+                return (
+                  <TableRow key={group.id}>
+                    <TableCell className="font-medium">{group.name}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Building2 className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm">
+                          {groupAgencies.length} agencia(s)
+                        </span>
+                      </div>
+                      {groupAgencies.length > 0 && (
+                        <div className="text-xs text-muted-foreground mt-1">
+                          {groupAgencies.map(a => a.name).join(', ')}
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell>{group.description || '-'}</TableCell>
+                    <TableCell>
+                      <div className="flex space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEdit(group)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDelete(group.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </CardContent>
