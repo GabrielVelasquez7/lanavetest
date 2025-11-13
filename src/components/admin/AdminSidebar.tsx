@@ -1,4 +1,4 @@
-import { Building2, Users, Settings, Home, Calculator, Percent, FileSpreadsheet, TrendingUp, Grid3x3, FolderTree } from "lucide-react";
+import { Building2, Users, Settings, Home, Calculator, Percent, FileSpreadsheet, TrendingUp, Grid3x3, FolderTree, UserCircle, Banknote } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -11,7 +11,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 
-type AdminView = 'agencies' | 'groups' | 'users' | 'systems' | 'cuadres' | 'system-commissions' | 'weekly-cuadre-complete' | 'ganancias' | 'systems-summary' | 'dashboard';
+type AdminView = 'agencies' | 'groups' | 'users' | 'systems' | 'cuadres' | 'system-commissions' | 'weekly-cuadre-complete' | 'ganancias' | 'systems-summary' | 'dashboard' | 'clients' | 'banqueo';
 
 const menuItems = [
   {
@@ -25,9 +25,16 @@ const menuItems = [
     items: [
       { id: "agencies", label: "Agencias", icon: Building2 },
       { id: "groups", label: "Grupos", icon: FolderTree },
+      { id: "clients", label: "Clientes", icon: UserCircle },
       { id: "users", label: "Usuarios", icon: Users },
       { id: "systems", label: "Sistemas", icon: Settings },
       { id: "system-commissions", label: "Comisiones", icon: Percent },
+    ],
+  },
+  {
+    group: "Operaciones",
+    items: [
+      { id: "banqueo", label: "Banqueo", icon: Banknote },
     ],
   },
   {

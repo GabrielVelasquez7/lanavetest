@@ -79,6 +79,91 @@ export type Database = {
         }
         Relationships: []
       }
+      banqueo_transactions: {
+        Row: {
+          client_id: string
+          created_at: string
+          created_by: string
+          id: string
+          prizes_bs: number
+          prizes_usd: number
+          sales_bs: number
+          sales_usd: number
+          updated_at: string
+          week_end_date: string
+          week_start_date: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          created_by: string
+          id?: string
+          prizes_bs?: number
+          prizes_usd?: number
+          sales_bs?: number
+          sales_usd?: number
+          updated_at?: string
+          week_end_date: string
+          week_start_date: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          prizes_bs?: number
+          prizes_usd?: number
+          sales_bs?: number
+          sales_usd?: number
+          updated_at?: string
+          week_end_date?: string
+          week_start_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "banqueo_transactions_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      clients: {
+        Row: {
+          created_at: string
+          group_id: string | null
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          group_id?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          group_id?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clients_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "agency_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       daily_cuadres_summary: {
         Row: {
           agency_id: string | null
