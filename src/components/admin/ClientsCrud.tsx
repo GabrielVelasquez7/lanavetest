@@ -3,13 +3,31 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
-import { Pencil, Trash2, Plus } from "lucide-react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
-import { Switch } from "@/components/ui/switch";
+import { Pencil, Trash2, Plus } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 interface Client {
   id: string;
@@ -17,18 +35,18 @@ interface Client {
   group_id: string | null;
   is_active: boolean;
   created_at: string;
-  updated_at: string;
 }
 
-interface AgencyGroup {
+interface Group {
   id: string;
   name: string;
 }
 
 export function ClientsCrud() {
   const [clients, setClients] = useState<Client[]>([]);
-  const [groups, setGroups] = useState<AgencyGroup[]>([]);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [formData, setFormData] = useState({
     name: "",
@@ -42,75 +60,71 @@ export function ClientsCrud() {
   }, []);
 
   const fetchClients = async () => {
-    const { data, error } = await supabase
-      .from("clients")
-      .select("*")
-      .order("name");
+    try {
+      const { data, error } = await supabase
+        .from("clients")
+        .select(`
+          *,
+          agency_groups (
+            name
+          )
+        `)
+        .order("created_at", { ascending: false });
 
-    if (error) {
-      toast.error("Error al cargar clientes");
-      return;
+      if (error) throw error;
+      setClients(data || []);
+    } catch (error: any) {
+      toast.error("Error al cargar clientes: " + error.message);
+    } finally {
+      setLoading(false);
     }
-
-    setClients(data || []);
   };
 
   const fetchGroups = async () => {
-    const { data, error } = await supabase
-      .from("agency_groups")
-      .select("id, name")
-      .order("name");
+    try {
+      const { data, error } = await supabase
+        .from("agency_groups")
+        .select("id, name")
+        .order("name");
 
-    if (error) {
-      toast.error("Error al cargar grupos");
-      return;
+      if (error) throw error;
+      setGroups(data || []);
+    } catch (error: any) {
+      toast.error("Error al cargar grupos: " + error.message);
     }
-
-    setGroups(data || []);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.name.trim()) {
-      toast.error("El nombre del cliente es requerido");
-      return;
-    }
+    try {
+      const clientData = {
+        name: formData.name,
+        group_id: formData.group_id || null,
+        is_active: formData.is_active,
+      };
 
-    const clientData = {
-      name: formData.name.trim(),
-      group_id: formData.group_id || null,
-      is_active: formData.is_active,
-    };
+      if (editingClient) {
+        const { error } = await supabase
+          .from("clients")
+          .update(clientData)
+          .eq("id", editingClient.id);
 
-    if (editingClient) {
-      const { error } = await supabase
-        .from("clients")
-        .update(clientData)
-        .eq("id", editingClient.id);
+        if (error) throw error;
+        toast.success("Cliente actualizado exitosamente");
+      } else {
+        const { error } = await supabase.from("clients").insert([clientData]);
 
-      if (error) {
-        toast.error("Error al actualizar cliente");
-        return;
+        if (error) throw error;
+        toast.success("Cliente creado exitosamente");
       }
 
-      toast.success("Cliente actualizado correctamente");
-    } else {
-      const { error } = await supabase
-        .from("clients")
-        .insert([clientData]);
-
-      if (error) {
-        toast.error("Error al crear cliente");
-        return;
-      }
-
-      toast.success("Cliente creado correctamente");
+      setDialogOpen(false);
+      resetForm();
+      fetchClients();
+    } catch (error: any) {
+      toast.error("Error al guardar cliente: " + error.message);
     }
-
-    setIsDialogOpen(false);
-    resetForm();
-    fetchClients();
   };
 
   const handleEdit = (client: Client) => {
@@ -120,26 +134,21 @@ export function ClientsCrud() {
       group_id: client.group_id || "",
       is_active: client.is_active,
     });
-    setIsDialogOpen(true);
+    setDialogOpen(true);
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("¿Estás seguro de que deseas eliminar este cliente?")) {
-      return;
+    if (!confirm("¿Estás seguro de que deseas eliminar este cliente?")) return;
+
+    try {
+      const { error } = await supabase.from("clients").delete().eq("id", id);
+
+      if (error) throw error;
+      toast.success("Cliente eliminado exitosamente");
+      fetchClients();
+    } catch (error: any) {
+      toast.error("Error al eliminar cliente: " + error.message);
     }
-
-    const { error } = await supabase
-      .from("clients")
-      .delete()
-      .eq("id", id);
-
-    if (error) {
-      toast.error("Error al eliminar cliente");
-      return;
-    }
-
-    toast.success("Cliente eliminado correctamente");
-    fetchClients();
   };
 
   const resetForm = () => {
@@ -151,25 +160,25 @@ export function ClientsCrud() {
     setEditingClient(null);
   };
 
-  const handleDialogClose = () => {
-    setIsDialogOpen(false);
-    resetForm();
+  const handleDialogChange = (open: boolean) => {
+    setDialogOpen(open);
+    if (!open) {
+      resetForm();
+    }
   };
 
-  const getGroupName = (groupId: string | null) => {
-    if (!groupId) return "Sin grupo";
-    const group = groups.find(g => g.id === groupId);
-    return group?.name || "Sin grupo";
-  };
+  if (loading) {
+    return <div className="p-8">Cargando...</div>;
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-3xl font-bold">Gestión de Clientes</h2>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <h2 className="text-2xl font-bold">Gestión de Clientes</h2>
+        <Dialog open={dialogOpen} onOpenChange={handleDialogChange}>
           <DialogTrigger asChild>
-            <Button onClick={() => { resetForm(); setIsDialogOpen(true); }}>
-              <Plus className="mr-2 h-4 w-4" />
+            <Button>
+              <Plus className="w-4 h-4 mr-2" />
               Nuevo Cliente
             </Button>
           </DialogTrigger>
@@ -181,12 +190,13 @@ export function ClientsCrud() {
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <Label htmlFor="name">Nombre *</Label>
+                <Label htmlFor="name">Nombre</Label>
                 <Input
                   id="name"
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Nombre del cliente"
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
                   required
                 />
               </div>
@@ -195,10 +205,12 @@ export function ClientsCrud() {
                 <Label htmlFor="group">Grupo</Label>
                 <Select
                   value={formData.group_id}
-                  onValueChange={(value) => setFormData({ ...formData, group_id: value })}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, group_id: value })
+                  }
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar grupo (opcional)" />
+                    <SelectValue placeholder="Seleccionar grupo" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="">Sin grupo</SelectItem>
@@ -212,84 +224,78 @@ export function ClientsCrud() {
               </div>
 
               <div className="flex items-center space-x-2">
-                <Switch
+                <input
+                  type="checkbox"
                   id="is_active"
                   checked={formData.is_active}
-                  onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, is_active: e.target.checked })
+                  }
+                  className="rounded"
                 />
                 <Label htmlFor="is_active">Activo</Label>
               </div>
 
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={handleDialogClose}>
+              <div className="flex justify-end space-x-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => handleDialogChange(false)}
+                >
                   Cancelar
                 </Button>
-                <Button type="submit">
-                  {editingClient ? "Actualizar" : "Crear"}
-                </Button>
-              </DialogFooter>
+                <Button type="submit">Guardar</Button>
+              </div>
             </form>
           </DialogContent>
         </Dialog>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Clientes Registrados</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nombre</TableHead>
-                <TableHead>Grupo</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead className="text-right">Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {clients.map((client) => (
-                <TableRow key={client.id}>
-                  <TableCell className="font-medium">{client.name}</TableCell>
-                  <TableCell>{getGroupName(client.group_id)}</TableCell>
-                  <TableCell>
-                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                      client.is_active 
-                        ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" 
-                        : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
-                    }`}>
-                      {client.is_active ? "Activo" : "Inactivo"}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right space-x-2">
+      <div className="border rounded-lg">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Nombre</TableHead>
+              <TableHead>Grupo</TableHead>
+              <TableHead>Estado</TableHead>
+              <TableHead className="text-right">Acciones</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {clients.map((client: any) => (
+              <TableRow key={client.id}>
+                <TableCell className="font-medium">{client.name}</TableCell>
+                <TableCell>
+                  {client.agency_groups?.name || "Sin grupo"}
+                </TableCell>
+                <TableCell>
+                  <Badge variant={client.is_active ? "default" : "secondary"}>
+                    {client.is_active ? "Activo" : "Inactivo"}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-right">
+                  <div className="flex justify-end gap-2">
                     <Button
-                      variant="outline"
-                      size="sm"
+                      variant="ghost"
+                      size="icon"
                       onClick={() => handleEdit(client)}
                     >
-                      <Pencil className="h-4 w-4" />
+                      <Pencil className="w-4 h-4" />
                     </Button>
                     <Button
-                      variant="destructive"
-                      size="sm"
+                      variant="ghost"
+                      size="icon"
                       onClick={() => handleDelete(client.id)}
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Trash2 className="w-4 h-4" />
                     </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {clients.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={4} className="text-center text-muted-foreground">
-                    No hay clientes registrados
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }
