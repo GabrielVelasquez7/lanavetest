@@ -1,32 +1,14 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { toast } from "sonner";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Plus, Edit, Trash2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/utils";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -48,43 +30,38 @@ interface Client {
   name: string;
 }
 
-export function BanqueoManager() {
+export const BanqueoManager = () => {
   const [transactions, setTransactions] = useState<BanqueoTransaction[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<BanqueoTransaction | null>(null);
   const [formData, setFormData] = useState({
-    client_id: "",
-    week_start_date: "",
-    week_end_date: "",
-    sales_bs: "",
-    sales_usd: "",
-    prizes_bs: "",
-    prizes_usd: "",
+    client_id: '',
+    week_start_date: '',
+    week_end_date: '',
+    sales_bs: '',
+    sales_usd: '',
+    prizes_bs: '',
+    prizes_usd: '',
   });
-
-  useEffect(() => {
-    fetchTransactions();
-    fetchClients();
-  }, []);
+  const { toast } = useToast();
 
   const fetchTransactions = async () => {
     try {
       const { data, error } = await supabase
-        .from("banqueo_transactions")
-        .select(`
-          *,
-          clients (
-            name
-          )
-        `)
-        .order("created_at", { ascending: false });
+        .from('banqueo_transactions')
+        .select('*, clients(name)')
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
       setTransactions(data || []);
-    } catch (error: any) {
-      toast.error("Error al cargar transacciones: " + error.message);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar las transacciones",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -93,21 +70,30 @@ export function BanqueoManager() {
   const fetchClients = async () => {
     try {
       const { data, error } = await supabase
-        .from("clients")
-        .select("id, name")
-        .eq("is_active", true)
-        .order("name");
+        .from('clients')
+        .select('id, name')
+        .eq('is_active', true)
+        .order('name');
 
       if (error) throw error;
       setClients(data || []);
-    } catch (error: any) {
-      toast.error("Error al cargar clientes: " + error.message);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar los clientes",
+        variant: "destructive",
+      });
     }
   };
 
+  useEffect(() => {
+    fetchTransactions();
+    fetchClients();
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
+    
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuario no autenticado");
@@ -125,26 +111,37 @@ export function BanqueoManager() {
 
       if (editingTransaction) {
         const { error } = await supabase
-          .from("banqueo_transactions")
+          .from('banqueo_transactions')
           .update(transactionData)
-          .eq("id", editingTransaction.id);
-
+          .eq('id', editingTransaction.id);
+        
         if (error) throw error;
-        toast.success("Transacción actualizada exitosamente");
+        
+        toast({
+          title: "Éxito",
+          description: "Transacción actualizada correctamente",
+        });
       } else {
         const { error } = await supabase
-          .from("banqueo_transactions")
-          .insert([transactionData]);
-
+          .from('banqueo_transactions')
+          .insert(transactionData);
+        
         if (error) throw error;
-        toast.success("Transacción creada exitosamente");
+        
+        toast({
+          title: "Éxito",
+          description: "Transacción creada correctamente",
+        });
       }
-
-      setDialogOpen(false);
-      resetForm();
+      
       fetchTransactions();
+      resetForm();
     } catch (error: any) {
-      toast.error("Error al guardar transacción: " + error.message);
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo guardar la transacción",
+        variant: "destructive",
+      });
     }
   };
 
@@ -159,75 +156,76 @@ export function BanqueoManager() {
       prizes_bs: transaction.prizes_bs.toString(),
       prizes_usd: transaction.prizes_usd.toString(),
     });
-    setDialogOpen(true);
+    setIsDialogOpen(true);
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("¿Estás seguro de que deseas eliminar esta transacción?")) return;
-
+    if (!confirm('¿Estás seguro de que quieres eliminar esta transacción?')) return;
+    
     try {
       const { error } = await supabase
-        .from("banqueo_transactions")
+        .from('banqueo_transactions')
         .delete()
-        .eq("id", id);
-
+        .eq('id', id);
+      
       if (error) throw error;
-      toast.success("Transacción eliminada exitosamente");
+      
+      toast({
+        title: "Éxito",
+        description: "Transacción eliminada correctamente",
+      });
+      
       fetchTransactions();
-    } catch (error: any) {
-      toast.error("Error al eliminar transacción: " + error.message);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo eliminar la transacción",
+        variant: "destructive",
+      });
     }
   };
 
   const resetForm = () => {
     setFormData({
-      client_id: "",
-      week_start_date: "",
-      week_end_date: "",
-      sales_bs: "",
-      sales_usd: "",
-      prizes_bs: "",
-      prizes_usd: "",
+      client_id: '',
+      week_start_date: '',
+      week_end_date: '',
+      sales_bs: '',
+      sales_usd: '',
+      prizes_bs: '',
+      prizes_usd: '',
     });
     setEditingTransaction(null);
-  };
-
-  const handleDialogChange = (open: boolean) => {
-    setDialogOpen(open);
-    if (!open) {
-      resetForm();
-    }
+    setIsDialogOpen(false);
   };
 
   if (loading) {
-    return <div className="p-8">Cargando...</div>;
+    return <div className="flex items-center justify-center p-8">Cargando...</div>;
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Gestión de Banqueo</h2>
-        <Dialog open={dialogOpen} onOpenChange={handleDialogChange}>
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+        <CardTitle>Gestión de Banqueo</CardTitle>
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button>
-              <Plus className="w-4 h-4 mr-2" />
+              <Plus className="mr-2 h-4 w-4" />
               Nueva Transacción
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>
-                {editingTransaction ? "Editar Transacción" : "Nueva Transacción"}
+                {editingTransaction ? 'Editar Transacción' : 'Nueva Transacción'}
               </DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
+              <div className="space-y-2">
                 <Label htmlFor="client">Cliente</Label>
                 <Select
                   value={formData.client_id}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, client_id: value })
-                  }
+                  onValueChange={(value) => setFormData({ ...formData, client_id: value })}
                   required
                 >
                   <SelectTrigger>
@@ -244,106 +242,95 @@ export function BanqueoManager() {
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <div>
+                <div className="space-y-2">
                   <Label htmlFor="week_start_date">Fecha Inicio Semana</Label>
                   <Input
                     id="week_start_date"
                     type="date"
                     value={formData.week_start_date}
-                    onChange={(e) =>
-                      setFormData({ ...formData, week_start_date: e.target.value })
-                    }
+                    onChange={(e) => setFormData({ ...formData, week_start_date: e.target.value })}
                     required
                   />
                 </div>
-                <div>
+                <div className="space-y-2">
                   <Label htmlFor="week_end_date">Fecha Fin Semana</Label>
                   <Input
                     id="week_end_date"
                     type="date"
                     value={formData.week_end_date}
-                    onChange={(e) =>
-                      setFormData({ ...formData, week_end_date: e.target.value })
-                    }
+                    onChange={(e) => setFormData({ ...formData, week_end_date: e.target.value })}
                     required
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <div>
+                <div className="space-y-2">
                   <Label htmlFor="sales_bs">Ventas (Bs)</Label>
                   <Input
                     id="sales_bs"
                     type="number"
                     step="0.01"
                     value={formData.sales_bs}
-                    onChange={(e) =>
-                      setFormData({ ...formData, sales_bs: e.target.value })
-                    }
+                    onChange={(e) => setFormData({ ...formData, sales_bs: e.target.value })}
                     required
                   />
                 </div>
-                <div>
+                <div className="space-y-2">
                   <Label htmlFor="sales_usd">Ventas (USD)</Label>
                   <Input
                     id="sales_usd"
                     type="number"
                     step="0.01"
                     value={formData.sales_usd}
-                    onChange={(e) =>
-                      setFormData({ ...formData, sales_usd: e.target.value })
-                    }
+                    onChange={(e) => setFormData({ ...formData, sales_usd: e.target.value })}
                     required
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <div>
+                <div className="space-y-2">
                   <Label htmlFor="prizes_bs">Premios (Bs)</Label>
                   <Input
                     id="prizes_bs"
                     type="number"
                     step="0.01"
                     value={formData.prizes_bs}
-                    onChange={(e) =>
-                      setFormData({ ...formData, prizes_bs: e.target.value })
-                    }
+                    onChange={(e) => setFormData({ ...formData, prizes_bs: e.target.value })}
                     required
                   />
                 </div>
-                <div>
+                <div className="space-y-2">
                   <Label htmlFor="prizes_usd">Premios (USD)</Label>
                   <Input
                     id="prizes_usd"
                     type="number"
                     step="0.01"
                     value={formData.prizes_usd}
-                    onChange={(e) =>
-                      setFormData({ ...formData, prizes_usd: e.target.value })
-                    }
+                    onChange={(e) => setFormData({ ...formData, prizes_usd: e.target.value })}
                     required
                   />
                 </div>
               </div>
 
-              <div className="flex justify-end space-x-2">
+              <div className="flex justify-end space-x-2 pt-4">
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => handleDialogChange(false)}
+                  onClick={resetForm}
                 >
                   Cancelar
                 </Button>
-                <Button type="submit">Guardar</Button>
+                <Button type="submit">
+                  {editingTransaction ? 'Actualizar' : 'Crear'}
+                </Button>
               </div>
             </form>
           </DialogContent>
         </Dialog>
-      </div>
-
-      <div className="border rounded-lg">
+      </CardHeader>
+      <CardContent>
         <Table>
           <TableHeader>
             <TableRow>
@@ -363,41 +350,35 @@ export function BanqueoManager() {
                   {transaction.clients?.name}
                 </TableCell>
                 <TableCell>
-                  {format(new Date(transaction.week_start_date), "dd/MM/yyyy", {
-                    locale: es,
-                  })}{" "}
-                  -{" "}
-                  {format(new Date(transaction.week_end_date), "dd/MM/yyyy", {
-                    locale: es,
-                  })}
+                  {format(new Date(transaction.week_start_date), 'dd/MM/yyyy', { locale: es })}
+                  {' - '}
+                  {format(new Date(transaction.week_end_date), 'dd/MM/yyyy', { locale: es })}
                 </TableCell>
-                <TableCell>{formatCurrency(transaction.sales_bs, "VES")}</TableCell>
-                <TableCell>{formatCurrency(transaction.sales_usd, "USD")}</TableCell>
-                <TableCell>{formatCurrency(transaction.prizes_bs, "VES")}</TableCell>
-                <TableCell>{formatCurrency(transaction.prizes_usd, "USD")}</TableCell>
+                <TableCell>{formatCurrency(transaction.sales_bs, 'VES')}</TableCell>
+                <TableCell>{formatCurrency(transaction.sales_usd, 'USD')}</TableCell>
+                <TableCell>{formatCurrency(transaction.prizes_bs, 'VES')}</TableCell>
+                <TableCell>{formatCurrency(transaction.prizes_usd, 'USD')}</TableCell>
                 <TableCell className="text-right">
-                  <div className="flex justify-end gap-2">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleEdit(transaction)}
-                    >
-                      <Pencil className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDelete(transaction.id)}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleEdit(transaction)}
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleDelete(transaction.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
