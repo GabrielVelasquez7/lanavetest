@@ -1,28 +1,44 @@
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Edit, Trash2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
-import { formatCurrency } from "@/lib/utils";
-import { format } from "date-fns";
-import { es } from "date-fns/locale";
+import { useState, useEffect, useMemo } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { BanqueoSalesBolivares } from './BanqueoSalesBolivares';
+import { BanqueoSalesDolares } from './BanqueoSalesDolares';
+import { BanqueoPrizesBolivares } from './BanqueoPrizesBolivares';
+import { BanqueoPrizesDolares } from './BanqueoPrizesDolares';
+import { Building2, CalendarIcon, DollarSign, Gift, ChevronLeft, ChevronRight } from 'lucide-react';
+import { formatCurrency } from '@/lib/utils';
+import { formatDateForDB } from '@/lib/dateUtils';
+import { format, startOfWeek, endOfWeek, addWeeks } from 'date-fns';
+import { es } from 'date-fns/locale';
 
-interface BanqueoTransaction {
+const systemEntrySchema = z.object({
+  lottery_system_id: z.string(),
+  lottery_system_name: z.string(),
+  sales_bs: z.number().min(0),
+  sales_usd: z.number().min(0),
+  prizes_bs: z.number().min(0),
+  prizes_usd: z.number().min(0),
+});
+
+const banqueoSchema = z.object({
+  systems: z.array(systemEntrySchema),
+});
+
+export type BanqueoForm = z.infer<typeof banqueoSchema>;
+export type SystemEntry = z.infer<typeof systemEntrySchema>;
+
+interface LotterySystem {
   id: string;
-  client_id: string;
-  week_start_date: string;
-  week_end_date: string;
-  sales_bs: number;
-  sales_usd: number;
-  prizes_bs: number;
-  prizes_usd: number;
-  created_at: string;
+  name: string;
+  code: string;
 }
 
 interface Client {
@@ -31,354 +47,475 @@ interface Client {
 }
 
 export const BanqueoManager = () => {
-  const [transactions, setTransactions] = useState<BanqueoTransaction[]>([]);
+  const [mainTab, setMainTab] = useState('sales');
+  const [salesTab, setSalesTab] = useState('bolivares');
+  const [prizesTab, setPrizesTab] = useState('bolivares');
+  const [lotteryOptions, setLotteryOptions] = useState<LotterySystem[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingTransaction, setEditingTransaction] = useState<BanqueoTransaction | null>(null);
-  const [formData, setFormData] = useState({
-    client_id: '',
-    week_start_date: '',
-    week_end_date: '',
-    sales_bs: '',
-    sales_usd: '',
-    prizes_bs: '',
-    prizes_usd: '',
+  
+  // Persistir cliente y semana seleccionada en localStorage
+  const [selectedClient, setSelectedClient] = useState<string>(() => {
+    const saved = localStorage.getItem('banqueo:selectedClient');
+    return saved || '';
   });
+  
+  const [currentWeek, setCurrentWeek] = useState<{ start: Date; end: Date }>(() => {
+    const saved = localStorage.getItem('banqueo:currentWeek');
+    if (saved) {
+      const { start, end } = JSON.parse(saved);
+      return { start: new Date(start), end: new Date(end) };
+    }
+    const now = new Date();
+    const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+    const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
+    return { start: weekStart, end: weekEnd };
+  });
+  
+  const [loading, setLoading] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const { user } = useAuth();
   const { toast } = useToast();
 
-  const fetchTransactions = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('banqueo_transactions')
-        .select('*, clients(name)')
-        .order('created_at', { ascending: false });
+  // Guardar cliente seleccionado en localStorage cuando cambie
+  useEffect(() => {
+    if (selectedClient) {
+      localStorage.setItem('banqueo:selectedClient', selectedClient);
+    }
+  }, [selectedClient]);
 
-      if (error) throw error;
-      setTransactions(data || []);
-    } catch (error) {
+  // Guardar semana seleccionada en localStorage cuando cambie
+  useEffect(() => {
+    localStorage.setItem('banqueo:currentWeek', JSON.stringify({
+      start: currentWeek.start.toISOString(),
+      end: currentWeek.end.toISOString(),
+    }));
+  }, [currentWeek]);
+
+  const form = useForm<BanqueoForm>({
+    resolver: zodResolver(banqueoSchema),
+    defaultValues: {
+      systems: [],
+    },
+  });
+
+  // Cargar clientes y sistemas de lotería
+  useEffect(() => {
+    const fetchInitialData = async () => {
+      try {
+        // Cargar clientes
+        const { data: clientsData, error: clientsError } = await supabase
+          .from('clients')
+          .select('id, name')
+          .eq('is_active', true)
+          .order('name');
+
+        if (clientsError) throw clientsError;
+        setClients(clientsData || []);
+
+        // Cargar sistemas de lotería
+        const { data: systemsData, error: systemsError } = await supabase
+          .from('lottery_systems')
+          .select('id, name, code')
+          .eq('is_active', true)
+          .order('name');
+
+        if (systemsError) throw systemsError;
+        setLotteryOptions(systemsData || []);
+      } catch (error: any) {
+        toast({
+          title: 'Error',
+          description: error.message || 'No se pudieron cargar los datos iniciales',
+          variant: 'destructive',
+        });
+      }
+    };
+
+    fetchInitialData();
+  }, [toast]);
+
+  // Cargar datos cuando cambie el cliente o la semana
+  useEffect(() => {
+    if (selectedClient && currentWeek && lotteryOptions.length > 0) {
+      loadClientData();
+    }
+  }, [selectedClient, currentWeek, lotteryOptions]);
+
+  const loadClientData = async () => {
+    if (!user || !selectedClient || !currentWeek) return;
+
+    setLoading(true);
+    const weekStartStr = formatDateForDB(currentWeek.start);
+    const weekEndStr = formatDateForDB(currentWeek.end);
+    
+    try {
+      // Inicializar formulario con todos los sistemas
+      const systemsData: SystemEntry[] = lotteryOptions.map(system => ({
+        lottery_system_id: system.id,
+        lottery_system_name: system.name,
+        sales_bs: 0,
+        sales_usd: 0,
+        prizes_bs: 0,
+        prizes_usd: 0,
+      }));
+
+      // Buscar datos existentes de banqueo_transactions
+      const { data: transactions, error: transactionsError } = await supabase
+        .from('banqueo_transactions')
+        .select('*')
+        .eq('client_id', selectedClient)
+        .eq('week_start_date', weekStartStr)
+        .eq('week_end_date', weekEndStr);
+
+      if (transactionsError) {
+        console.error('Error buscando transacciones:', transactionsError);
+        throw transactionsError;
+      }
+
+      if (transactions && transactions.length > 0) {
+        // Hay datos existentes, cargarlos en el formulario
+        const systemsWithData = systemsData.map(system => {
+          const transaction = transactions.find(t => t.lottery_system_id === system.lottery_system_id);
+          if (transaction) {
+            return {
+              ...system,
+              sales_bs: Number(transaction.sales_bs || 0),
+              sales_usd: Number(transaction.sales_usd || 0),
+              prizes_bs: Number(transaction.prizes_bs || 0),
+              prizes_usd: Number(transaction.prizes_usd || 0),
+            };
+          }
+          return system;
+        });
+
+        form.setValue('systems', systemsWithData);
+        setEditMode(true);
+      } else {
+        // No hay datos, inicializar vacío
+        form.setValue('systems', systemsData);
+        setEditMode(false);
+      }
+    } catch (error: any) {
+      console.error('Error loading client data:', error);
       toast({
-        title: "Error",
-        description: "No se pudieron cargar las transacciones",
-        variant: "destructive",
+        title: 'Error',
+        description: error.message || 'Error al cargar los datos del cliente',
+        variant: 'destructive',
+      });
+      const systemsData: SystemEntry[] = lotteryOptions.map(system => ({
+        lottery_system_id: system.id,
+        lottery_system_name: system.name,
+        sales_bs: 0,
+        sales_usd: 0,
+        prizes_bs: 0,
+        prizes_usd: 0,
+      }));
+      form.reset({ systems: systemsData });
+      setEditMode(false);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const systems = form.watch('systems');
+  const totals = useMemo(() => {
+    return systems.reduce(
+      (acc, system) => ({
+        sales_bs: acc.sales_bs + (system.sales_bs || 0),
+        sales_usd: acc.sales_usd + (system.sales_usd || 0),
+        prizes_bs: acc.prizes_bs + (system.prizes_bs || 0),
+        prizes_usd: acc.prizes_usd + (system.prizes_usd || 0),
+      }),
+      { sales_bs: 0, sales_usd: 0, prizes_bs: 0, prizes_usd: 0 }
+    );
+  }, [systems]);
+
+  const onSubmit = async (data: BanqueoForm) => {
+    if (!user || !selectedClient || !currentWeek) return;
+
+    const weekStartStr = formatDateForDB(currentWeek.start);
+    const weekEndStr = formatDateForDB(currentWeek.end);
+
+    setLoading(true);
+    try {
+      // Filtrar sistemas con datos
+      const systemsWithData = data.systems.filter(
+        system => system.sales_bs > 0 || system.sales_usd > 0 || system.prizes_bs > 0 || system.prizes_usd > 0
+      );
+
+      if (systemsWithData.length === 0) {
+        toast({
+          title: 'Error',
+          description: 'Debe ingresar al menos un monto',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // Eliminar transacciones existentes para esta semana y cliente
+      await supabase
+        .from('banqueo_transactions')
+        .delete()
+        .eq('client_id', selectedClient)
+        .eq('week_start_date', weekStartStr)
+        .eq('week_end_date', weekEndStr);
+
+      // Insertar nuevas transacciones por sistema
+      const transactionsData = systemsWithData.map(system => ({
+        client_id: selectedClient,
+        week_start_date: weekStartStr,
+        week_end_date: weekEndStr,
+        lottery_system_id: system.lottery_system_id,
+        sales_bs: system.sales_bs,
+        sales_usd: system.sales_usd,
+        prizes_bs: system.prizes_bs,
+        prizes_usd: system.prizes_usd,
+        created_by: user.id,
+      }));
+
+      const { error: insertError } = await supabase
+        .from('banqueo_transactions')
+        .insert(transactionsData);
+
+      if (insertError) throw insertError;
+
+      toast({
+        title: 'Éxito',
+        description: editMode 
+          ? 'Datos de banqueo actualizados correctamente'
+          : 'Datos de banqueo registrados correctamente',
+      });
+
+      setEditMode(true);
+
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Error al procesar los datos de banqueo',
+        variant: 'destructive',
       });
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchClients = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('clients')
-        .select('id, name')
-        .eq('is_active', true)
-        .order('name');
-
-      if (error) throw error;
-      setClients(data || []);
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "No se pudieron cargar los clientes",
-        variant: "destructive",
-      });
-    }
+  const navigateWeek = (direction: 'prev' | 'next') => {
+    const newStart = addWeeks(currentWeek.start, direction === 'next' ? 1 : -1);
+    const newEnd = endOfWeek(newStart, { weekStartsOn: 1 });
+    setCurrentWeek({ start: newStart, end: newEnd });
   };
 
-  useEffect(() => {
-    fetchTransactions();
-    fetchClients();
-  }, []);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Usuario no autenticado");
-
-      const transactionData = {
-        client_id: formData.client_id,
-        week_start_date: formData.week_start_date,
-        week_end_date: formData.week_end_date,
-        sales_bs: parseFloat(formData.sales_bs) || 0,
-        sales_usd: parseFloat(formData.sales_usd) || 0,
-        prizes_bs: parseFloat(formData.prizes_bs) || 0,
-        prizes_usd: parseFloat(formData.prizes_usd) || 0,
-        created_by: user.id,
-      };
-
-      if (editingTransaction) {
-        const { error } = await supabase
-          .from('banqueo_transactions')
-          .update(transactionData)
-          .eq('id', editingTransaction.id);
-        
-        if (error) throw error;
-        
-        toast({
-          title: "Éxito",
-          description: "Transacción actualizada correctamente",
-        });
-      } else {
-        const { error } = await supabase
-          .from('banqueo_transactions')
-          .insert(transactionData);
-        
-        if (error) throw error;
-        
-        toast({
-          title: "Éxito",
-          description: "Transacción creada correctamente",
-        });
-      }
-      
-      fetchTransactions();
-      resetForm();
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "No se pudo guardar la transacción",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleEdit = (transaction: BanqueoTransaction) => {
-    setEditingTransaction(transaction);
-    setFormData({
-      client_id: transaction.client_id,
-      week_start_date: transaction.week_start_date,
-      week_end_date: transaction.week_end_date,
-      sales_bs: transaction.sales_bs.toString(),
-      sales_usd: transaction.sales_usd.toString(),
-      prizes_bs: transaction.prizes_bs.toString(),
-      prizes_usd: transaction.prizes_usd.toString(),
-    });
-    setIsDialogOpen(true);
-  };
-
-  const handleDelete = async (id: string) => {
-    if (!confirm('¿Estás seguro de que quieres eliminar esta transacción?')) return;
-    
-    try {
-      const { error } = await supabase
-        .from('banqueo_transactions')
-        .delete()
-        .eq('id', id);
-      
-      if (error) throw error;
-      
-      toast({
-        title: "Éxito",
-        description: "Transacción eliminada correctamente",
-      });
-      
-      fetchTransactions();
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "No se pudo eliminar la transacción",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const resetForm = () => {
-    setFormData({
-      client_id: '',
-      week_start_date: '',
-      week_end_date: '',
-      sales_bs: '',
-      sales_usd: '',
-      prizes_bs: '',
-      prizes_usd: '',
-    });
-    setEditingTransaction(null);
-    setIsDialogOpen(false);
-  };
-
-  if (loading) {
-    return <div className="flex items-center justify-center p-8">Cargando...</div>;
-  }
+  const selectedClientName = clients.find(c => c.id === selectedClient)?.name || '';
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-        <CardTitle>Gestión de Banqueo</CardTitle>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Nueva Transacción
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>
-                {editingTransaction ? 'Editar Transacción' : 'Nueva Transacción'}
-              </DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="client">Cliente</Label>
-                <Select
-                  value={formData.client_id}
-                  onValueChange={(value) => setFormData({ ...formData, client_id: value })}
-                  required
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar cliente" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {clients.map((client) => (
-                      <SelectItem key={client.id} value={client.id}>
-                        {client.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+    <div className="space-y-6">
+      {/* Selectores de Cliente y Semana */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Building2 className="h-5 w-5 mr-2" />
+              Seleccionar Cliente
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Select value={selectedClient} onValueChange={setSelectedClient}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Selecciona un cliente" />
+              </SelectTrigger>
+              <SelectContent>
+                {clients.map((client) => (
+                  <SelectItem key={client.id} value={client.id}>
+                    {client.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </CardContent>
+        </Card>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="week_start_date">Fecha Inicio Semana</Label>
-                  <Input
-                    id="week_start_date"
-                    type="date"
-                    value={formData.week_start_date}
-                    onChange={(e) => setFormData({ ...formData, week_start_date: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="week_end_date">Fecha Fin Semana</Label>
-                  <Input
-                    id="week_end_date"
-                    type="date"
-                    value={formData.week_end_date}
-                    onChange={(e) => setFormData({ ...formData, week_end_date: e.target.value })}
-                    required
-                  />
-                </div>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <CalendarIcon className="h-5 w-5 mr-2" />
+              Semana
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between gap-2">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => navigateWeek('prev')}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <div className="text-center flex-1">
+                <p className="text-sm font-medium">
+                  {format(currentWeek.start, "dd/MM/yyyy", { locale: es })} - {format(currentWeek.end, "dd/MM/yyyy", { locale: es })}
+                </p>
               </div>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => navigateWeek('next')}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="sales_bs">Ventas (Bs)</Label>
-                  <Input
-                    id="sales_bs"
-                    type="number"
-                    step="0.01"
-                    value={formData.sales_bs}
-                    onChange={(e) => setFormData({ ...formData, sales_bs: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="sales_usd">Ventas (USD)</Label>
-                  <Input
-                    id="sales_usd"
-                    type="number"
-                    step="0.01"
-                    value={formData.sales_usd}
-                    onChange={(e) => setFormData({ ...formData, sales_usd: e.target.value })}
-                    required
-                  />
-                </div>
-              </div>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <DollarSign className="h-5 w-5 mr-2" />
+              Resumen
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground">Ventas Bs</p>
+              <p className="text-lg font-bold text-success">
+                {formatCurrency(totals.sales_bs, 'VES')}
+              </p>
+              <p className="text-xs text-muted-foreground">Ventas USD</p>
+              <p className="text-lg font-bold text-success">
+                {formatCurrency(totals.sales_usd, 'USD')}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="prizes_bs">Premios (Bs)</Label>
-                  <Input
-                    id="prizes_bs"
-                    type="number"
-                    step="0.01"
-                    value={formData.prizes_bs}
-                    onChange={(e) => setFormData({ ...formData, prizes_bs: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="prizes_usd">Premios (USD)</Label>
-                  <Input
-                    id="prizes_usd"
-                    type="number"
-                    step="0.01"
-                    value={formData.prizes_usd}
-                    onChange={(e) => setFormData({ ...formData, prizes_usd: e.target.value })}
-                    required
-                  />
-                </div>
-              </div>
+      {selectedClient && (
+        <Tabs value={mainTab} onValueChange={setMainTab} className="space-y-6">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="sales" className="flex items-center gap-2">
+              <DollarSign className="h-4 w-4" />
+              Ventas
+            </TabsTrigger>
+            <TabsTrigger value="prizes" className="flex items-center gap-2">
+              <Gift className="h-4 w-4" />
+              Premios
+            </TabsTrigger>
+          </TabsList>
 
-              <div className="flex justify-end space-x-2 pt-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={resetForm}
-                >
-                  Cancelar
-                </Button>
-                <Button type="submit">
-                  {editingTransaction ? 'Actualizar' : 'Crear'}
-                </Button>
+          {/* Resumen de totales */}
+          <Card className="bg-muted/50">
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <span>Resumen del Banqueo - {selectedClientName}</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                <div>
+                  <p className="text-sm text-muted-foreground">Ventas Bs</p>
+                  <p className="text-xl font-bold text-success">
+                    {formatCurrency(totals.sales_bs, 'VES')}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Premios Bs</p>
+                  <p className="text-xl font-bold text-destructive">
+                    {formatCurrency(totals.prizes_bs, 'VES')}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Ventas USD</p>
+                  <p className="text-xl font-bold text-success">
+                    {formatCurrency(totals.sales_usd, 'USD')}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Premios USD</p>
+                  <p className="text-xl font-bold text-destructive">
+                    {formatCurrency(totals.prizes_usd, 'USD')}
+                  </p>
+                </div>
               </div>
-            </form>
-          </DialogContent>
-        </Dialog>
-      </CardHeader>
-      <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Cliente</TableHead>
-              <TableHead>Semana</TableHead>
-              <TableHead>Ventas (Bs)</TableHead>
-              <TableHead>Ventas (USD)</TableHead>
-              <TableHead>Premios (Bs)</TableHead>
-              <TableHead>Premios (USD)</TableHead>
-              <TableHead className="text-right">Acciones</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {transactions.map((transaction: any) => (
-              <TableRow key={transaction.id}>
-                <TableCell className="font-medium">
-                  {transaction.clients?.name}
-                </TableCell>
-                <TableCell>
-                  {format(new Date(transaction.week_start_date), 'dd/MM/yyyy', { locale: es })}
-                  {' - '}
-                  {format(new Date(transaction.week_end_date), 'dd/MM/yyyy', { locale: es })}
-                </TableCell>
-                <TableCell>{formatCurrency(transaction.sales_bs, 'VES')}</TableCell>
-                <TableCell>{formatCurrency(transaction.sales_usd, 'USD')}</TableCell>
-                <TableCell>{formatCurrency(transaction.prizes_bs, 'VES')}</TableCell>
-                <TableCell>{formatCurrency(transaction.prizes_usd, 'USD')}</TableCell>
-                <TableCell className="text-right">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleEdit(transaction)}
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleDelete(transaction.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
+              <div className="mt-4 pt-4 border-t">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-center">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Cuadre Bs</p>
+                    <p className={`text-2xl font-bold ${(totals.sales_bs - totals.prizes_bs) >= 0 ? 'text-success' : 'text-destructive'}`}>
+                      {formatCurrency(totals.sales_bs - totals.prizes_bs, 'VES')}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Cuadre USD</p>
+                    <p className={`text-2xl font-bold ${(totals.sales_usd - totals.prizes_usd) >= 0 ? 'text-success' : 'text-destructive'}`}>
+                      {formatCurrency(totals.sales_usd - totals.prizes_usd, 'USD')}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <TabsContent value="sales" className="space-y-6">
+            {/* Sub-tabs para ventas */}
+            <Tabs value={salesTab} onValueChange={setSalesTab} className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="bolivares">Ventas Bs</TabsTrigger>
+                <TabsTrigger value="dolares">Ventas USD</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="bolivares" className="space-y-4">
+                <BanqueoSalesBolivares 
+                  form={form} 
+                  lotteryOptions={lotteryOptions}
+                />
+              </TabsContent>
+
+              <TabsContent value="dolares" className="space-y-4">
+                <BanqueoSalesDolares 
+                  form={form} 
+                  lotteryOptions={lotteryOptions}
+                />
+              </TabsContent>
+            </Tabs>
+          </TabsContent>
+
+          <TabsContent value="prizes" className="space-y-6">
+            {/* Sub-tabs para premios */}
+            <Tabs value={prizesTab} onValueChange={setPrizesTab} className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="bolivares">Premios Bs</TabsTrigger>
+                <TabsTrigger value="dolares">Premios USD</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="bolivares" className="space-y-4">
+                <BanqueoPrizesBolivares 
+                  form={form} 
+                  lotteryOptions={lotteryOptions}
+                />
+              </TabsContent>
+
+              <TabsContent value="dolares" className="space-y-4">
+                <BanqueoPrizesDolares 
+                  form={form} 
+                  lotteryOptions={lotteryOptions}
+                />
+              </TabsContent>
+            </Tabs>
+          </TabsContent>
+        </Tabs>
+      )}
+
+      {/* Botón de guardar */}
+      {selectedClient && (
+        <div className="flex justify-center">
+          <Button 
+            onClick={form.handleSubmit(onSubmit)} 
+            disabled={loading} 
+            size="lg"
+            className="min-w-[200px]"
+          >
+            {loading ? 'Procesando...' : editMode ? 'Actualizar Banqueo' : 'Registrar Banqueo'}
+          </Button>
+        </div>
+      )}
+    </div>
   );
-}
+};
