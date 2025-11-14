@@ -85,6 +85,7 @@ export type Database = {
           created_at: string
           created_by: string
           id: string
+          lottery_system_id: string | null
           prizes_bs: number
           prizes_usd: number
           sales_bs: number
@@ -98,6 +99,7 @@ export type Database = {
           created_at?: string
           created_by: string
           id?: string
+          lottery_system_id?: string | null
           prizes_bs?: number
           prizes_usd?: number
           sales_bs?: number
@@ -111,6 +113,7 @@ export type Database = {
           created_at?: string
           created_by?: string
           id?: string
+          lottery_system_id?: string | null
           prizes_bs?: number
           prizes_usd?: number
           sales_bs?: number
@@ -125,6 +128,13 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "banqueo_transactions_lottery_system_id_fkey"
+            columns: ["lottery_system_id"]
+            isOneToOne: false
+            referencedRelation: "lottery_systems"
             referencedColumns: ["id"]
           },
         ]
