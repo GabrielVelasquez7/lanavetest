@@ -83,11 +83,16 @@ export const ClientsCrud = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    const submitData = {
+      ...formData,
+      group_id: formData.group_id === 'none' ? null : formData.group_id
+    };
+    
     try {
       if (editingClient) {
         const { error } = await supabase
           .from('clients')
-          .update(formData)
+          .update(submitData)
           .eq('id', editingClient.id);
         
         if (error) throw error;
@@ -99,7 +104,7 @@ export const ClientsCrud = () => {
       } else {
         const { error } = await supabase
           .from('clients')
-          .insert(formData);
+          .insert(submitData);
         
         if (error) throw error;
         
@@ -124,7 +129,7 @@ export const ClientsCrud = () => {
     setEditingClient(client);
     setFormData({
       name: client.name,
-      group_id: client.group_id || '',
+      group_id: client.group_id || 'none',
       is_active: client.is_active
     });
     setIsDialogOpen(true);
@@ -159,7 +164,7 @@ export const ClientsCrud = () => {
   const resetForm = () => {
     setFormData({
       name: '',
-      group_id: '',
+      group_id: 'none',
       is_active: true
     });
     setEditingClient(null);
@@ -208,7 +213,7 @@ export const ClientsCrud = () => {
                     <SelectValue placeholder="Seleccionar grupo (opcional)" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Sin grupo</SelectItem>
+                    <SelectItem value="none">Sin grupo</SelectItem>
                     {groups.map((group) => (
                       <SelectItem key={group.id} value={group.id}>
                         {group.name}
