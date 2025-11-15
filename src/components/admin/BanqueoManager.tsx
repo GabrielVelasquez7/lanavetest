@@ -9,11 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { BanqueoSalesBolivares } from './BanqueoSalesBolivares';
-import { BanqueoSalesDolares } from './BanqueoSalesDolares';
-import { BanqueoPrizesBolivares } from './BanqueoPrizesBolivares';
-import { BanqueoPrizesDolares } from './BanqueoPrizesDolares';
-import { Building2, CalendarIcon, DollarSign, Gift, ChevronLeft, ChevronRight } from 'lucide-react';
+import { BanqueoVentasPremiosBolivares } from './BanqueoVentasPremiosBolivares';
+import { BanqueoVentasPremiosDolares } from './BanqueoVentasPremiosDolares';
+import { useSystemCommissions } from '@/hooks/useSystemCommissions';
+import { Building2, CalendarIcon, DollarSign, ChevronLeft, ChevronRight, Users } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { formatDateForDB } from '@/lib/dateUtils';
 import { format, startOfWeek, endOfWeek, addWeeks } from 'date-fns';
@@ -47,11 +46,12 @@ interface Client {
 }
 
 export const BanqueoManager = () => {
-  const [mainTab, setMainTab] = useState('sales');
-  const [salesTab, setSalesTab] = useState('bolivares');
-  const [prizesTab, setPrizesTab] = useState('bolivares');
+  const [currencyTab, setCurrencyTab] = useState('bolivares');
+  const [commissionView, setCommissionView] = useState<'agencies' | 'clients'>('clients');
   const [lotteryOptions, setLotteryOptions] = useState<LotterySystem[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
+  const [agencies, setAgencies] = useState<Client[]>([]);
+  const [participationPercentage, setParticipationPercentage] = useState<number>(0);
   
   // Persistir cliente y semana seleccionada en localStorage
   const [selectedClient, setSelectedClient] = useState<string>(() => {
@@ -75,6 +75,7 @@ export const BanqueoManager = () => {
   const [editMode, setEditMode] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
+  const { commissions, loading: commissionsLoading } = useSystemCommissions();
 
   // Guardar cliente seleccionado en localStorage cuando cambie
   useEffect(() => {
@@ -98,7 +99,7 @@ export const BanqueoManager = () => {
     },
   });
 
-  // Cargar clientes y sistemas de lotería
+  // Cargar clientes, agencias y sistemas de lotería
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
@@ -111,6 +112,16 @@ export const BanqueoManager = () => {
 
         if (clientsError) throw clientsError;
         setClients(clientsData || []);
+
+        // Cargar agencias
+        const { data: agenciesData, error: agenciesError } = await supabase
+          .from('agencies')
+          .select('id, name')
+          .eq('is_active', true)
+          .order('name');
+
+        if (agenciesError) throw agenciesError;
+        setAgencies(agenciesData || []);
 
         // Cargar sistemas de lotería
         const { data: systemsData, error: systemsError } = await supabase
@@ -187,11 +198,17 @@ export const BanqueoManager = () => {
           return system;
         });
 
+        // Cargar participation_percentage del primer registro (debería ser el mismo para todos)
+        if (transactions[0]?.participation_percentage) {
+          setParticipationPercentage(Number(transactions[0].participation_percentage) || 0);
+        }
+
         form.setValue('systems', systemsWithData);
         setEditMode(true);
       } else {
         // No hay datos, inicializar vacío
         form.setValue('systems', systemsData);
+        setParticipationPercentage(0);
         setEditMode(false);
       }
     } catch (error: any) {
@@ -269,6 +286,7 @@ export const BanqueoManager = () => {
         sales_usd: system.sales_usd,
         prizes_bs: system.prizes_bs,
         prizes_usd: system.prizes_usd,
+        participation_percentage: participationPercentage,
         created_by: user.id,
       }));
 
@@ -388,17 +406,24 @@ export const BanqueoManager = () => {
       </div>
 
       {selectedClient && (
-        <Tabs value={mainTab} onValueChange={setMainTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="sales" className="flex items-center gap-2">
-              <DollarSign className="h-4 w-4" />
-              Ventas
-            </TabsTrigger>
-            <TabsTrigger value="prizes" className="flex items-center gap-2">
-              <Gift className="h-4 w-4" />
-              Premios
-            </TabsTrigger>
-          </TabsList>
+        <div className="space-y-6">
+          {/* Selector de vista de comisiones */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Vista de Comisiones
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Tabs value={commissionView} onValueChange={(v) => setCommissionView(v as 'agencies' | 'clients')}>
+                <TabsList className="grid w-full max-w-md grid-cols-2">
+                  <TabsTrigger value="clients">Clients</TabsTrigger>
+                  <TabsTrigger value="agencies">Agencies</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </CardContent>
+          </Card>
 
           {/* Resumen de totales */}
           <Card className="bg-muted/50">
@@ -453,54 +478,34 @@ export const BanqueoManager = () => {
             </CardContent>
           </Card>
 
-          <TabsContent value="sales" className="space-y-6">
-            {/* Sub-tabs para ventas */}
-            <Tabs value={salesTab} onValueChange={setSalesTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="bolivares">Ventas Bs</TabsTrigger>
-                <TabsTrigger value="dolares">Ventas USD</TabsTrigger>
-              </TabsList>
+          {/* Tabs combinados de Ventas/Premios */}
+          <Tabs value={currencyTab} onValueChange={setCurrencyTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="bolivares">Ventas/Premios Bs</TabsTrigger>
+              <TabsTrigger value="dolares">Ventas/Premios USD</TabsTrigger>
+            </TabsList>
 
-              <TabsContent value="bolivares" className="space-y-4">
-                <BanqueoSalesBolivares 
-                  form={form} 
-                  lotteryOptions={lotteryOptions}
-                />
-              </TabsContent>
+            <TabsContent value="bolivares" className="space-y-4">
+              <BanqueoVentasPremiosBolivares 
+                form={form} 
+                lotteryOptions={lotteryOptions}
+                commissions={commissions}
+                participationPercentage={participationPercentage}
+                onParticipationChange={setParticipationPercentage}
+              />
+            </TabsContent>
 
-              <TabsContent value="dolares" className="space-y-4">
-                <BanqueoSalesDolares 
-                  form={form} 
-                  lotteryOptions={lotteryOptions}
-                />
-              </TabsContent>
-            </Tabs>
-          </TabsContent>
-
-          <TabsContent value="prizes" className="space-y-6">
-            {/* Sub-tabs para premios */}
-            <Tabs value={prizesTab} onValueChange={setPrizesTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="bolivares">Premios Bs</TabsTrigger>
-                <TabsTrigger value="dolares">Premios USD</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="bolivares" className="space-y-4">
-                <BanqueoPrizesBolivares 
-                  form={form} 
-                  lotteryOptions={lotteryOptions}
-                />
-              </TabsContent>
-
-              <TabsContent value="dolares" className="space-y-4">
-                <BanqueoPrizesDolares 
-                  form={form} 
-                  lotteryOptions={lotteryOptions}
-                />
-              </TabsContent>
-            </Tabs>
-          </TabsContent>
-        </Tabs>
+            <TabsContent value="dolares" className="space-y-4">
+              <BanqueoVentasPremiosDolares 
+                form={form} 
+                lotteryOptions={lotteryOptions}
+                commissions={commissions}
+                participationPercentage={participationPercentage}
+                onParticipationChange={setParticipationPercentage}
+              />
+            </TabsContent>
+          </Tabs>
+        </div>
       )}
 
       {/* Botón de guardar */}
