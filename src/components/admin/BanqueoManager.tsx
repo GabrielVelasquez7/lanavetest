@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -52,6 +53,7 @@ export const BanqueoManager = () => {
   const [clients, setClients] = useState<Client[]>([]);
   const [agencies, setAgencies] = useState<Client[]>([]);
   const [participationPercentage, setParticipationPercentage] = useState<number>(0);
+  const [participation2Percentage, setParticipation2Percentage] = useState<number>(0);
   
   // Persistir cliente y semana seleccionada en localStorage
   const [selectedClient, setSelectedClient] = useState<string>(() => {
@@ -443,7 +445,7 @@ export const BanqueoManager = () => {
       {selectedClient && (
         <div className="space-y-6">
           {/* Totalizadores con estilo estándar */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
             {/* Ventas */}
             <Card className="border-2 border-green-500/20 bg-gradient-to-br from-green-500/10 to-green-500/5">
               <CardContent className="pt-6">
@@ -550,6 +552,42 @@ export const BanqueoManager = () => {
                   <p className="text-sm font-semibold text-purple-600/70 font-mono">
                     {formatCurrency((totals.sales_usd - totals.prizes_usd) + totals.commission_usd + totals.participation_usd, 'USD')}
                   </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Participación 2 */}
+            <Card className="border-2 border-orange-500/20 bg-gradient-to-br from-orange-500/10 to-orange-500/5">
+              <CardContent className="pt-6">
+                <div className="flex items-start justify-between mb-2">
+                  <div className="p-2 bg-orange-500/10 rounded-lg">
+                    <Coins className="h-5 w-5 text-orange-600" />
+                  </div>
+                </div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                  Participación 2
+                </p>
+                <div className="space-y-0.5">
+                  <p className="text-xl font-bold text-orange-600 font-mono">
+                    {formatCurrency((((totals.sales_bs - totals.prizes_bs) + totals.commission_bs + totals.participation_bs) * participation2Percentage / 100), 'VES')}
+                  </p>
+                  <p className="text-sm font-semibold text-orange-600/70 font-mono">
+                    {formatCurrency((((totals.sales_usd - totals.prizes_usd) + totals.commission_usd + totals.participation_usd) * participation2Percentage / 100), 'USD')}
+                  </p>
+                </div>
+                <div className="mt-2 pt-2 border-t border-orange-500/20">
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs text-muted-foreground">%:</label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="100"
+                      value={participation2Percentage}
+                      onChange={(e) => setParticipation2Percentage(parseFloat(e.target.value) || 0)}
+                      className="h-7 w-16 text-center text-xs"
+                    />
+                  </div>
                 </div>
               </CardContent>
             </Card>
