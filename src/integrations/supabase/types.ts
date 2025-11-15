@@ -86,6 +86,7 @@ export type Database = {
           created_by: string
           id: string
           lottery_system_id: string | null
+          participation_percentage: number
           prizes_bs: number
           prizes_usd: number
           sales_bs: number
@@ -100,6 +101,7 @@ export type Database = {
           created_by: string
           id?: string
           lottery_system_id?: string | null
+          participation_percentage?: number
           prizes_bs?: number
           prizes_usd?: number
           sales_bs?: number
@@ -114,6 +116,7 @@ export type Database = {
           created_by?: string
           id?: string
           lottery_system_id?: string | null
+          participation_percentage?: number
           prizes_bs?: number
           prizes_usd?: number
           sales_bs?: number
