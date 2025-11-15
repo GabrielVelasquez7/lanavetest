@@ -250,8 +250,6 @@ export const BanqueoManager = () => {
       participation_usd: number;
       final_total_bs: number;
       final_total_usd: number;
-      ganancia_banqueo_bs: number;
-      ganancia_banqueo_usd: number;
     };
     
     return systems.reduce<TotalsType>(
@@ -290,8 +288,6 @@ export const BanqueoManager = () => {
           participation_usd: acc.participation_usd + participationUsd,
           final_total_bs: acc.final_total_bs + finalTotalBs,
           final_total_usd: acc.final_total_usd + finalTotalUsd,
-          ganancia_banqueo_bs: acc.ganancia_banqueo_bs + (finalTotalBs / 5),
-          ganancia_banqueo_usd: acc.ganancia_banqueo_usd + (finalTotalUsd / 5),
         };
       },
       { 
@@ -300,8 +296,7 @@ export const BanqueoManager = () => {
         commission_bs: 0, commission_usd: 0,
         subtotal_bs: 0, subtotal_usd: 0,
         participation_bs: 0, participation_usd: 0,
-        final_total_bs: 0, final_total_usd: 0,
-        ganancia_banqueo_bs: 0, ganancia_banqueo_usd: 0
+        final_total_bs: 0, final_total_usd: 0
       }
     );
   }, [systems, commissions, participationPercentage]);
@@ -449,7 +444,7 @@ export const BanqueoManager = () => {
         <div className="space-y-6">
           {/* Totalizadores con estilo estándar */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-            {/* Ventas en Bolívares */}
+            {/* Ventas */}
             <Card className="border-2 border-green-500/20 bg-gradient-to-br from-green-500/10 to-green-500/5">
               <CardContent className="pt-6">
                 <div className="flex items-start justify-between mb-2">
@@ -458,28 +453,38 @@ export const BanqueoManager = () => {
                   </div>
                 </div>
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
-                  Ventas (Bs)
+                  Ventas
                 </p>
-                <p className="text-2xl font-bold text-green-600 font-mono">
-                  {formatCurrency(totals.sales_bs, 'VES')}
-                </p>
+                <div className="space-y-0.5">
+                  <p className="text-xl font-bold text-green-600 font-mono">
+                    {formatCurrency(totals.sales_bs, 'VES')}
+                  </p>
+                  <p className="text-sm font-semibold text-green-600/70 font-mono">
+                    {formatCurrency(totals.sales_usd, 'USD')}
+                  </p>
+                </div>
               </CardContent>
             </Card>
 
-            {/* Ventas en Dólares */}
-            <Card className="border-2 border-blue-500/20 bg-gradient-to-br from-blue-500/10 to-blue-500/5">
+            {/* Premios */}
+            <Card className="border-2 border-red-500/20 bg-gradient-to-br from-red-500/10 to-red-500/5">
               <CardContent className="pt-6">
                 <div className="flex items-start justify-between mb-2">
-                  <div className="p-2 bg-blue-500/10 rounded-lg">
-                    <DollarSign className="h-5 w-5 text-blue-600" />
+                  <div className="p-2 bg-red-500/10 rounded-lg">
+                    <Award className="h-5 w-5 text-red-600" />
                   </div>
                 </div>
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
-                  Ventas (USD)
+                  Premios
                 </p>
-                <p className="text-2xl font-bold text-blue-600 font-mono">
-                  {formatCurrency(totals.sales_usd, 'USD')}
-                </p>
+                <div className="space-y-0.5">
+                  <p className="text-xl font-bold text-red-600 font-mono">
+                    {formatCurrency(totals.prizes_bs, 'VES')}
+                  </p>
+                  <p className="text-sm font-semibold text-red-600/70 font-mono">
+                    {formatCurrency(totals.prizes_usd, 'USD')}
+                  </p>
+                </div>
               </CardContent>
             </Card>
 
@@ -505,7 +510,7 @@ export const BanqueoManager = () => {
               </CardContent>
             </Card>
 
-            {/* Total Final */}
+            {/* Comisión de Participación */}
             <Card className="border-2 border-emerald-500/20 bg-gradient-to-br from-emerald-500/10 to-emerald-500/5">
               <CardContent className="pt-6">
                 <div className="flex items-start justify-between mb-2">
@@ -514,14 +519,14 @@ export const BanqueoManager = () => {
                   </div>
                 </div>
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
-                  Total Final
+                  Comisión de Participación
                 </p>
                 <div className="space-y-0.5">
                   <p className="text-xl font-bold text-emerald-600 font-mono">
-                    {formatCurrency(totals.final_total_bs, 'VES')}
+                    {formatCurrency(totals.participation_bs, 'VES')}
                   </p>
                   <p className="text-sm font-semibold text-emerald-600/70 font-mono">
-                    {formatCurrency(totals.final_total_usd, 'USD')}
+                    {formatCurrency(totals.participation_usd, 'USD')}
                   </p>
                 </div>
               </CardContent>
@@ -540,10 +545,10 @@ export const BanqueoManager = () => {
                 </p>
                 <div className="space-y-0.5">
                   <p className="text-xl font-bold text-purple-600 font-mono">
-                    {formatCurrency(totals.ganancia_banqueo_bs, 'VES')}
+                    {formatCurrency(totals.final_total_bs / 5, 'VES')}
                   </p>
                   <p className="text-sm font-semibold text-purple-600/70 font-mono">
-                    {formatCurrency(totals.ganancia_banqueo_usd, 'USD')}
+                    {formatCurrency(totals.final_total_usd / 5, 'USD')}
                   </p>
                 </div>
               </CardContent>
