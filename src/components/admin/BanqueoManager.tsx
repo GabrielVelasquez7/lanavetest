@@ -569,10 +569,10 @@ export const BanqueoManager = () => {
                 </p>
                 <div className="space-y-0.5">
                   <p className="text-xl font-bold text-orange-600 font-mono">
-                    {formatCurrency(totals.final_total_bs * participation2Percentage / 100, 'VES')}
+                    {formatCurrency(totals.subtotal_bs * participation2Percentage / 100, 'VES')}
                   </p>
                   <p className="text-sm font-semibold text-orange-600/70 font-mono">
-                    {formatCurrency(totals.final_total_usd * participation2Percentage / 100, 'USD')}
+                    {formatCurrency(totals.subtotal_usd * participation2Percentage / 100, 'USD')}
                   </p>
                 </div>
                 <div className="mt-2 pt-2 border-t border-orange-500/20">
