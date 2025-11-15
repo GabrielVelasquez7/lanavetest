@@ -32,11 +32,25 @@ interface Agency {
   group_id: string | null;
 }
 
+interface BanqueoTransaction {
+  id: string;
+  client_id: string;
+  week_start_date: string;
+  week_end_date: string;
+  lottery_system_id: string;
+  sales_bs: number;
+  sales_usd: number;
+  prizes_bs: number;
+  prizes_usd: number;
+  participation_percentage: number;
+}
+
 export function AdminGananciasView() {
   const [currentWeek, setCurrentWeek] = useState<WeekBoundaries | null>(null);
   const [bankExpenses, setBankExpenses] = useState<WeeklyBankExpense[]>([]);
   const [agencyGroups, setAgencyGroups] = useState<AgencyGroup[]>([]);
   const [agencies, setAgencies] = useState<Agency[]>([]);
+  const [banqueoTransactions, setBanqueoTransactions] = useState<BanqueoTransaction[]>([]);
   const [isGlobalExpensesOpen, setIsGlobalExpensesOpen] = useState(false);
   const [isProfitDistributionOpen, setIsProfitDistributionOpen] = useState(false);
   const [currency, setCurrency] = useState<"bs" | "usd">("bs");
@@ -60,6 +74,7 @@ export function AdminGananciasView() {
       fetchBankExpenses();
       fetchAgencyGroups();
       fetchAgencies();
+      fetchBanqueoTransactions();
     }
   }, [currentWeek]);
 
@@ -102,6 +117,26 @@ export function AdminGananciasView() {
       setAgencies(data || []);
     } catch (error) {
       console.error("Error fetching agencies:", error);
+    }
+  };
+
+  const fetchBanqueoTransactions = async () => {
+    if (!currentWeek) return;
+
+    try {
+      const startStr = format(currentWeek.start, "yyyy-MM-dd");
+      const endStr = format(currentWeek.end, "yyyy-MM-dd");
+
+      const { data, error } = await supabase
+        .from("banqueo_transactions")
+        .select("*")
+        .eq("week_start_date", startStr)
+        .eq("week_end_date", endStr);
+
+      if (error) throw error;
+      setBanqueoTransactions(data || []);
+    } catch (error) {
+      console.error("Error fetching banqueo transactions:", error);
     }
   };
 
@@ -265,6 +300,44 @@ export function AdminGananciasView() {
   const finalProfitBs = useMemo(() => {
     return groupsData.reduce((total, groupData) => total + groupData.finalProfitBs, 0);
   }, [groupsData]);
+
+  // Calculate banqueo total (final_total) for the week
+  const banqueoTotal = useMemo(() => {
+    let totalFinalBs = 0;
+    let totalFinalUsd = 0;
+
+    banqueoTransactions.forEach((transaction) => {
+      const salesBs = Number(transaction.sales_bs || 0);
+      const salesUsd = Number(transaction.sales_usd || 0);
+      const prizesBs = Number(transaction.prizes_bs || 0);
+      const prizesUsd = Number(transaction.prizes_usd || 0);
+      const cuadreBs = salesBs - prizesBs;
+      const cuadreUsd = salesUsd - prizesUsd;
+
+      const commissionRate = commissions.get(transaction.lottery_system_id);
+      const commissionPercentageBs = commissionRate?.commission_percentage || 0;
+      const commissionPercentageUsd = commissionRate?.commission_percentage_usd || 0;
+      const commissionBs = salesBs * (commissionPercentageBs / 100);
+      const commissionUsd = salesUsd * (commissionPercentageUsd / 100);
+      const subtotalBs = cuadreBs - commissionBs;
+      const subtotalUsd = cuadreUsd - commissionUsd;
+      const participationPercentage = Number(transaction.participation_percentage || 0);
+      const participationBs = subtotalBs * (participationPercentage / 100);
+      const participationUsd = subtotalUsd * (participationPercentage / 100);
+      const finalTotalBs = subtotalBs - participationBs;
+      const finalTotalUsd = subtotalUsd - participationUsd;
+
+      totalFinalBs += finalTotalBs;
+      totalFinalUsd += finalTotalUsd;
+    });
+
+    return {
+      totalBs: totalFinalBs,
+      totalUsd: totalFinalUsd,
+      perPersonBs: totalFinalBs / 5,
+      perPersonUsd: totalFinalUsd / 5,
+    };
+  }, [banqueoTransactions, commissions]);
 
   // Calculate participation profit
   const participationData = useMemo(() => {
@@ -568,10 +641,67 @@ export function AdminGananciasView() {
                         </TabsContent>
 
                         <TabsContent value="banqueo" className="space-y-4 mt-4">
-                          <div className="text-center py-12 text-muted-foreground">
-                            <Calculator className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                            <p className="text-lg font-medium">Ganancia por Banqueo</p>
-                            <p className="text-sm mt-2">Contenido próximamente</p>
+                          <h4 className="text-sm font-medium text-muted-foreground">
+                            Distribución de Ganancias por Banqueo ({currency === "bs" ? "Bs" : "USD"})
+                          </h4>
+                          <div className="flex items-center justify-between mb-4 p-4 bg-purple-500/10 border border-purple-500/20 rounded-lg">
+                            <p className="text-sm font-medium text-muted-foreground">Total Ganancia Banqueo:</p>
+                            <p className="text-2xl font-bold text-purple-700 font-mono">
+                              {currency === "bs" ? formatCurrency(banqueoTotal.totalBs, "VES") : formatCurrency(banqueoTotal.totalUsd, "USD")}
+                            </p>
+                          </div>
+                          <div className="space-y-3">
+                            {["Denis", "Jonathan", "Byjer", "Daniela", "Jorge"].map((person) => {
+                              // Cada persona recibe el total dividido entre 5
+                              const baseShare = currency === "bs" ? banqueoTotal.perPersonBs : banqueoTotal.perPersonUsd;
+                              
+                              const restaPerdida = 0;
+                              const sumaGanancia = 0;
+                              const abonos = 0;
+                              const total = baseShare - restaPerdida + sumaGanancia - abonos;
+                              
+                              return (
+                                <Card key={person} className="bg-purple-500/5 border-purple-500/20">
+                                  <CardContent className="p-4">
+                                    <div className="flex items-center justify-between mb-3">
+                                      <h5 className="font-bold text-lg">{person}</h5>
+                                      <div className="text-right">
+                                        <p className="text-xs text-muted-foreground">Total</p>
+                                        <p className="text-xl font-bold text-purple-700 font-mono">
+                                          {currency === "bs" ? formatCurrency(total, "VES") : formatCurrency(total, "USD")}
+                                        </p>
+                                      </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                      <div>
+                                        <p className="text-xs text-muted-foreground mb-1">Monto Base</p>
+                                        <p className="text-sm font-semibold font-mono">
+                                          {currency === "bs" ? formatCurrency(baseShare, "VES") : formatCurrency(baseShare, "USD")}
+                                        </p>
+                                      </div>
+                                      <div>
+                                        <p className="text-xs text-muted-foreground mb-1">Resta Pérdida</p>
+                                        <p className="text-sm font-semibold font-mono text-red-600">
+                                          -{currency === "bs" ? formatCurrency(restaPerdida, "VES") : formatCurrency(restaPerdida, "USD")}
+                                        </p>
+                                      </div>
+                                      <div>
+                                        <p className="text-xs text-muted-foreground mb-1">Suma Ganancia</p>
+                                        <p className="text-sm font-semibold font-mono text-green-600">
+                                          +{currency === "bs" ? formatCurrency(sumaGanancia, "VES") : formatCurrency(sumaGanancia, "USD")}
+                                        </p>
+                                      </div>
+                                      <div>
+                                        <p className="text-xs text-muted-foreground mb-1">Abonos</p>
+                                        <p className="text-sm font-semibold font-mono text-amber-600">
+                                          -{currency === "bs" ? formatCurrency(abonos, "VES") : formatCurrency(abonos, "USD")}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </CardContent>
+                                </Card>
+                              );
+                            })}
                           </div>
                         </TabsContent>
                       </Tabs>
