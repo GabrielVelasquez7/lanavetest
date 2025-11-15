@@ -545,10 +545,10 @@ export const BanqueoManager = () => {
                 </p>
                 <div className="space-y-0.5">
                   <p className="text-xl font-bold text-purple-600 font-mono">
-                    {formatCurrency(totals.final_total_bs / 5, 'VES')}
+                    {formatCurrency(totals.final_total_bs, 'VES')}
                   </p>
                   <p className="text-sm font-semibold text-purple-600/70 font-mono">
-                    {formatCurrency(totals.final_total_usd / 5, 'USD')}
+                    {formatCurrency(totals.final_total_usd, 'USD')}
                   </p>
                 </div>
               </CardContent>
