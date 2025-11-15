@@ -235,7 +235,26 @@ export const BanqueoManager = () => {
 
   const systems = form.watch('systems');
   const totals = useMemo(() => {
-    return systems.reduce(
+    type TotalsType = {
+      sales_bs: number;
+      sales_usd: number;
+      prizes_bs: number;
+      prizes_usd: number;
+      cuadre_bs: number;
+      cuadre_usd: number;
+      commission_bs: number;
+      commission_usd: number;
+      subtotal_bs: number;
+      subtotal_usd: number;
+      participation_bs: number;
+      participation_usd: number;
+      final_total_bs: number;
+      final_total_usd: number;
+      ganancia_banqueo_bs: number;
+      ganancia_banqueo_usd: number;
+    };
+    
+    return systems.reduce<TotalsType>(
       (acc, system) => {
         const salesBs = system.sales_bs || 0;
         const salesUsd = system.sales_usd || 0;
