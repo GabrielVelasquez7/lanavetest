@@ -12,7 +12,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { BanqueoVentasPremiosBolivares } from './BanqueoVentasPremiosBolivares';
 import { BanqueoVentasPremiosDolares } from './BanqueoVentasPremiosDolares';
 import { useSystemCommissions } from '@/hooks/useSystemCommissions';
-import { Building2, CalendarIcon, DollarSign, ChevronLeft, ChevronRight, Users, TrendingUp, Award, Coins } from 'lucide-react';
+import { Building2, CalendarIcon, DollarSign, ChevronLeft, ChevronRight, Users, TrendingUp, Award, Coins, Banknote } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { formatDateForDB } from '@/lib/dateUtils';
 import { format, startOfWeek, endOfWeek, addWeeks } from 'date-fns';
@@ -271,6 +271,8 @@ export const BanqueoManager = () => {
           participation_usd: acc.participation_usd + participationUsd,
           final_total_bs: acc.final_total_bs + finalTotalBs,
           final_total_usd: acc.final_total_usd + finalTotalUsd,
+          ganancia_banqueo_bs: acc.ganancia_banqueo_bs + (finalTotalBs / 5),
+          ganancia_banqueo_usd: acc.ganancia_banqueo_usd + (finalTotalUsd / 5),
         };
       },
       { 
@@ -279,7 +281,8 @@ export const BanqueoManager = () => {
         commission_bs: 0, commission_usd: 0,
         subtotal_bs: 0, subtotal_usd: 0,
         participation_bs: 0, participation_usd: 0,
-        final_total_bs: 0, final_total_usd: 0
+        final_total_bs: 0, final_total_usd: 0,
+        ganancia_banqueo_bs: 0, ganancia_banqueo_usd: 0
       }
     );
   }, [systems, commissions, participationPercentage]);
@@ -426,7 +429,7 @@ export const BanqueoManager = () => {
       {selectedClient && (
         <div className="space-y-6">
           {/* Totalizadores con estilo estándar */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             {/* Ventas en Bolívares */}
             <Card className="border-2 border-green-500/20 bg-gradient-to-br from-green-500/10 to-green-500/5">
               <CardContent className="pt-6">
@@ -504,26 +507,31 @@ export const BanqueoManager = () => {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Ganancia por Banqueo */}
+            <Card className="border-2 border-purple-500/20 bg-gradient-to-br from-purple-500/10 to-purple-500/5">
+              <CardContent className="pt-6">
+                <div className="flex items-start justify-between mb-2">
+                  <div className="p-2 bg-purple-500/10 rounded-lg">
+                    <Banknote className="h-5 w-5 text-purple-600" />
+                  </div>
+                </div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                  Ganancia por Banqueo
+                </p>
+                <div className="space-y-0.5">
+                  <p className="text-xl font-bold text-purple-600 font-mono">
+                    {formatCurrency(totals.ganancia_banqueo_bs, 'VES')}
+                  </p>
+                  <p className="text-sm font-semibold text-purple-600/70 font-mono">
+                    {formatCurrency(totals.ganancia_banqueo_usd, 'USD')}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
-          {/* Selector de vista de comisiones */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5" />
-                Vista de Comisiones
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Tabs value={commissionView} onValueChange={(v) => setCommissionView(v as 'agencies' | 'clients')}>
-                <TabsList className="grid w-full max-w-md grid-cols-2">
-                  <TabsTrigger value="clients">Clients</TabsTrigger>
-                  <TabsTrigger value="agencies">Agencies</TabsTrigger>
-                </TabsList>
-              </Tabs>
-            </CardContent>
-          </Card>
-
+      
           {/* Tabs combinados de Ventas/Premios */}
           <Tabs value={currencyTab} onValueChange={setCurrencyTab} className="w-full">
             <TabsList className="grid w-full grid-cols-2">
