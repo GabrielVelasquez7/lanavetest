@@ -301,10 +301,16 @@ export function AdminGananciasView() {
     return groupsData.reduce((total, groupData) => total + groupData.finalProfitBs, 0);
   }, [groupsData]);
 
-  // Calculate banqueo total (final_total) for the week
+  // Calculate banqueo total using the formula from the totalizer: (sales - prizes) + commission + participation
   const banqueoTotal = useMemo(() => {
-    let totalFinalBs = 0;
-    let totalFinalUsd = 0;
+    let totalSalesBs = 0;
+    let totalSalesUsd = 0;
+    let totalPrizesBs = 0;
+    let totalPrizesUsd = 0;
+    let totalCommissionBs = 0;
+    let totalCommissionUsd = 0;
+    let totalParticipationBs = 0;
+    let totalParticipationUsd = 0;
 
     banqueoTransactions.forEach((transaction) => {
       const salesBs = Number(transaction.sales_bs || 0);
@@ -324,18 +330,26 @@ export function AdminGananciasView() {
       const participationPercentage = Number(transaction.participation_percentage || 0);
       const participationBs = subtotalBs * (participationPercentage / 100);
       const participationUsd = subtotalUsd * (participationPercentage / 100);
-      const finalTotalBs = subtotalBs - participationBs;
-      const finalTotalUsd = subtotalUsd - participationUsd;
 
-      totalFinalBs += finalTotalBs;
-      totalFinalUsd += finalTotalUsd;
+      totalSalesBs += salesBs;
+      totalSalesUsd += salesUsd;
+      totalPrizesBs += prizesBs;
+      totalPrizesUsd += prizesUsd;
+      totalCommissionBs += commissionBs;
+      totalCommissionUsd += commissionUsd;
+      totalParticipationBs += participationBs;
+      totalParticipationUsd += participationUsd;
     });
 
+    // Formula: (sales - prizes) + commission + participation
+    const totalBs = (totalSalesBs - totalPrizesBs) + totalCommissionBs + totalParticipationBs;
+    const totalUsd = (totalSalesUsd - totalPrizesUsd) + totalCommissionUsd + totalParticipationUsd;
+
     return {
-      totalBs: totalFinalBs,
-      totalUsd: totalFinalUsd,
-      perPersonBs: totalFinalBs / 5,
-      perPersonUsd: totalFinalUsd / 5,
+      totalBs,
+      totalUsd,
+      perPersonBs: totalBs / 5,
+      perPersonUsd: totalUsd / 5,
     };
   }, [banqueoTransactions, commissions]);
 
