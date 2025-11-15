@@ -20,7 +20,19 @@ interface BanqueoVentasPremiosDolaresProps {
   onParticipationChange: (value: number) => void;
 }
 
-export const BanqueoVentasPremiosDolares = ({ 
+interface SystemTotals {
+  sales_bs?: number;
+  sales_usd?: number;
+  prizes_bs?: number;
+  prizes_usd?: number;
+  cuadre: number;
+  commission: number;
+  subtotal: number;
+  participation: number;
+  finalTotal: number;
+}
+
+export const BanqueoVentasPremiosDolares = ({
   form, 
   lotteryOptions, 
   commissions,
@@ -118,28 +130,21 @@ export const BanqueoVentasPremiosDolares = ({
     };
   };
 
-  const calculateTotals = () => {
-    return systems.reduce(
+  const calculateTotals = (): SystemTotals => {
+    return normalSystems.reduce<SystemTotals>(
       (acc, system) => {
         const sales = system.sales_usd || 0;
         const prizes = system.prizes_usd || 0;
-        const cuadre = sales - prizes;
-        
-        const commissionRate = commissions.get(system.lottery_system_id);
-        const commissionPercentage = commissionRate?.commission_percentage_usd || 0;
-        const commission = sales * (commissionPercentage / 100);
-        const subtotal = cuadre - commission;
-        const participation = subtotal * (participationPercentage / 100);
-        const finalTotal = subtotal - participation;
+        const totals = calculateSystemTotals(system);
         
         return {
-          sales_usd: acc.sales_usd + sales,
-          prizes_usd: acc.prizes_usd + prizes,
-          cuadre: acc.cuadre + cuadre,
-          commission: acc.commission + commission,
-          subtotal: acc.subtotal + subtotal,
-          participation: acc.participation + participation,
-          finalTotal: acc.finalTotal + finalTotal,
+          sales_usd: (acc.sales_usd || 0) + sales,
+          prizes_usd: (acc.prizes_usd || 0) + prizes,
+          cuadre: acc.cuadre + totals.cuadre,
+          commission: acc.commission + totals.commission,
+          subtotal: acc.subtotal + totals.subtotal,
+          participation: acc.participation + totals.participation,
+          finalTotal: acc.finalTotal + totals.finalTotal,
         };
       },
       { sales_usd: 0, prizes_usd: 0, cuadre: 0, commission: 0, subtotal: 0, participation: 0, finalTotal: 0 }
