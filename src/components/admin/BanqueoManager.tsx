@@ -12,7 +12,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { BanqueoVentasPremiosBolivares } from './BanqueoVentasPremiosBolivares';
 import { BanqueoVentasPremiosDolares } from './BanqueoVentasPremiosDolares';
 import { useSystemCommissions } from '@/hooks/useSystemCommissions';
-import { Building2, CalendarIcon, DollarSign, ChevronLeft, ChevronRight, Users } from 'lucide-react';
+import { Building2, CalendarIcon, DollarSign, ChevronLeft, ChevronRight, Users, TrendingUp, Award, Coins } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { formatDateForDB } from '@/lib/dateUtils';
 import { format, startOfWeek, endOfWeek, addWeeks } from 'date-fns';
@@ -236,15 +236,53 @@ export const BanqueoManager = () => {
   const systems = form.watch('systems');
   const totals = useMemo(() => {
     return systems.reduce(
-      (acc, system) => ({
-        sales_bs: acc.sales_bs + (system.sales_bs || 0),
-        sales_usd: acc.sales_usd + (system.sales_usd || 0),
-        prizes_bs: acc.prizes_bs + (system.prizes_bs || 0),
-        prizes_usd: acc.prizes_usd + (system.prizes_usd || 0),
-      }),
-      { sales_bs: 0, sales_usd: 0, prizes_bs: 0, prizes_usd: 0 }
+      (acc, system) => {
+        const salesBs = system.sales_bs || 0;
+        const salesUsd = system.sales_usd || 0;
+        const prizesBs = system.prizes_bs || 0;
+        const prizesUsd = system.prizes_usd || 0;
+        const cuadreBs = salesBs - prizesBs;
+        const cuadreUsd = salesUsd - prizesUsd;
+        
+        const commissionRate = commissions.get(system.lottery_system_id);
+        const commissionPercentageBs = commissionRate?.commission_percentage || 0;
+        const commissionPercentageUsd = commissionRate?.commission_percentage_usd || 0;
+        const commissionBs = salesBs * (commissionPercentageBs / 100);
+        const commissionUsd = salesUsd * (commissionPercentageUsd / 100);
+        const subtotalBs = cuadreBs - commissionBs;
+        const subtotalUsd = cuadreUsd - commissionUsd;
+        const participationBs = subtotalBs * (participationPercentage / 100);
+        const participationUsd = subtotalUsd * (participationPercentage / 100);
+        const finalTotalBs = subtotalBs - participationBs;
+        const finalTotalUsd = subtotalUsd - participationUsd;
+        
+        return {
+          sales_bs: acc.sales_bs + salesBs,
+          sales_usd: acc.sales_usd + salesUsd,
+          prizes_bs: acc.prizes_bs + prizesBs,
+          prizes_usd: acc.prizes_usd + prizesUsd,
+          cuadre_bs: acc.cuadre_bs + cuadreBs,
+          cuadre_usd: acc.cuadre_usd + cuadreUsd,
+          commission_bs: acc.commission_bs + commissionBs,
+          commission_usd: acc.commission_usd + commissionUsd,
+          subtotal_bs: acc.subtotal_bs + subtotalBs,
+          subtotal_usd: acc.subtotal_usd + subtotalUsd,
+          participation_bs: acc.participation_bs + participationBs,
+          participation_usd: acc.participation_usd + participationUsd,
+          final_total_bs: acc.final_total_bs + finalTotalBs,
+          final_total_usd: acc.final_total_usd + finalTotalUsd,
+        };
+      },
+      { 
+        sales_bs: 0, sales_usd: 0, prizes_bs: 0, prizes_usd: 0,
+        cuadre_bs: 0, cuadre_usd: 0,
+        commission_bs: 0, commission_usd: 0,
+        subtotal_bs: 0, subtotal_usd: 0,
+        participation_bs: 0, participation_usd: 0,
+        final_total_bs: 0, final_total_usd: 0
+      }
     );
-  }, [systems]);
+  }, [systems, commissions, participationPercentage]);
 
   const onSubmit = async (data: BanqueoForm) => {
     if (!user || !selectedClient || !currentWeek) return;
@@ -383,30 +421,91 @@ export const BanqueoManager = () => {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <DollarSign className="h-5 w-5 mr-2" />
-              Resumen
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground">Ventas Bs</p>
-              <p className="text-lg font-bold text-success">
-                {formatCurrency(totals.sales_bs, 'VES')}
-              </p>
-              <p className="text-xs text-muted-foreground">Ventas USD</p>
-              <p className="text-lg font-bold text-success">
-                {formatCurrency(totals.sales_usd, 'USD')}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
       {selectedClient && (
         <div className="space-y-6">
+          {/* Totalizadores con estilo estándar */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Ventas en Bolívares */}
+            <Card className="border-2 border-green-500/20 bg-gradient-to-br from-green-500/10 to-green-500/5">
+              <CardContent className="pt-6">
+                <div className="flex items-start justify-between mb-2">
+                  <div className="p-2 bg-green-500/10 rounded-lg">
+                    <DollarSign className="h-5 w-5 text-green-600" />
+                  </div>
+                </div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                  Ventas (Bs)
+                </p>
+                <p className="text-2xl font-bold text-green-600 font-mono">
+                  {formatCurrency(totals.sales_bs, 'VES')}
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Ventas en Dólares */}
+            <Card className="border-2 border-blue-500/20 bg-gradient-to-br from-blue-500/10 to-blue-500/5">
+              <CardContent className="pt-6">
+                <div className="flex items-start justify-between mb-2">
+                  <div className="p-2 bg-blue-500/10 rounded-lg">
+                    <DollarSign className="h-5 w-5 text-blue-600" />
+                  </div>
+                </div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                  Ventas (USD)
+                </p>
+                <p className="text-2xl font-bold text-blue-600 font-mono">
+                  {formatCurrency(totals.sales_usd, 'USD')}
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Comisiones */}
+            <Card className="border-2 border-yellow-500/20 bg-gradient-to-br from-yellow-500/10 to-yellow-500/5">
+              <CardContent className="pt-6">
+                <div className="flex items-start justify-between mb-2">
+                  <div className="p-2 bg-yellow-500/10 rounded-lg">
+                    <Award className="h-5 w-5 text-yellow-600" />
+                  </div>
+                </div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                  Comisiones
+                </p>
+                <div className="space-y-0.5">
+                  <p className="text-xl font-bold text-yellow-600 font-mono">
+                    {formatCurrency(totals.commission_bs, 'VES')}
+                  </p>
+                  <p className="text-sm font-semibold text-yellow-600/70 font-mono">
+                    {formatCurrency(totals.commission_usd, 'USD')}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Total Final */}
+            <Card className="border-2 border-emerald-500/20 bg-gradient-to-br from-emerald-500/10 to-emerald-500/5">
+              <CardContent className="pt-6">
+                <div className="flex items-start justify-between mb-2">
+                  <div className="p-2 bg-emerald-500/10 rounded-lg">
+                    <TrendingUp className="h-5 w-5 text-emerald-600" />
+                  </div>
+                </div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                  Total Final
+                </p>
+                <div className="space-y-0.5">
+                  <p className="text-xl font-bold text-emerald-600 font-mono">
+                    {formatCurrency(totals.final_total_bs, 'VES')}
+                  </p>
+                  <p className="text-sm font-semibold text-emerald-600/70 font-mono">
+                    {formatCurrency(totals.final_total_usd, 'USD')}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
           {/* Selector de vista de comisiones */}
           <Card>
             <CardHeader>
@@ -422,59 +521,6 @@ export const BanqueoManager = () => {
                   <TabsTrigger value="agencies">Agencies</TabsTrigger>
                 </TabsList>
               </Tabs>
-            </CardContent>
-          </Card>
-
-          {/* Resumen de totales */}
-          <Card className="bg-muted/50">
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <span>Resumen del Banqueo - {selectedClientName}</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-                <div>
-                  <p className="text-sm text-muted-foreground">Ventas Bs</p>
-                  <p className="text-xl font-bold text-success">
-                    {formatCurrency(totals.sales_bs, 'VES')}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Premios Bs</p>
-                  <p className="text-xl font-bold text-destructive">
-                    {formatCurrency(totals.prizes_bs, 'VES')}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Ventas USD</p>
-                  <p className="text-xl font-bold text-success">
-                    {formatCurrency(totals.sales_usd, 'USD')}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Premios USD</p>
-                  <p className="text-xl font-bold text-destructive">
-                    {formatCurrency(totals.prizes_usd, 'USD')}
-                  </p>
-                </div>
-              </div>
-              <div className="mt-4 pt-4 border-t">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-center">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Cuadre Bs</p>
-                    <p className={`text-2xl font-bold ${(totals.sales_bs - totals.prizes_bs) >= 0 ? 'text-success' : 'text-destructive'}`}>
-                      {formatCurrency(totals.sales_bs - totals.prizes_bs, 'VES')}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Cuadre USD</p>
-                    <p className={`text-2xl font-bold ${(totals.sales_usd - totals.prizes_usd) >= 0 ? 'text-success' : 'text-destructive'}`}>
-                      {formatCurrency(totals.sales_usd - totals.prizes_usd, 'USD')}
-                    </p>
-                  </div>
-                </div>
-              </div>
             </CardContent>
           </Card>
 
